@@ -25,7 +25,6 @@ public enum DocumentStatus {
     EMBEDDING_FAILED("向量化失败");
 
     private final String description;
-
     private Set<DocumentStatus> nextStates;
 
     DocumentStatus(String description) {
@@ -54,5 +53,20 @@ public enum DocumentStatus {
 
     public boolean isFinal() {
         return nextStates == null || nextStates.isEmpty();
+    }
+
+    /**
+     * 解析任务完成后的下一个状态（不含审核）。
+     */
+    public static DocumentStatus nextAfterTaskComplete(DocumentStatus current) {
+        return switch (current) {
+            case UPLOADED -> PARSING;
+            case PARSING -> CLEANING;
+            case CLEANING -> PENDING_REVIEW;
+            case APPROVED -> CHUNKING;
+            case CHUNKING -> EMBEDDING;
+            case EMBEDDING -> COMPLETED;
+            default -> throw new IllegalStateException("当前状态不可流转: " + current);
+        };
     }
 }
