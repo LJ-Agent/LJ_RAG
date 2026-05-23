@@ -56,7 +56,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                 String.valueOf(1), String.valueOf(permitsPerSecond), String.valueOf(now));
 
         if (result == null || result == 0) {
-            response.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+            response.setStatus(429);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"code\":429,\"message\":\"" + rateLimit.message() + "\"}");
             return false;
