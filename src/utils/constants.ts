@@ -1,4 +1,6 @@
-export const DOCUMENT_STATUS_MAP: Record<string, { label: string; type: 'info' | 'warning' | 'success' | 'danger' | '' }> = {
+type TagType = 'info' | 'warning' | 'success' | 'danger'
+
+export const DOCUMENT_STATUS_MAP: Record<string, { label: string; type: TagType }> = {
   UPLOADED: { label: '已上传', type: 'info' },
   PARSING: { label: '解析中', type: 'warning' },
   PARSING_FAILED: { label: '解析失败', type: 'danger' },
@@ -14,7 +16,7 @@ export const DOCUMENT_STATUS_MAP: Record<string, { label: string; type: 'info' |
   COMPLETED: { label: '已完成', type: 'success' },
 }
 
-export const REVIEW_RESULT_MAP: Record<string, { label: string; type: 'info' | 'warning' | 'success' | 'danger' | '' }> = {
+export const REVIEW_RESULT_MAP: Record<string, { label: string; type: TagType }> = {
   PENDING: { label: '待审核', type: 'warning' },
   APPROVED: { label: '已通过', type: 'success' },
   REJECTED: { label: '已驳回', type: 'danger' },
@@ -27,11 +29,11 @@ export const FEEDBACK_TYPE_MAP: Record<string, string> = {
   OTHER: '其他',
 }
 
-export const FEEDBACK_STATUS_MAP: Record<string, { label: string; type: 'info' | 'warning' | 'success' | 'danger' | '' }> = {
+export const FEEDBACK_STATUS_MAP: Record<string, { label: string; type: TagType }> = {
   PENDING: { label: '待处理', type: 'warning' },
   PROCESSING: { label: '处理中', type: 'info' },
   RESOLVED: { label: '已解决', type: 'success' },
-  CLOSED: { label: '已关闭', type: '' },
+  CLOSED: { label: '已关闭', type: 'info' },
 }
 
 export const CONFIG_TYPE_MAP: Record<string, string> = {
@@ -41,7 +43,7 @@ export const CONFIG_TYPE_MAP: Record<string, string> = {
   JSON: 'JSON',
 }
 
-export const USER_STATUS_MAP: Record<number, { label: string; type: '' | 'success' | 'danger' }> = {
+export const USER_STATUS_MAP: Record<number, { label: string; type: TagType }> = {
   0: { label: '禁用', type: 'danger' },
   1: { label: '启用', type: 'success' },
 }
