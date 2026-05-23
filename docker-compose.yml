@@ -115,61 +115,94 @@ services:
     networks:
       - rag-network
 
-  # ==================== 6. Python AI 检索服务 (gRPC :50051) ====================
-  # 代码由 AI 团队维护，需在 ai-services/retrieval/ 目录下提供 retrieval_server.py
-  rag-retrieval:
+  # ==================== 6. Milvus 向量数据库 (etcd + standalone) ====================
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: rag-etcd
+    restart: unless-stopped
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus:
+    image: milvusdb/milvus:v2.4.0
+    container_name: rag-milvus
+    restart: unless-stopped
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: http://minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    command: milvus run standalone
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ==================== 7. Python AI 服务 (gRPC :50051 + :50052 + Kafka) ====================
+  rag-python:
     build:
-      context: .
-      dockerfile: docker/Dockerfile.retrieval
-    image: rag-retrieval:latest
-    container_name: rag-retrieval
+      context: ../RAG-PYTHON
+      dockerfile: docker/Dockerfile
+    image: rag-python:latest
+    container_name: rag-python
     restart: unless-stopped
     depends_on:
       kafka:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
+      milvus:
+        condition: service_healthy
     ports:
       - "${GRPC_RETRIEVAL_PORT:-50051}:50051"
-    volumes:
-      - ./ai-services/retrieval:/app/retrieval
+      - "${GRPC_GENERATION_PORT:-50052}:50052"
     environment:
+      # Kafka
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # MinIO
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      # Milvus
+      MILVUS_HOST: milvus
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # LLM
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+    volumes:
+      - ../RAG-PYTHON/config:/app/config:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('localhost:50051'); grpc.channel_ready_future(ch).result(timeout=3)"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
-    networks:
-      - rag-network
-
-  # ==================== 7. Python AI 生成服务 (gRPC :50052) ====================
-  # 代码由 AI 团队维护，需在 ai-services/generation/ 目录下提供 generation_server.py
-  rag-generation:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.generation
-    image: rag-generation:latest
-    container_name: rag-generation
-    restart: unless-stopped
-    depends_on:
-      kafka:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
-    ports:
-      - "${GRPC_GENERATION_PORT:-50052}:50052"
-    volumes:
-      - ./ai-services/generation:/app/generation
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    healthcheck:
-      test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('localhost:50052'); grpc.channel_ready_future(ch).result(timeout=3)"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      start_period: 60s
     networks:
       - rag-network
 
@@ -188,11 +221,9 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
-      rag-retrieval:
+      milvus:
         condition: service_healthy
-      rag-generation:
+      rag-python:
         condition: service_healthy
     ports:
       - "${SERVER_PORT:-8080}:8080"
@@ -213,11 +244,11 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
-      # gRPC (Python AI 服务 — 外部部署)
-      GRPC_RETRIEVAL_HOST: ${GRPC_RETRIEVAL_HOST:-rag-python-retrieval}
-      GRPC_RETRIEVAL_PORT: ${GRPC_RETRIEVAL_PORT:-50051}
-      GRPC_GENERATION_HOST: ${GRPC_GENERATION_HOST:-rag-python-generation}
-      GRPC_GENERATION_PORT: ${GRPC_GENERATION_PORT:-50052}
+      # gRPC (Python AI 服务)
+      GRPC_RETRIEVAL_HOST: rag-python
+      GRPC_RETRIEVAL_PORT: 50051
+      GRPC_GENERATION_HOST: rag-python
+      GRPC_GENERATION_PORT: 50052
       # JWT
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
       # JVM
@@ -241,6 +272,10 @@ volumes:
     name: rag-kafka-data
   minio_data:
     name: rag-minio-data
+  etcd_data:
+    name: rag-etcd-data
+  milvus_data:
+    name: rag-milvus-data
 
 # ==================== 网络 ====================
 networks:
