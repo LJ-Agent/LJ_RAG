@@ -1,0 +1,31 @@
+# ==================== Python 检索服务 ====================
+# 负责向量检索，gRPC 端口 50051
+# 代码由 AI 团队维护
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Python 依赖
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制 proto 和服务代码
+COPY proto/ ./proto/
+COPY ai-services/retrieval/ ./retrieval/
+
+# 生成 gRPC stub
+RUN python -m grpc_tools.protoc \
+    -I./proto \
+    --python_out=./retrieval \
+    --grpc_python_out=./retrieval \
+    ./proto/retrieval.proto
+
+EXPOSE 50051
+
+CMD ["python", "-u", "retrieval/retrieval_server.py"]

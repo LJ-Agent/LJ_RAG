@@ -115,7 +115,65 @@ services:
     networks:
       - rag-network
 
-  # ==================== 6. Java 应用 ====================
+  # ==================== 6. Python AI 检索服务 (gRPC :50051) ====================
+  # 代码由 AI 团队维护，需在 ai-services/retrieval/ 目录下提供 retrieval_server.py
+  rag-retrieval:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.retrieval
+    image: rag-retrieval:latest
+    container_name: rag-retrieval
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    ports:
+      - "${GRPC_RETRIEVAL_PORT:-50051}:50051"
+    volumes:
+      - ./ai-services/retrieval:/app/retrieval
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    healthcheck:
+      test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('localhost:50051'); grpc.channel_ready_future(ch).result(timeout=3)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rag-network
+
+  # ==================== 7. Python AI 生成服务 (gRPC :50052) ====================
+  # 代码由 AI 团队维护，需在 ai-services/generation/ 目录下提供 generation_server.py
+  rag-generation:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.generation
+    image: rag-generation:latest
+    container_name: rag-generation
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    ports:
+      - "${GRPC_GENERATION_PORT:-50052}:50052"
+    volumes:
+      - ./ai-services/generation:/app/generation
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    healthcheck:
+      test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('localhost:50052'); grpc.channel_ready_future(ch).result(timeout=3)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rag-network
+
+  # ==================== 8. Java 应用 ====================
   rag-server:
     build:
       context: .
@@ -132,6 +190,10 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      rag-retrieval:
+        condition: service_healthy
+      rag-generation:
+        condition: service_healthy
     ports:
       - "${SERVER_PORT:-8080}:8080"
     environment:
