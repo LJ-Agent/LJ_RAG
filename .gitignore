@@ -1,0 +1,27 @@
+# Maven
+target/
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (sensitive)
+src/main/resources/application-local.yml
+
+# Temp
+*.tmp
+*.bak
