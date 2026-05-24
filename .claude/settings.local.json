@@ -81,7 +81,11 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'Total: {d[\\\\\"data\\\\\"][\\\\\"total\\\\\"]}, Records: {[r[\\\\\"fileName\\\\\"] for r in d[\\\\\"data\\\\\"][\\\\\"records\\\\\"]]}'\\)\")",
       "Bash(ls docker-compose*.yml docker/*.yml)",
       "Bash(ls *.yml)",
-      "Bash(ls docker/)"
+      "Bash(ls docker/)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); [print\\(f'KB: {r[\\\\\"id\\\\\"]} - {r[\\\\\"kbName\\\\\"]}'\\) for r in d['data']['records']]\")",
+      "Bash(\"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\" -v)",
+      "Bash(net stop *)",
+      "Bash(net start *)"
     ]
   }
 }

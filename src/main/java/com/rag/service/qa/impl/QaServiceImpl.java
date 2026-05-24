@@ -175,10 +175,10 @@ public class QaServiceImpl implements QaService {
                 chatRecordMapper.insert(record);
                 updateSessionAfterChat(dto.getSessionId());
 
-                // 发送结束事件（包含完整元数据）
+                // 发送结束事件（包含完整元数据和检索来源）
                 emitter.send(SseEmitter.event()
                         .name("done")
-                        .data("{\"chatId\":" + record.getId() + ",\"tokenCount\":" + totalTokens[0] + ",\"latencyMs\":" + latency + "}")
+                        .data("{\"chatId\":" + record.getId() + ",\"tokenCount\":" + totalTokens[0] + ",\"latencyMs\":" + latency + ",\"sourceDocs\":" + JSONUtil.toJsonStr(sourceDocs) + "}")
                         .build());
 
                 emitter.complete();

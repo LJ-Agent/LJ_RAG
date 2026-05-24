@@ -121,6 +121,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
             vo.setId(r.getId());
             vo.setQuestion(r.getQuestion());
             vo.setAnswer(r.getAnswer());
+            vo.setSourceDocs(r.getSourceDocs());
             vo.setRating(r.getRating());
             vo.setLatencyMs(r.getLatencyMs());
             vo.setIsStream(r.getIsStream());

@@ -11,6 +11,7 @@ public class ChatHistoryVO {
     private Long sessionId;
     private String question;
     private String answer;
+    private String sourceDocs;
     private Integer rating;
     private Integer latencyMs;
     private Integer isStream;
