@@ -20,5 +20,5 @@ public interface FileService {
 
     void getContent(Long id, jakarta.servlet.http.HttpServletResponse response);
 
-    Result<String> getPresignedUrl(Long id);
+    void raw(Long id, jakarta.servlet.http.HttpServletResponse response);
 }

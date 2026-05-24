@@ -316,31 +316,45 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public Result<String> getPresignedUrl(Long id) {
+    public void raw(Long id, HttpServletResponse response) {
         Document doc = documentMapper.selectById(id);
         if (doc == null) {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
 
         try {
-            MinioClient client = minioClient;
-            if (minioConfig.getExternalEndpoint() != null && !minioConfig.getExternalEndpoint().isEmpty()) {
-                client = MinioClient.builder()
-                        .endpoint(minioConfig.getExternalEndpoint())
-                        .credentials(minioConfig.getAccessKey(), minioConfig.getSecretKey())
-                        .build();
+            InputStream is = minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(minioConfig.getBucketName())
+                    .object(doc.getMinioPath())
+                    .build());
+
+            String ext = getFileExtension(doc.getFileName());
+            String contentType = switch (ext) {
+                case "pdf" -> "application/pdf";
+                case "jpg", "jpeg" -> "image/jpeg";
+                case "png" -> "image/png";
+                case "gif" -> "image/gif";
+                case "webp" -> "image/webp";
+                case "svg" -> "image/svg+xml";
+                case "bmp" -> "image/bmp";
+                default -> "application/octet-stream";
+            };
+            response.setContentType(contentType);
+            response.setHeader("Content-Disposition", "inline; filename=" +
+                    URLEncoder.encode(doc.getFileName(), StandardCharsets.UTF_8));
+
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = is.read(buffer)) != -1) {
+                response.getOutputStream().write(buffer, 0, read);
             }
-            String url = client.getPresignedObjectUrl(
-                    io.minio.GetPresignedObjectUrlArgs.builder()
-                            .method(io.minio.http.Method.GET)
-                            .bucket(minioConfig.getBucketName())
-                            .object(doc.getMinioPath())
-                            .expiry(60 * 10) // 10 minutes
-                            .build());
-            return Result.success(url);
+            is.close();
+            response.getOutputStream().flush();
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("生成预签名URL失败: id={}", id, e);
-            throw new BusinessException(ResultCodeEnum.FILE_UPLOAD_ERROR);
+            log.error("获取原始文件失败: id={}", id, e);
+            throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND);
         }
     }
 

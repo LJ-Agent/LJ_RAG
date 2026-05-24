@@ -68,9 +68,9 @@ public class FileController {
         fileService.getContent(id, response);
     }
 
-    @Operation(summary = "获取MinIO预签名URL（前端直接访问MinIO）")
-    @GetMapping("/{id}/presigned-url")
-    public Result<String> getPresignedUrl(@PathVariable Long id) {
-        return fileService.getPresignedUrl(id);
+    @Operation(summary = "获取原始文件（inline预览，带JWT鉴权）")
+    @GetMapping("/{id}/raw")
+    public void raw(@PathVariable Long id, HttpServletResponse response) {
+        fileService.raw(id, response);
     }
 }
