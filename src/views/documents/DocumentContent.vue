@@ -24,7 +24,24 @@
       <span>上传时间: {{ formatDate(doc.uploadAt || doc.createdAt) }}</span>
     </div>
 
-    <div class="content-container" v-loading="loading">
+    <!-- Image rendering -->
+    <div class="content-container image-viewer" v-if="isImage">
+      <div v-if="error" class="error-msg">
+        <el-icon><WarningFilled /></el-icon> {{ error }}
+      </div>
+      <el-image v-else :src="rawUrl" fit="contain" style="max-width: 100%; max-height: 80vh;" />
+    </div>
+
+    <!-- PDF rendering -->
+    <div class="content-container pdf-viewer" v-else-if="isPdf">
+      <div v-if="error" class="error-msg">
+        <el-icon><WarningFilled /></el-icon> {{ error }}
+      </div>
+      <iframe v-else :src="rawUrl" class="pdf-frame" frameborder="0" />
+    </div>
+
+    <!-- Text/Markdown rendering (default) -->
+    <div class="content-container" v-else v-loading="loading">
       <div v-if="error" class="error-msg">
         <el-icon><WarningFilled /></el-icon> {{ error }}
       </div>
@@ -46,6 +63,8 @@ import { DOCUMENT_STATUS_MAP } from '@/utils/constants'
 import type { FileVO } from '@/api/types/file'
 import { ElMessage } from 'element-plus'
 
+const IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico']
+
 const route = useRoute()
 const id = Number(route.params.id)
 
@@ -53,6 +72,11 @@ const doc = ref<FileVO | null>(null)
 const content = ref('')
 const loading = ref(false)
 const error = ref('')
+
+const fileType = computed(() => doc.value?.fileType?.toLowerCase() || '')
+const isImage = computed(() => IMAGE_TYPES.includes(fileType.value))
+const isPdf = computed(() => fileType.value === 'pdf')
+const rawUrl = computed(() => fileApi.getRawUrl(id))
 
 const renderedHtml = computed(() => {
   if (!content.value) return ''
@@ -63,12 +87,11 @@ const renderedHtml = computed(() => {
 onMounted(async () => {
   loading.value = true
   try {
-    const [docRes, contentRes] = await Promise.all([
-      fileApi.detail(id),
-      fileApi.getContent(id),
-    ])
-    doc.value = docRes
-    content.value = contentRes
+    doc.value = await fileApi.detail(id)
+    // Only fetch text content for non-image, non-PDF files
+    if (!isImage.value && !isPdf.value) {
+      content.value = await fileApi.getContent(id)
+    }
   } catch (e: any) {
     error.value = e?.message || '加载文档内容失败'
   } finally {
@@ -112,6 +135,20 @@ async function handleDownload() {
   background: #fff;
   border: 1px solid #ebeef5;
   border-radius: 4px;
+}
+.image-viewer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.pdf-viewer {
+  padding: 0;
+  overflow: hidden;
+}
+.pdf-frame {
+  width: 100%;
+  height: 80vh;
+  border: none;
 }
 .markdown-body {
   line-height: 1.8;

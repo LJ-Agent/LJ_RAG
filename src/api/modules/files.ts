@@ -45,4 +45,7 @@ export const fileApi = {
 
   getContent: (id: number): Promise<string> =>
     request.get(`${BASE}/${id}/content`, { responseType: 'text' }),
+
+  getRawUrl: (id: number): string =>
+    `${import.meta.env.VITE_API_BASE_URL}${BASE}/${id}/raw`,
 }
