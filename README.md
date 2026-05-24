@@ -160,17 +160,46 @@ open http://localhost:8080/swagger-ui.html
 
 ### Docker 部署
 
+项目提供完整的 `docker-compose.yml`，一键启动全部 8 个容器（MySQL / Redis / Kafka / MinIO / etcd / Milvus / Python AI / Java）：
+
 ```bash
-mvn clean package -DskipTests
-docker build -t rag-server:latest -f docker/Dockerfile .
-docker run -d --name rag-server --network host \
-  -e SPRING_PROFILES_ACTIVE=prod \
-  -e MYSQL_PASSWORD=root123 \
-  -e REDIS_PASSWORD=redis123 \
-  -p 8080:8080 rag-server:latest
+# 1. 创建 .env 文件，填写实际配置
+cat > .env << 'EOF'
+LLM_API_KEY=sk-your-api-key
+LLM_BASE_URL=https://api.deepseek.com
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin123
+MYSQL_ROOT_PASSWORD=root123
+MYSQL_DATABASE=rag_db
+REDIS_PASSWORD=redis123
+JWT_SECRET=your-256-bit-secret-key-change-in-production
+EOF
+
+# 2. 构建并启动所有服务
+docker-compose up -d --build
+
+# 3. 验证健康状态
+curl http://localhost:8080/actuator/health
+# → {"status":"UP"}
 ```
 
-详见 [部署文档](docs/部署文档.md)。
+**启动后端口**：
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| Java API | :8080 | REST API + Swagger |
+| Python gRPC Retrieval | :50051 | 向量检索服务 |
+| Python gRPC Generation | :50052 | LLM 生成服务 |
+| MinIO Console | :9001 | 对象存储管理界面 |
+| Milvus | :19530 | 向量数据库 |
+
+**常见问题**：
+
+- **JDBC 连接失败 `Unsupported character encoding 'utf8mb4'`**：JDBC URL 中 `characterEncoding` 需使用 Java 标准名称 `UTF-8`（非 MySQL 的 `utf8mb4`）。
+- **`Public Key Retrieval is not allowed`**：MySQL 8.0 `caching_sha2_password` 认证需要 JDBC URL 追加 `allowPublicKeyRetrieval=true`。
+- **`/actuator/health` 返回 403**：Spring Security 默认拦截，需在 `SecurityConfig` 中将 `/actuator/health` 加入 `permitAll()`。
+- **登录失败 `密码错误`**：确保 `sql/V2__init_data.sql` 中的 BCrypt 哈希与密码匹配，可用 `docker exec rag-python python -c "import bcrypt; print(bcrypt.hashpw(b'admin123', bcrypt.gensalt()).decode())"` 生成正确哈希。
+- **Docker 镜像拉取失败**：国内 registry 镜像可能返回 `content size of zero`，尝试使用可拉取的替代镜像（如 `amazoncorretto:17-alpine` 替代 `eclipse-temurin`）。
 
 ## 文档
 
