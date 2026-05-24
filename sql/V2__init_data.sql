@@ -89,7 +89,7 @@ INSERT INTO system_configs (config_key, config_value, config_type, description) 
 -- 初始化超级管理员用户 (密码: admin123)
 -- =============================================
 INSERT INTO users (username, password_hash, real_name, email, status) VALUES
-('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8.iAt2HHOawi6v4PVcqCgUB6BHBG6', '系统管理员', 'admin@example.com', 1);
+('admin', '$2b$12$hbyd0JEJXbeiBfJqyfaP2ONr9vdAVW2V8Xmri2CNWtkG9sxZdjvs.', '系统管理员', 'admin@example.com', 1);
 
 INSERT INTO user_roles (user_id, role_id)
 SELECT (SELECT id FROM users WHERE username = 'admin'),
