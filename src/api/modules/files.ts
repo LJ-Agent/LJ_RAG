@@ -46,6 +46,11 @@ export const fileApi = {
   getContent: (id: number): Promise<string> =>
     request.get(`${BASE}/${id}/content`, { responseType: 'text' }),
 
-  getPresignedUrl: (id: number): Promise<string> =>
-    request.get(`${BASE}/${id}/presigned-url`),
+  getRawBlobUrl: async (id: number): Promise<string> => {
+    const response = await request.get(`${BASE}/${id}/raw`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response as any])
+    return window.URL.createObjectURL(blob)
+  },
 }

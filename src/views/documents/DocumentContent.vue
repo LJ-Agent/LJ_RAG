@@ -29,7 +29,7 @@
       <div v-if="error" class="error-msg">
         <el-icon><WarningFilled /></el-icon> {{ error }}
       </div>
-      <el-image v-else :src="presignedUrl" fit="contain" style="max-width: 100%; max-height: 80vh;" />
+      <el-image v-else :src="rawUrl" fit="contain" style="max-width: 100%; max-height: 80vh;" />
     </div>
 
     <!-- PDF rendering -->
@@ -37,7 +37,7 @@
       <div v-if="error" class="error-msg">
         <el-icon><WarningFilled /></el-icon> {{ error }}
       </div>
-      <iframe v-else :src="presignedUrl" class="pdf-frame" frameborder="0" />
+      <iframe v-else :src="rawUrl" class="pdf-frame" frameborder="0" />
     </div>
 
     <!-- Text/Markdown rendering (default) -->
@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowLeft, Download, WarningFilled } from '@element-plus/icons-vue'
 import { marked } from 'marked'
@@ -70,7 +70,7 @@ const id = Number(route.params.id)
 
 const doc = ref<FileVO | null>(null)
 const content = ref('')
-const presignedUrl = ref('')
+const rawUrl = ref('')
 const loading = ref(false)
 const error = ref('')
 
@@ -89,7 +89,7 @@ onMounted(async () => {
   try {
     doc.value = await fileApi.detail(id)
     if (isImage.value || isPdf.value) {
-      presignedUrl.value = await fileApi.getPresignedUrl(id)
+      rawUrl.value = await fileApi.getRawBlobUrl(id)
     } else {
       content.value = await fileApi.getContent(id)
     }
@@ -97,6 +97,12 @@ onMounted(async () => {
     error.value = e?.message || '加载文档内容失败'
   } finally {
     loading.value = false
+  }
+})
+
+onUnmounted(() => {
+  if (rawUrl.value) {
+    window.URL.revokeObjectURL(rawUrl.value)
   }
 })
 
