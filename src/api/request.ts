@@ -38,6 +38,11 @@ request.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 // 响应拦截器：解包Result + 401静默刷新
 request.interceptors.response.use(
   (response: AxiosResponse<Result>) => {
+    // Skip Result<T> unwrapping for blob/text responses (download, getContent, etc.)
+    const responseType = (response.config as any)?.responseType
+    if (responseType === 'blob' || responseType === 'text') {
+      return response.data as any
+    }
     const body = response.data
     if (body.code === 0) {
       return body.data as any

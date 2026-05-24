@@ -6,7 +6,7 @@
           <el-icon><ArrowLeft /></el-icon> 返回
         </el-button>
         <h2>块审核 — {{ docName }}</h2>
-        <el-tag v-if="docStatus" size="small">{{ docStatus }}</el-tag>
+        <el-tag v-if="docStatus" size="small">{{ DOCUMENT_STATUS_MAP[docStatus]?.label || docStatus }}</el-tag>
       </div>
       <div style="display: flex; gap: 8px;">
         <el-button
@@ -109,6 +109,7 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import { chunkApi, type ChunkVO, type ChunkStats } from '@/api/modules/chunks'
 import { fileApi } from '@/api/modules/files'
 import { usePagination } from '@/composables/usePagination'
+import { DOCUMENT_STATUS_MAP } from '@/utils/constants'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()

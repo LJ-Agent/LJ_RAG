@@ -44,10 +44,12 @@ export function useSSE() {
             onChunk(chunk)
           } else if (line.startsWith('event: done')) {
             // 最后一条data在下一行
-          } else if (line.startsWith('data: {"chatId"')) {
+          } else if (line.startsWith('data: {')) {
             try {
               const meta = JSON.parse(line.slice(6))
-              onDone(meta)
+              if (meta.chatId) {
+                onDone(meta)
+              }
             } catch { /* ignore parse errors */ }
           }
         }

@@ -28,8 +28,8 @@
       <div v-if="error" class="error-msg">
         <el-icon><WarningFilled /></el-icon> {{ error }}
       </div>
-      <div v-else-if="!loading" class="markdown-body" v-html="renderedHtml"></div>
-      <el-empty v-if="!loading && !error && !renderedHtml" description="暂无内容" />
+      <div v-else-if="!loading && renderedHtml" class="markdown-body" v-html="renderedHtml"></div>
+      <el-empty v-else-if="!loading && !error" description="暂无内容" />
     </div>
   </div>
 </template>
