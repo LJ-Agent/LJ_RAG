@@ -1,5 +1,10 @@
 server:
   port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
 
 spring:
   application:
@@ -23,6 +28,7 @@ spring:
       test-while-idle: true
       test-on-borrow: false
       test-on-return: false
+      connection-init-sqls: SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci
 
   data:
     redis:

@@ -9,6 +9,11 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-rag_db}
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --init-connect=SET NAMES utf8mb4
+      - --skip-character-set-client-handshake
     ports:
       - "${MYSQL_PORT:-3307}:3306"
     volumes:

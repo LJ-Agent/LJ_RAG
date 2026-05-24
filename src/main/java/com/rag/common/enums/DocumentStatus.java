@@ -32,11 +32,11 @@ public enum DocumentStatus {
     }
 
     static {
-        UPLOADED.nextStates = Set.of(PARSING);
+        UPLOADED.nextStates = Set.of(PARSING, PENDING_REVIEW);  // FILE_PROCESS handles parsing+cleaning in one call
         PARSING.nextStates = Set.of(CLEANING, PARSING_FAILED);
         CLEANING.nextStates = Set.of(PENDING_REVIEW, CLEANING_FAILED);
         PENDING_REVIEW.nextStates = Set.of(APPROVED, REJECTED);
-        APPROVED.nextStates = Set.of(CHUNKING);
+        APPROVED.nextStates = Set.of(CHUNKING, COMPLETED);  // CHUNK_PROCESS handles chunking+embedding in one call
         REJECTED.nextStates = Set.of(PARSING);
         CHUNKING.nextStates = Set.of(EMBEDDING, CHUNKING_FAILED);
         EMBEDDING.nextStates = Set.of(COMPLETED, EMBEDDING_FAILED);
@@ -60,13 +60,9 @@ public enum DocumentStatus {
      */
     public static DocumentStatus nextAfterTaskComplete(DocumentStatus current) {
         return switch (current) {
-            case UPLOADED -> PARSING;
-            case PARSING -> CLEANING;
-            case CLEANING -> PENDING_REVIEW;
-            case APPROVED -> CHUNKING;
-            case CHUNKING -> EMBEDDING;
-            case EMBEDDING -> COMPLETED;
-            default -> throw new IllegalStateException("当前状态不可流转: " + current);
+            case UPLOADED -> PENDING_REVIEW;  // FILE_PROCESS handles parsing+cleaning in one call
+            case APPROVED -> COMPLETED;       // CHUNK_PROCESS handles chunking+embedding in one call
+            default -> null;  // already at target or unknown — caller handles idempotency
         };
     }
 }

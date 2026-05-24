@@ -1,18 +1,23 @@
 package com.rag.service.review.impl;
 
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.rag.common.constant.KafkaConstants;
 import com.rag.common.enums.DocumentStatus;
 import com.rag.common.enums.ReviewResult;
+import com.rag.common.enums.TaskType;
 import com.rag.common.exception.BusinessException;
 import com.rag.common.result.Result;
 import com.rag.common.result.ResultCodeEnum;
+import com.rag.communication.kafka.dto.KafkaMessage;
 import com.rag.domain.entity.Document;
 import com.rag.domain.entity.ReviewRecord;
 import com.rag.domain.entity.SystemConfig;
 import com.rag.domain.mapper.DocumentMapper;
 import com.rag.domain.mapper.ReviewRecordMapper;
 import com.rag.domain.mapper.SystemConfigMapper;
+import com.rag.infrastructure.config.MinioConfig;
 import com.rag.infrastructure.lock.RedisLockUtil;
 import com.rag.service.review.ReviewService;
 import com.rag.service.review.dto.ReviewSubmitDTO;
@@ -20,11 +25,13 @@ import com.rag.service.review.dto.ReviewVO;
 import com.rag.service.statemachine.DocumentStateMachine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 
@@ -38,6 +45,8 @@ public class ReviewServiceImpl implements ReviewService {
     private final SystemConfigMapper systemConfigMapper;
     private final DocumentStateMachine stateMachine;
     private final RedisLockUtil redisLockUtil;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final MinioConfig minioConfig;
 
     @Override
     public Result<Page<ReviewVO>> getPendingList(Integer page, Integer size) {
@@ -94,11 +103,34 @@ public class ReviewServiceImpl implements ReviewService {
 
         if ("APPROVED".equals(dto.getResult())) {
             stateMachine.transit(doc, DocumentStatus.APPROVED.name());
+            sendChunkProcessMessage(doc);
         } else {
             stateMachine.transit(doc, DocumentStatus.REJECTED.name());
         }
 
         return Result.success();
+    }
+
+    private void sendChunkProcessMessage(Document doc) {
+        String taskId = "task-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "-chunk-" + doc.getId();
+        KafkaMessage message = new KafkaMessage();
+        message.setTaskId(taskId);
+        message.setTaskType(TaskType.CHUNK_PROCESS.name());
+        message.setDocumentId(doc.getId());
+        message.setKbId(doc.getKbId());
+        // Construct cleaned path from the FILE_PROCESS convention
+        String originalPath = doc.getMinioPath();
+        String cleanedPath = originalPath != null
+                ? minioConfig.getBucketName() + "/" + originalPath.substring(0, originalPath.lastIndexOf('.')) + "_cleaned.md"
+                : "";
+        message.setData(JSONUtil.createObj()
+                .set("cleanedPath", cleanedPath)
+                .set("fileName", doc.getFileName())
+                .set("chunkStrategy", "semantic"));
+        message.setCreatedAt(LocalDateTime.now().toString());
+
+        kafkaTemplate.send(KafkaConstants.TOPIC_CHUNK_PROCESS, taskId, JSONUtil.toJsonStr(message));
+        log.info("CHUNK_PROCESS消息已发送: taskId={}, docId={}", taskId, doc.getId());
     }
 
     @Override
@@ -155,6 +187,7 @@ public class ReviewServiceImpl implements ReviewService {
                 reviewRecordMapper.updateById(fresh);
 
                 stateMachine.transit(doc, DocumentStatus.APPROVED.name());
+                sendChunkProcessMessage(doc);
                 log.info("超时自动审核通过: docId={}", doc.getId());
             });
         }

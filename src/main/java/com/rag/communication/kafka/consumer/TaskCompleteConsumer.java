@@ -23,23 +23,25 @@ public class TaskCompleteConsumer {
 
     @KafkaListener(topics = KafkaConstants.TOPIC_TASK_COMPLETE, groupId = KafkaConstants.CONSUMER_GROUP)
     public void onMessage(ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
+        KafkaMessage message = null;
         try {
-            KafkaMessage message = JSONUtil.toBean(record.value(), KafkaMessage.class);
+            message = JSONUtil.toBean(record.value(), KafkaMessage.class);
             log.info("收到任务完成通知: taskId={}, type={}, docId={}",
                     message.getTaskId(), message.getTaskType(), message.getDocumentId());
 
             Document doc = documentMapper.selectById(message.getDocumentId());
             if (doc == null) {
                 log.warn("文档不存在: docId={}", message.getDocumentId());
-                acknowledgment.acknowledge();
                 return;
             }
 
             stateMachine.transitToNext(doc);
-
-            acknowledgment.acknowledge();
         } catch (Exception e) {
-            log.error("处理任务完成通知失败", e);
+            log.error("处理任务完成通知失败: taskId={}, docId={}",
+                    message != null ? message.getTaskId() : "unknown",
+                    message != null ? message.getDocumentId() : "unknown", e);
+        } finally {
+            acknowledgment.acknowledge();
         }
     }
 }

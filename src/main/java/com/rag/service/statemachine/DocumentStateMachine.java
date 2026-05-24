@@ -2,10 +2,13 @@ package com.rag.service.statemachine;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.rag.common.enums.DocumentStatus;
+import com.rag.common.enums.ReviewResult;
 import com.rag.common.exception.BusinessException;
 import com.rag.common.result.ResultCodeEnum;
 import com.rag.domain.entity.Document;
+import com.rag.domain.entity.ReviewRecord;
 import com.rag.domain.mapper.DocumentMapper;
+import com.rag.domain.mapper.ReviewRecordMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,7 @@ import java.util.Optional;
 public class DocumentStateMachine {
 
     private final DocumentMapper documentMapper;
+    private final ReviewRecordMapper reviewRecordMapper;
     private final StateTransitionValidator validator = new StateTransitionValidator();
 
     @Transactional
@@ -56,6 +60,15 @@ public class DocumentStateMachine {
             document.setCompletedAt(LocalDateTime.now());
         }
 
+        // Auto-create review record when entering PENDING_REVIEW
+        if (to == DocumentStatus.PENDING_REVIEW) {
+            ReviewRecord record = new ReviewRecord();
+            record.setDocumentId(document.getId());
+            record.setResult(ReviewResult.PENDING.name());
+            reviewRecordMapper.insert(record);
+            log.info("审核记录已创建: docId={}", document.getId());
+        }
+
         log.info("状态转移成功: docId={}, {} -> {}", document.getId(), from.name(), to.name());
     }
 
@@ -72,6 +85,10 @@ public class DocumentStateMachine {
     public void transitToNext(Document document) {
         DocumentStatus current = DocumentStatus.valueOf(document.getStatus());
         DocumentStatus next = DocumentStatus.nextAfterTaskComplete(current);
+        if (next == null) {
+            log.info("文档已处于终态或无需流转: docId={}, status={}", document.getId(), current);
+            return;
+        }
         transit(document, next.name());
     }
 }
