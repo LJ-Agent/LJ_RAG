@@ -50,9 +50,36 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public Result<Page<ReviewVO>> getPendingList(Integer page, Integer size) {
+        return getPagedReviewRecords(ReviewResult.PENDING.name(), page, size);
+    }
+
+    @Override
+    public Result<Page<ReviewVO>> getChunkReviewList(Integer page, Integer size) {
+        // Query documents in CHUNK_REVIEW status directly
+        Page<Document> pg = new Page<>(page, size);
+        LambdaQueryWrapper<Document> wrapper = new LambdaQueryWrapper<Document>()
+                .eq(Document::getStatus, DocumentStatus.CHUNK_REVIEW.name())
+                .orderByDesc(Document::getUpdatedAt);
+
+        Page<Document> result = documentMapper.selectPage(pg, wrapper);
+        Page<ReviewVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
+        List<ReviewVO> voList = result.getRecords().stream().map(doc -> {
+            ReviewVO vo = new ReviewVO();
+            vo.setDocumentId(doc.getId());
+            vo.setDocumentName(doc.getFileName());
+            vo.setDocumentStatus(doc.getStatus());
+            vo.setChunkCount(doc.getChunkCount());
+            vo.setCreatedAt(doc.getCreatedAt());
+            return vo;
+        }).toList();
+        voPage.setRecords(voList);
+        return Result.success(voPage);
+    }
+
+    private Result<Page<ReviewVO>> getPagedReviewRecords(String resultFilter, Integer page, Integer size) {
         Page<ReviewRecord> pg = new Page<>(page, size);
         LambdaQueryWrapper<ReviewRecord> wrapper = new LambdaQueryWrapper<ReviewRecord>()
-                .eq(ReviewRecord::getResult, ReviewResult.PENDING.name())
+                .eq(ReviewRecord::getResult, resultFilter)
                 .orderByAsc(ReviewRecord::getCreatedAt);
 
         Page<ReviewRecord> result = reviewRecordMapper.selectPage(pg, wrapper);
@@ -70,6 +97,7 @@ public class ReviewServiceImpl implements ReviewService {
             Document doc = documentMapper.selectById(r.getDocumentId());
             if (doc != null) {
                 vo.setDocumentName(doc.getFileName());
+                vo.setDocumentStatus(doc.getStatus());
             }
             return vo;
         }).toList();

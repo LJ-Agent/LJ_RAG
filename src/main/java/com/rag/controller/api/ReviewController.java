@@ -35,6 +35,15 @@ public class ReviewController {
         return reviewService.getPendingList(page, size);
     }
 
+    @Operation(summary = "获取待块审核列表（CHUNK_REVIEW 状态的文档）")
+    @GetMapping("/chunk-review")
+    @PreAuthorize("hasAuthority('REVIEW:VIEW')")
+    public Result<Page<ReviewVO>> getChunkReviewList(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return reviewService.getChunkReviewList(page, size);
+    }
+
     @Operation(summary = "提交审核结果")
     @PostMapping("/submit")
     @PreAuthorize("hasAuthority('REVIEW:APPROVE')")

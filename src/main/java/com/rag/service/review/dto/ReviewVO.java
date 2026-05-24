@@ -15,6 +15,8 @@ public class ReviewVO {
     private String result;
     private String comment;
     private Integer autoApproved;
+    private String documentStatus;
+    private Integer chunkCount;
     private LocalDateTime reviewedAt;
     private LocalDateTime createdAt;
 }

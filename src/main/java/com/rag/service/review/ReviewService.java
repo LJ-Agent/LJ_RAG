@@ -9,6 +9,8 @@ public interface ReviewService {
 
     Result<Page<ReviewVO>> getPendingList(Integer page, Integer size);
 
+    Result<Page<ReviewVO>> getChunkReviewList(Integer page, Integer size);
+
     Result<Void> submitReview(ReviewSubmitDTO dto, Long reviewerId);
 
     Result<Void> batchApprove(Long[] documentIds, Long reviewerId);
