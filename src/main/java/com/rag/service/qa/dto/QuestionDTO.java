@@ -17,5 +17,5 @@ public class QuestionDTO {
 
     private Long sessionId;
     private Integer topK = 5;
-    private Float scoreThreshold = 0.7f;
+    private Float scoreThreshold = 0.3f;
 }

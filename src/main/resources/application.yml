@@ -15,8 +15,8 @@ spring:
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/rag_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/rag_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:root}
     druid:
       initial-size: 5
@@ -32,8 +32,8 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: 0
       lettuce:
@@ -44,7 +44,7 @@ spring:
       timeout: 5000ms
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -85,7 +85,7 @@ mybatis-plus:
     default-enum-type-handler: org.apache.ibatis.type.EnumOrdinalTypeHandler
 
 minio:
-  endpoint: http://localhost:9000
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
   external-endpoint: ${MINIO_EXTERNAL_ENDPOINT:}
   access-key: ${MINIO_ACCESS_KEY:minioadmin}
   secret-key: ${MINIO_SECRET_KEY:minioadmin}
@@ -94,11 +94,11 @@ minio:
 
 grpc:
   retrieval:
-    host: localhost
-    port: 50051
+    host: ${GRPC_RETRIEVAL_HOST:localhost}
+    port: ${GRPC_RETRIEVAL_PORT:50051}
   generation:
-    host: localhost
-    port: 50052
+    host: ${GRPC_GENERATION_HOST:localhost}
+    port: ${GRPC_GENERATION_PORT:50052}
 
 jwt:
   secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production}

@@ -28,7 +28,7 @@ RUN apk add --no-cache wget
 COPY --from=builder /build/target/rag-server-*.jar app.jar
 
 # 创建日志目录
-RUN mkdir -p /var/log/rag-server && chown -R rag:rag /var/log/rag-server
+RUN mkdir -p /app/logs /var/log/rag-server && chown -R rag:rag /app/logs /var/log/rag-server
 
 USER rag
 
