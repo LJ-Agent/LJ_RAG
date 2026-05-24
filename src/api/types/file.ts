@@ -8,6 +8,7 @@ export interface FileVO {
   status: string
   errorMessage: string
   chunkCount: number
+  chunkStrategy?: string
   uploadUserId: number
   uploadAt: string
   completedAt: string

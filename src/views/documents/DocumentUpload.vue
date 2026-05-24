@@ -13,6 +13,17 @@
         </el-select>
       </div>
 
+      <!-- 分块策略选择 -->
+      <div class="strategy-section">
+        <span class="label">分块策略：</span>
+        <el-select v-model="chunkStrategy" style="width: 200px">
+          <el-option label="语义分块 (semantic)" value="semantic" />
+          <el-option label="固定大小 (fixed)" value="fixed" />
+          <el-option label="层级分块 (hierarchical)" value="hierarchical" />
+        </el-select>
+        <span class="strategy-hint">语义分块按段落分割，固定大小按字符数分割，层级分块按Markdown标题分割</span>
+      </div>
+
       <!-- 上传区域 -->
       <el-upload
         ref="uploadRef"
@@ -70,6 +81,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 const uploadRef = ref<UploadInstance>()
 const selectedKbId = ref<number | null>(null)
+const chunkStrategy = ref('semantic')
 const kbList = ref<KnowledgeBaseVO[]>([])
 const kbLoading = ref(false)
 const fileList = ref<UploadFile[]>([])
@@ -139,7 +151,7 @@ async function startUpload() {
     try {
       await fileApi.upload(file.raw, selectedKbId.value, (pct) => {
         result.progress = pct
-      })
+      }, chunkStrategy.value)
       result.success = true
       result.progress = 100
     } catch (e: any) {
@@ -161,6 +173,20 @@ async function startUpload() {
 .kb-select-section .label {
   margin-right: 12px;
   font-weight: 500;
+}
+.strategy-section {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+.strategy-section .label {
+  margin-right: 12px;
+  font-weight: 500;
+}
+.strategy-hint {
+  margin-left: 12px;
+  font-size: 12px;
+  color: #909399;
 }
 .upload-area {
   margin-bottom: 16px;

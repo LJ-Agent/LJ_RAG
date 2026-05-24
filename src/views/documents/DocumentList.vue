@@ -47,9 +47,15 @@
       <el-table-column label="上传时间" width="170" align="center">
         <template #default="{ row }">{{ formatDate(row.uploadAt || row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="220" align="center" fixed="right">
+      <el-table-column label="操作" width="340" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="showDetail(row)">详情</el-button>
+          <el-button link type="primary" size="small" @click="$router.push(`/documents/${row.id}/content`)">浏览</el-button>
+          <el-button
+            v-if="row.status === 'CHUNK_REVIEW'"
+            link type="warning" size="small"
+            @click="$router.push(`/documents/${row.id}/chunks`)"
+          >块管理</el-button>
           <el-button link type="primary" size="small" @click="handleDownload(row)">下载</el-button>
           <el-popconfirm title="确定要删除该文档吗？" @confirm="handleDelete(row.id)">
             <template #reference>
@@ -86,6 +92,7 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="分块数">{{ currentDoc.chunkCount }}</el-descriptions-item>
+        <el-descriptions-item label="分块策略">{{ currentDoc.chunkStrategy || 'semantic' }}</el-descriptions-item>
         <el-descriptions-item label="错误信息" :span="2">{{ currentDoc.errorMessage || '-' }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>

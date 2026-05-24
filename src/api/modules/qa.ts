@@ -1,5 +1,5 @@
 import request from '@/api/request'
-import type { QuestionDTO, AnswerVO, ChatHistoryVO } from '@/api/types/qa'
+import type { QuestionDTO, AnswerVO, ChatHistoryVO, ChatSessionVO } from '@/api/types/qa'
 import type { Page } from '@/api/types/common'
 import { getAccessToken } from '@/utils/token'
 
@@ -25,4 +25,20 @@ export const qaApi = {
 
   history: (params: { page?: number; size?: number }): Promise<Page<ChatHistoryVO>> =>
     request.get(`${BASE}/history`, { params }),
+
+  // 会话管理
+  getSessions: (params?: { page?: number; size?: number }): Promise<Page<ChatSessionVO>> =>
+    request.get(`${BASE}/sessions`, { params }),
+
+  createSession: (data: { title?: string; kbIds?: string }): Promise<ChatSessionVO> =>
+    request.post(`${BASE}/sessions`, data),
+
+  updateSession: (id: number, data: { title: string }): Promise<void> =>
+    request.put(`${BASE}/sessions/${id}`, data),
+
+  deleteSession: (id: number): Promise<void> =>
+    request.delete(`${BASE}/sessions/${id}`),
+
+  getSessionRecords: (sessionId: number, params?: { page?: number; size?: number }): Promise<Page<ChatHistoryVO>> =>
+    request.get(`${BASE}/sessions/${sessionId}/records`, { params }),
 }

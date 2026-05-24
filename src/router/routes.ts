@@ -53,6 +53,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '上传文档', permissions: ['DOCUMENT:UPLOAD'], icon: 'Upload' },
       },
       {
+        path: 'documents/:id/content',
+        name: 'DocumentContent',
+        component: () => import('@/views/documents/DocumentContent.vue'),
+        meta: { title: '文档浏览', permissions: ['DOCUMENT:VIEW'], icon: 'Reading' },
+      },
+      {
+        path: 'documents/:id/chunks',
+        name: 'ChunkReview',
+        component: () => import('@/views/documents/ChunkReview.vue'),
+        meta: { title: '块审核', permissions: ['DOCUMENT:VIEW'], icon: 'Grid' },
+      },
+      {
         path: 'review',
         name: 'Review',
         component: () => import('@/views/review/ReviewList.vue'),

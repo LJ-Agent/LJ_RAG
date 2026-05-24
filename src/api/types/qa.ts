@@ -18,16 +18,28 @@ export interface AnswerVO {
 export interface QuestionDTO {
   question: string
   kbIds: number[]
+  sessionId?: number
   topK?: number
   scoreThreshold?: number
 }
 
 export interface ChatHistoryVO {
   id: number
+  sessionId?: number
   question: string
   answer: string
   rating: number
   latencyMs: number
   isStream: number
   createdAt: string
+}
+
+export interface ChatSessionVO {
+  id: number
+  userId: number
+  title: string
+  kbIds: string
+  messageCount: number
+  createdAt: string
+  updatedAt: string
 }
