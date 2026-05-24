@@ -330,6 +330,10 @@ public class FileServiceImpl implements FileService {
                             .object(doc.getMinioPath())
                             .expiry(60 * 10) // 10 minutes
                             .build());
+            // Replace internal Docker hostname with external endpoint for browser access
+            if (minioConfig.getExternalEndpoint() != null && !minioConfig.getExternalEndpoint().isEmpty()) {
+                url = url.replace(minioConfig.getEndpoint(), minioConfig.getExternalEndpoint());
+            }
             return Result.success(url);
         } catch (Exception e) {
             log.error("生成预签名URL失败: id={}", id, e);

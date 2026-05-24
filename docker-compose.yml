@@ -247,6 +247,7 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # MinIO
       MINIO_ENDPOINT: http://minio:9000
+      MINIO_EXTERNAL_ENDPOINT: http://localhost:9000
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
       # gRPC (Python AI 服务)

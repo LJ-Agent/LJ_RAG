@@ -78,7 +78,10 @@
       "Bash(set -e)",
       "Bash(mvn package *)",
       "Bash(docker compose *)",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'Total: {d[\\\\\"data\\\\\"][\\\\\"total\\\\\"]}, Records: {[r[\\\\\"fileName\\\\\"] for r in d[\\\\\"data\\\\\"][\\\\\"records\\\\\"]]}'\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'Total: {d[\\\\\"data\\\\\"][\\\\\"total\\\\\"]}, Records: {[r[\\\\\"fileName\\\\\"] for r in d[\\\\\"data\\\\\"][\\\\\"records\\\\\"]]}'\\)\")",
+      "Bash(ls docker-compose*.yml docker/*.yml)",
+      "Bash(ls *.yml)",
+      "Bash(ls docker/)"
     ]
   }
 }

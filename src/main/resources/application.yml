@@ -86,6 +86,7 @@ mybatis-plus:
 
 minio:
   endpoint: http://localhost:9000
+  external-endpoint: ${MINIO_EXTERNAL_ENDPOINT:}
   access-key: ${MINIO_ACCESS_KEY:minioadmin}
   secret-key: ${MINIO_SECRET_KEY:minioadmin}
   bucket-name: rag-documents
