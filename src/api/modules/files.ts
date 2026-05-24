@@ -5,12 +5,15 @@ import type { Page } from '@/api/types/common'
 const BASE = '/files'
 
 export const fileApi = {
-  upload: (file: File, kbId: number, onProgress?: (pct: number) => void, chunkStrategy?: string): Promise<FileVO> => {
+  upload: (file: File, kbId: number, onProgress?: (pct: number) => void, chunkStrategy?: string, chunkConfig?: string): Promise<FileVO> => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('kbId', String(kbId))
     if (chunkStrategy) {
       formData.append('chunkStrategy', chunkStrategy)
+    }
+    if (chunkConfig) {
+      formData.append('chunkConfig', chunkConfig)
     }
     return request.post(`${BASE}/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

@@ -16,12 +16,44 @@
       <!-- 分块策略选择 -->
       <div class="strategy-section">
         <span class="label">分块策略：</span>
-        <el-select v-model="chunkStrategy" style="width: 200px">
-          <el-option label="语义分块 (semantic)" value="semantic" />
-          <el-option label="固定大小 (fixed)" value="fixed" />
-          <el-option label="层级分块 (hierarchical)" value="hierarchical" />
+        <el-select v-model="chunkStrategy" style="width: 220px" @change="onStrategyChange">
+          <el-option v-for="(cfg, key) in CHUNK_STRATEGY_CONFIGS" :key="key" :label="cfg.label" :value="key" />
         </el-select>
-        <span class="strategy-hint">语义分块按段落分割，固定大小按字符数分割，层级分块按Markdown标题分割</span>
+        <span class="strategy-hint">{{ currentStrategyHint }}</span>
+      </div>
+
+      <!-- 策略参数配置 -->
+      <div class="params-section" v-if="currentFields.length > 0">
+        <el-divider content-position="left">{{ currentStrategyLabel }} — 参数配置</el-divider>
+        <el-form :model="params" label-width="180px" size="default">
+          <el-form-item
+            v-for="field in currentFields"
+            :key="field.key"
+            :label="field.label"
+          >
+            <el-input-number
+              v-if="field.type === 'number'"
+              v-model="params[field.key]"
+              :min="field.min"
+              :max="field.max"
+              :step="field.step || 1"
+              controls-position="right"
+              style="width: 280px"
+            />
+            <el-input
+              v-else
+              v-model="params[field.key]"
+              style="width: 400px"
+              :placeholder="String(field.default)"
+            />
+            <template v-if="field.key === 'separators'">
+              <span class="field-hint">高级选项，一般保持默认即可</span>
+            </template>
+          </el-form-item>
+          <el-form-item>
+            <el-button @click="resetParams" text type="primary">恢复默认值</el-button>
+          </el-form-item>
+        </el-form>
       </div>
 
       <!-- 上传区域 -->
@@ -71,11 +103,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { Upload, UploadFilled, SuccessFilled, CircleCloseFilled } from '@element-plus/icons-vue'
 import { fileApi } from '@/api/modules/files'
 import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
 import type { KnowledgeBaseVO } from '@/api/types/knowledgeBase'
+import { CHUNK_STRATEGY_CONFIGS } from '@/api/types/file'
+import type { StrategyField } from '@/api/types/file'
 import type { UploadFile, UploadInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -89,6 +123,47 @@ const uploading = ref(false)
 interface UploadResult { fileName: string; success: boolean; progress: number; error?: string }
 const results = ref<UploadResult[]>([])
 
+// Dynamic params
+const params = reactive<Record<string, any>>({})
+
+const currentFields = computed<StrategyField[]>(() =>
+  CHUNK_STRATEGY_CONFIGS[chunkStrategy.value]?.fields || []
+)
+
+const currentStrategyLabel = computed(() =>
+  CHUNK_STRATEGY_CONFIGS[chunkStrategy.value]?.label || ''
+)
+
+const currentStrategyHint = computed(() => {
+  const hints: Record<string, string> = {
+    fixed: '按固定字符数分割，适合结构一致的文档',
+    recursive: '递归按分隔符层级分割，适合通用文本',
+    semantic: '按段落语义分割，合并短段落，适合文章/论文',
+    topic: '按主题相似度自动检测话题切换，适合长文档/书籍',
+    hybrid: '先按结构粗分，超阈值再精细分块，适合混合格式文档',
+  }
+  return hints[chunkStrategy.value] || ''
+})
+
+function initParams(strategy: string) {
+  const fields = CHUNK_STRATEGY_CONFIGS[strategy]?.fields || []
+  const defaults: Record<string, any> = {}
+  for (const f of fields) {
+    defaults[f.key] = f.default
+  }
+  // Clear and reassign
+  Object.keys(params).forEach(k => delete params[k])
+  Object.assign(params, defaults)
+}
+
+function onStrategyChange(strategy: string) {
+  initParams(strategy)
+}
+
+function resetParams() {
+  initParams(chunkStrategy.value)
+}
+
 const canUpload = computed(() => selectedKbId.value && fileList.value.length > 0)
 
 onMounted(async () => {
@@ -99,6 +174,7 @@ onMounted(async () => {
   } finally {
     kbLoading.value = false
   }
+  initParams(chunkStrategy.value)
 })
 
 function beforeUpload(file: File) {
@@ -144,14 +220,20 @@ async function startUpload() {
   uploading.value = true
   results.value = []
 
+  const configJson = JSON.stringify({ ...params })
+
   for (const file of fileList.value) {
     if (!file.raw) continue
     const result: UploadResult = { fileName: file.name, success: false, progress: 0 }
     results.value.push(result)
     try {
-      await fileApi.upload(file.raw, selectedKbId.value, (pct) => {
-        result.progress = pct
-      }, chunkStrategy.value)
+      await fileApi.upload(
+        file.raw,
+        selectedKbId.value,
+        (pct) => { result.progress = pct },
+        chunkStrategy.value,
+        configJson,
+      )
       result.success = true
       result.progress = 100
     } catch (e: any) {
@@ -175,7 +257,7 @@ async function startUpload() {
   font-weight: 500;
 }
 .strategy-section {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
 }
@@ -187,6 +269,17 @@ async function startUpload() {
   margin-left: 12px;
   font-size: 12px;
   color: #909399;
+}
+.params-section {
+  margin-bottom: 20px;
+  padding: 8px 16px;
+  background: #fafafa;
+  border-radius: 4px;
+}
+.field-hint {
+  margin-left: 8px;
+  font-size: 12px;
+  color: #c0c4cc;
 }
 .upload-area {
   margin-bottom: 16px;
