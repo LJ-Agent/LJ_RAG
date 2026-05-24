@@ -193,6 +193,8 @@ services:
       # LLM
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
+      # HuggingFace Mirror (for downloading embedding model)
+      HF_ENDPOINT: https://hf-mirror.com
     volumes:
       - ../RAG-PYTHON/config:/app/config:ro
     healthcheck:
