@@ -29,7 +29,7 @@
       <div v-if="error" class="error-msg">
         <el-icon><WarningFilled /></el-icon> {{ error }}
       </div>
-      <el-image v-else :src="rawUrl" fit="contain" style="max-width: 100%; max-height: 80vh;" />
+      <el-image v-else :src="presignedUrl" fit="contain" style="max-width: 100%; max-height: 80vh;" />
     </div>
 
     <!-- PDF rendering -->
@@ -37,7 +37,7 @@
       <div v-if="error" class="error-msg">
         <el-icon><WarningFilled /></el-icon> {{ error }}
       </div>
-      <iframe v-else :src="rawUrl" class="pdf-frame" frameborder="0" />
+      <iframe v-else :src="presignedUrl" class="pdf-frame" frameborder="0" />
     </div>
 
     <!-- Text/Markdown rendering (default) -->
@@ -70,13 +70,13 @@ const id = Number(route.params.id)
 
 const doc = ref<FileVO | null>(null)
 const content = ref('')
+const presignedUrl = ref('')
 const loading = ref(false)
 const error = ref('')
 
 const fileType = computed(() => doc.value?.fileType?.toLowerCase() || '')
 const isImage = computed(() => IMAGE_TYPES.includes(fileType.value))
 const isPdf = computed(() => fileType.value === 'pdf')
-const rawUrl = computed(() => fileApi.getRawUrl(id))
 
 const renderedHtml = computed(() => {
   if (!content.value) return ''
@@ -88,8 +88,9 @@ onMounted(async () => {
   loading.value = true
   try {
     doc.value = await fileApi.detail(id)
-    // Only fetch text content for non-image, non-PDF files
-    if (!isImage.value && !isPdf.value) {
+    if (isImage.value || isPdf.value) {
+      presignedUrl.value = await fileApi.getPresignedUrl(id)
+    } else {
       content.value = await fileApi.getContent(id)
     }
   } catch (e: any) {
