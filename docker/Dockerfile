@@ -1,6 +1,9 @@
 # ==================== 构建阶段 ====================
 FROM maven:3.9-eclipse-temurin-17-alpine AS builder
 
+# Install glibc compatibility for protoc-gen-grpc-java (compiled against glibc)
+RUN apk add --no-cache gcompat
+
 WORKDIR /build
 COPY pom.xml .
 # 缓存依赖层 (利用 Docker layer cache)
@@ -11,7 +14,7 @@ COPY proto ./proto
 RUN mvn clean package -DskipTests -B -q
 
 # ==================== 运行阶段 ====================
-FROM eclipse-temurin:17-jre-alpine
+FROM amazoncorretto:17-alpine
 
 WORKDIR /app
 
