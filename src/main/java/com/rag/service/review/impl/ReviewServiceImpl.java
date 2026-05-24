@@ -65,6 +65,7 @@ public class ReviewServiceImpl implements ReviewService {
         Page<ReviewVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
         List<ReviewVO> voList = result.getRecords().stream().map(doc -> {
             ReviewVO vo = new ReviewVO();
+            vo.setId(doc.getId());
             vo.setDocumentId(doc.getId());
             vo.setDocumentName(doc.getFileName());
             vo.setDocumentStatus(doc.getStatus());

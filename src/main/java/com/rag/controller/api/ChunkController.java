@@ -39,6 +39,13 @@ public class ChunkController {
         return chunkService.listByDocumentId(documentId, page, size);
     }
 
+    @Operation(summary = "按业务chunkId查询单个块")
+    @GetMapping("/by-chunk-id/{chunkId}")
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<ChunkVO> getByChunkId(@PathVariable String chunkId) {
+        return chunkService.getByChunkId(chunkId);
+    }
+
     @Operation(summary = "编辑块内容")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")

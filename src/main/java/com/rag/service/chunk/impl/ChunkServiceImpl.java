@@ -87,6 +87,17 @@ public class ChunkServiceImpl implements ChunkService {
     }
 
     @Override
+    public Result<ChunkVO> getByChunkId(String chunkId) {
+        DocumentChunk chunk = chunkMapper.selectOne(
+                new LambdaQueryWrapper<DocumentChunk>()
+                        .eq(DocumentChunk::getChunkId, chunkId));
+        if (chunk == null) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "块不存在");
+        }
+        return Result.success(toVO(chunk));
+    }
+
+    @Override
     public Result<ChunkVO.ChunkStats> getStats(Long documentId) {
         LambdaQueryWrapper<DocumentChunk> wrapper = new LambdaQueryWrapper<DocumentChunk>()
                 .eq(DocumentChunk::getDocumentId, documentId);

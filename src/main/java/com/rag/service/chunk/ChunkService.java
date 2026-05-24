@@ -16,6 +16,8 @@ public interface ChunkService {
 
     Result<Void> batchSetStatus(List<Long> ids, String status);
 
+    Result<ChunkVO> getByChunkId(String chunkId);
+
     Result<ChunkVO.ChunkStats> getStats(Long documentId);
 
     Result<Void> startEmbedding(Long documentId);
