@@ -27,6 +27,9 @@ export const chunkApi = {
   list: (documentId: number, params?: { page?: number; size?: number }): Promise<Page<ChunkVO>> =>
     request.get(BASE, { params: { documentId, ...params } }),
 
+  getByChunkId: (chunkId: string): Promise<ChunkVO> =>
+    request.get(`${BASE}/by-chunk-id/${chunkId}`),
+
   update: (id: number, content: string): Promise<ChunkVO> =>
     request.put(`${BASE}/${id}`, { content }),
 

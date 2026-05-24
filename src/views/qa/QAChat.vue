@@ -87,6 +87,8 @@
                 v-for="(doc, di) in msg.sourceDocs"
                 :key="doc.chunkId"
                 class="source-doc-item"
+                @click="goToChunkDetail(doc.chunkId)"
+                title="点击查看块详情"
               >
                 <div class="source-doc-header">
                   <span class="source-doc-name">
@@ -139,6 +141,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ChatDotRound, Plus, MoreFilled, Promotion, Document, Star, StarFilled } from '@element-plus/icons-vue'
 import { qaApi } from '@/api/modules/qa'
 import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
@@ -173,6 +176,7 @@ const activeSessionId = ref<number | null>(null)
 const pinnedId = ref<number | null>(loadPinnedId())
 
 const { isStreaming, streamContent, startStream } = useSSE()
+const router = useRouter()
 
 const canSend = computed(() => question.value.trim() && selectedKbIds.value.length > 0 && !isStreaming.value)
 
@@ -229,6 +233,10 @@ function formatTime(dateStr: string): string {
 function renderMarkdown(text: string): string {
   const html = marked.parse(text || '') as string
   return sanitizeHtml(html)
+}
+
+function goToChunkDetail(chunkId: string) {
+  router.push(`/chunks/${encodeURIComponent(chunkId)}/detail`)
 }
 
 function scrollToBottom() {
@@ -571,6 +579,12 @@ onMounted(async () => {
   background: #fafafa;
   border-radius: 6px;
   border-left: 3px solid #409eff;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.source-doc-item:hover {
+  background: #ecf5ff;
+  border-left-color: #337ecc;
 }
 .source-doc-header {
   display: flex;

@@ -65,6 +65,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '块审核', permissions: ['DOCUMENT:VIEW'], icon: 'Grid' },
       },
       {
+        path: 'chunks/:chunkId/detail',
+        name: 'ChunkDetail',
+        component: () => import('@/views/documents/ChunkDetail.vue'),
+        meta: { title: '块详情', permissions: ['DOCUMENT:VIEW'], icon: 'Reading' },
+      },
+      {
         path: 'review',
         name: 'Review',
         component: () => import('@/views/review/ReviewList.vue'),
