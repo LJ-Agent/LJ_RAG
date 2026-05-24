@@ -32,9 +32,10 @@ public class FileController {
     public Result<FileVO> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam("kbId") Long kbId,
-            @RequestParam(value = "chunkStrategy", required = false, defaultValue = "semantic") String chunkStrategy) {
+            @RequestParam(value = "chunkStrategy", required = false, defaultValue = "semantic") String chunkStrategy,
+            @RequestParam(value = "chunkConfig", required = false) String chunkConfig) {
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
-        return fileService.upload(file, kbId, userId, chunkStrategy);
+        return fileService.upload(file, kbId, userId, chunkStrategy, chunkConfig);
     }
 
     @Operation(summary = "查询文档列表")

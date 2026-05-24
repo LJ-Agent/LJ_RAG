@@ -8,7 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface FileService {
 
-    Result<FileVO> upload(MultipartFile file, Long kbId, Long userId, String chunkStrategy);
+    Result<FileVO> upload(MultipartFile file, Long kbId, Long userId, String chunkStrategy, String chunkConfig);
 
     Result<Page<FileVO>> list(FileQueryDTO query);
 

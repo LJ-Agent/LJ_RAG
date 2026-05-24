@@ -52,7 +52,7 @@ public class FileServiceImpl implements FileService {
 
     @Override
     @Transactional
-    public Result<FileVO> upload(MultipartFile file, Long kbId, Long userId, String chunkStrategy) {
+    public Result<FileVO> upload(MultipartFile file, Long kbId, Long userId, String chunkStrategy, String chunkConfig) {
         // 1. 参数校验
         if (file.isEmpty()) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "文件不能为空");
@@ -104,6 +104,7 @@ public class FileServiceImpl implements FileService {
         doc.setMinioPath(objectName);
         doc.setStatus(DocumentStatus.UPLOADED.name());
         doc.setChunkStrategy(chunkStrategy != null ? chunkStrategy : "semantic");
+        doc.setChunkConfig(chunkConfig);
         doc.setUploadUserId(userId);
         doc.setUploadAt(LocalDateTime.now());
         documentMapper.insert(doc);
@@ -282,7 +283,9 @@ public class FileServiceImpl implements FileService {
         message.setData(JSONUtil.createObj()
                 .set("originalFileUrl", minioConfig.getBucketName() + "/" + doc.getMinioPath())
                 .set("fileName", doc.getFileName())
-                .set("fileType", doc.getFileType()));
+                .set("fileType", doc.getFileType())
+                .set("chunkStrategy", doc.getChunkStrategy())
+                .set("chunkConfig", doc.getChunkConfig()));
         message.setCreatedAt(LocalDateTime.now().toString());
 
         kafkaTemplate.send(KafkaConstants.TOPIC_FILE_PROCESS, message.getTaskId(), JSONUtil.toJsonStr(message));
@@ -301,6 +304,7 @@ public class FileServiceImpl implements FileService {
         vo.setErrorMessage(doc.getErrorMessage());
         vo.setChunkCount(doc.getChunkCount());
         vo.setChunkStrategy(doc.getChunkStrategy());
+        vo.setChunkConfig(doc.getChunkConfig());
         vo.setUploadUserId(doc.getUploadUserId());
         vo.setUploadAt(doc.getUploadAt());
         vo.setCompletedAt(doc.getCompletedAt());

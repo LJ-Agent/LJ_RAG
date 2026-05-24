@@ -127,7 +127,8 @@ public class ReviewServiceImpl implements ReviewService {
         message.setData(JSONUtil.createObj()
                 .set("cleanedPath", cleanedPath)
                 .set("fileName", doc.getFileName())
-                .set("chunkStrategy", doc.getChunkStrategy() != null ? doc.getChunkStrategy() : "semantic"));
+                .set("chunkStrategy", doc.getChunkStrategy() != null ? doc.getChunkStrategy() : "semantic")
+                .set("chunkConfig", doc.getChunkConfig()));
         message.setCreatedAt(LocalDateTime.now().toString());
 
         kafkaTemplate.send(KafkaConstants.TOPIC_CHUNK_PROCESS, taskId, JSONUtil.toJsonStr(message));
