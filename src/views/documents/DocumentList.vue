@@ -28,7 +28,13 @@
     <!-- 数据表格 -->
     <el-table :data="list" v-loading="isLoading" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" align="center" />
-      <el-table-column prop="fileName" label="文件名称" min-width="200" show-overflow-tooltip />
+      <el-table-column label="文件名称" min-width="200">
+        <template #default="{ row }">
+          <el-button link type="primary" size="small" @click="$router.push(`/documents/${row.id}/content`)">
+            {{ row.fileName }}
+          </el-button>
+        </template>
+      </el-table-column>
       <el-table-column label="文件类型" width="100" align="center">
         <template #default="{ row }">
           <el-tag size="small" type="info">{{ row.fileType?.toUpperCase() }}</el-tag>
