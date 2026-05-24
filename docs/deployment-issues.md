@@ -226,3 +226,110 @@
 | 中 (Medium) | 3 | Frontend×3 |
 | 低 (Low) | 2 | Backend×1, Python×1 |
 | **合计** | **25** | |
+
+---
+
+## 五、全流程端到端测试发现的缺陷（2026-05-25）
+
+### B15. HttpMessageNotReadableException 返回 500 而非 400
+- **分支**: master_backend
+- **文件**: `GlobalExceptionHandler.java`
+- **问题**: 当请求 JSON 类型不匹配（如 `kbIds` 传 String 而非数组）时，Jackson 抛出 `HttpMessageNotReadableException`，被兜底 `ExceptionHandler` 捕获返回 500
+- **修复**: 添加专用的 `HttpMessageNotReadableException` 处理器，返回 `400 Bad Request` 并给出明确的 JSON 格式错误提示
+- **Commit**: b9106ec
+
+### B16. application.yml 服务地址硬编码 localhost
+- **分支**: master_backend
+- **文件**: `application.yml`
+- **问题**: MySQL、Redis、Kafka、MinIO、gRPC 主机均硬编码为 `localhost`，Docker 容器内无法访问其他容器
+- **修复**: 全部改为 `${ENV_VAR:localhost}` 环境变量占位符格式，通过 docker run -e 传入实际服务名（如 `MYSQL_HOST=rag-mysql`）
+- **Commit**: b9106ec
+
+### B17. Dockerfile 缺少 /app/logs 目录创建
+- **分支**: master_backend
+- **文件**: `docker/Dockerfile`
+- **问题**: Logback 配置写入 `./logs/rag-server.log`（即 `/app/logs/`），但 Dockerfile 仅创建 `/var/log/rag-server`，非 root 用户 `rag` 无权限创建 `/app/logs/`，导致容器启动失败
+- **修复**: `mkdir -p /app/logs /var/log/rag-server && chown -R rag:rag /app/logs /var/log/rag-server`
+- **Commit**: b9106ec
+
+### B18. Python Kafka 消费者不提交 offset（严重）
+- **分支**: master_python
+- **文件**: `task_consumer.py`
+- **问题**: 使用手动分区分配（`assign()`）但从未调用 `commit()`，导致每次容器重启都从最早 offset 重放所有历史消息。旧任务（MinIO 文件已删除）反复重试直至耗尽 4 次重试，期间占满任务队列阻塞新任务
+- **修复**: 
+  1. 添加 `group_id` 到 `KafkaConsumer` 构造函数（提交 offset 所必需）
+  2. 每次任务完成（成功或最终失败）后，通过 `on_complete`/`on_failed` 回调提交对应分区的 offset
+  3. 使用 `OffsetAndMetadata(offset + 1, "", 0)` 兼容 kafka-python 2.3.1 的 API
+  4. 启动时先 `assign()` 再检查 `committed()` 偏移量，恢复已提交位置
+- **Commit**: 46ec7ba
+
+### B19. Python 任务队列满时静默丢弃任务（严重）
+- **分支**: master_python
+- **文件**: `task_dispatcher.py`
+- **问题**: `submit()` 仅在 `len(_futures) < max_concurrent(5)` 时接受任务，否则抛出 `TaskException`。消费者在 poll 循环中捕获异常后静默丢弃，消息永不重试，导致 EMBED_PROCESS 等关键任务被丢失
+- **修复**: 
+  1. 添加 `deque` 缓冲队列存储待处理任务
+  2. 添加 drainer 后台线程，当执行器有空闲槽位时从缓冲队列取任务提交
+  3. 使用 `threading.Event` 实现高效唤醒
+- **Commit**: 46ec7ba
+
+### B20. Milvus L2 距离过滤方向反了（严重）
+- **分支**: master_python
+- **文件**: `milvus_client.py`
+- **问题**: L2 距离越小表示越相似，但过滤条件为 `result.distance >= score_threshold`（越大越相似），导致最相似的匹配被过滤掉，检索永远返回空结果
+- **修复**: 
+  1. 改用 `similarity >= score_threshold`，similarity = `1.0 - distance / 2.0`（归一化向量 L2 ∈ [0, 2]）
+  2. 将 L2 距离转换为 0~1 相似度分数（越高越相似），统一接口语义
+  3. 检索候选数扩展为 `max(top_k * 2, 10)`，确保过滤后仍有足够结果
+- **Commit**: 46ec7ba
+
+### B21. 相似度阈值配置过高
+- **分支**: master_backend + master_python
+- **文件**: `QuestionDTO.java` (Java), `settings.yaml` (Python)
+- **问题**: Java 默认 `scoreThreshold=0.7`，Python 默认 `score_threshold=0.5`，但 BGE-base-zh-v1.5 模型归一化向量后，查询与文档块的 L2 距离约 0.9~1.0，对应相似度 0.50~0.55。阈值 0.7 会过滤掉所有合法匹配
+- **修复**: Java `scoreThreshold` 降至 `0.3f`，Python `score_threshold` 降至 `0.3`
+- **Commit**: b9106ec (Java), 46ec7ba (Python)
+
+### B22. BM25 索引内存存储重启丢失
+- **分支**: master_python
+- **文件**: `hybrid_retrieval.py`, `bm25_engine.py`
+- **问题**: BM25 索引基于内存字典存储，容器重启后全部丢失。EMBED_PROCESS 完成后 BM25 索引重建依赖 Kafka 消息重放，但 offset 提交后不再重放，导致 BM25 检索始终返回空
+- **影响**: 混合检索的 BM25 分支失效，仅依赖向量检索
+- **状态**: 已知限制，待后续增加启动时从 Milvus/DB 重建 BM25 索引的逻辑
+
+### B23. 问答缓存污染失败结果
+- **分支**: master_backend
+- **文件**: `QaServiceImpl.java`
+- **问题**: QA 应答无条件写入 Redis 缓存（包括 `sourceDocs` 为空的结果）。首次查询因阈值过高返回空结果被缓存后，后续相同问题直接返回缓存的空结果
+- **影响**: 修复检索 bug 后，重新查询可能仍返回旧的空结果（需手动清除 Redis 缓存）
+- **状态**: 已知限制，待后续优化（仅在 sourceDocs 非空时缓存，或添加缓存版本控制）
+
+### B24. RRF 融合分数覆盖相似度分数
+- **分支**: master_python
+- **文件**: `hybrid_retrieval.py`
+- **问题**: `_fuse_results()` 将 `info["score"]` 覆写为 RRF 分数（~0.02），丢失了原始的相似度分数（0~1）。前端显示的分数为 RRF 值而非语义相似度，用户体验不佳
+- **状态**: 已知限制，待后续评估是否需要保留原始相似度
+
+### B25. gRPC 检索响应缺少文档名称
+- **分支**: master_python
+- **文件**: `retrieval_service.py`
+- **问题**: 检索结果中 `document_name` 始终为空字符串，Milvus 不存储文档名称，BM25 也不包含
+- **状态**: 已知限制，需在 Java 侧或 Python 侧通过 document_id 查询数据库补全
+
+### 新增缺陷统计（2026-05-25）
+| 严重程度 | 数量 | 涉及仓库 |
+|---------|------|---------|
+| 严重 (Critical) | 6 | B18, B19, B20, B21 |
+| 高 (High) | 3 | B15, B16, B17 |
+| 中 (Medium) | 2 | B22, B23 |
+| 低 (Low) | 2 | B24, B25 |
+| **新增合计** | **13** | Backend×5, Python×8 |
+
+### 总缺陷统计（截至 2026-05-25）
+| 严重程度 | B1~B14 | B15~B25 | 总计 |
+|---------|--------|---------|------|
+| 严重 | 14 | 6 | 20 |
+| 高 | 6 | 3 | 9 |
+| 中 | 3 | 2 | 5 |
+| 低 | 2 | 2 | 4 |
+| **合计** | **25** | **13** | **38** |
