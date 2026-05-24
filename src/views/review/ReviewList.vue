@@ -11,32 +11,46 @@
       <el-tab-pane name="PENDING" label="待审核" />
       <el-tab-pane name="APPROVED" label="已通过" />
       <el-tab-pane name="REJECTED" label="已驳回" />
+      <el-tab-pane name="CHUNK_REVIEW" label="块审核" />
     </el-tabs>
 
     <el-table :data="list" v-loading="isLoading" stripe border style="width: 100%" @selection-change="onSelectionChange">
       <el-table-column type="selection" width="50" v-if="activeTab === 'PENDING'" />
-      <el-table-column prop="id" label="ID" width="80" align="center" />
+      <el-table-column prop="id" label="ID" width="80" align="center" v-if="activeTab !== 'CHUNK_REVIEW'" />
       <el-table-column prop="documentName" label="文档名称" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="reviewerName" label="审核人" width="120" align="center">
+      <el-table-column prop="chunkCount" label="块数" width="70" align="center" v-if="activeTab === 'CHUNK_REVIEW'" />
+      <el-table-column label="文档状态" width="110" align="center" v-if="activeTab === 'CHUNK_REVIEW'">
+        <template #default="{ row }">
+          <el-tag :type="DOCUMENT_STATUS_MAP[row.documentStatus]?.type || 'info'" size="small">
+            {{ DOCUMENT_STATUS_MAP[row.documentStatus]?.label || row.documentStatus }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="reviewerName" label="审核人" width="120" align="center" v-if="activeTab !== 'CHUNK_REVIEW'">
         <template #default="{ row }">{{ row.reviewerName || '-' }}</template>
       </el-table-column>
-      <el-table-column label="审核结果" width="100" align="center">
+      <el-table-column label="审核结果" width="100" align="center" v-if="activeTab !== 'CHUNK_REVIEW'">
         <template #default="{ row }">
           <el-tag :type="REVIEW_RESULT_MAP[row.result]?.type || 'info'" size="small">
             {{ REVIEW_RESULT_MAP[row.result]?.label || row.result }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="comment" label="审核意见" min-width="180" show-overflow-tooltip>
+      <el-table-column prop="comment" label="审核意见" min-width="180" show-overflow-tooltip v-if="activeTab !== 'CHUNK_REVIEW'">
         <template #default="{ row }">{{ row.comment || '-' }}</template>
       </el-table-column>
-      <el-table-column label="审核时间" width="170" align="center">
+      <el-table-column label="时间" width="170" align="center">
         <template #default="{ row }">{{ formatDate(row.reviewedAt || row.createdAt) }}</template>
       </el-table-column>
       <el-table-column v-if="activeTab === 'PENDING'" label="操作" width="200" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="success" size="small" @click="approve(row)">通过</el-button>
           <el-button link type="danger" size="small" @click="openReject(row)">驳回</el-button>
+        </template>
+      </el-table-column>
+      <el-table-column v-if="activeTab === 'CHUNK_REVIEW'" label="操作" width="140" align="center" fixed="right">
+        <template #default="{ row }">
+          <el-button link type="primary" size="small" @click="$router.push(`/documents/${row.documentId}/chunks`)">块管理</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -74,7 +88,7 @@ import { Check } from '@element-plus/icons-vue'
 import { reviewApi } from '@/api/modules/review'
 import { usePagination } from '@/composables/usePagination'
 import { formatDate } from '@/utils/format'
-import { REVIEW_RESULT_MAP } from '@/utils/constants'
+import { REVIEW_RESULT_MAP, DOCUMENT_STATUS_MAP } from '@/utils/constants'
 import type { ReviewVO } from '@/api/types/review'
 import { ElMessage } from 'element-plus'
 
@@ -92,10 +106,13 @@ async function fetchList() {
   isLoading.value = true
   selectedIds.value = []
   try {
-    const res = await reviewApi.pending({
-      page: pagination.params.page,
-      size: pagination.params.size,
-    })
+    const params = { page: pagination.params.page, size: pagination.params.size }
+    let res
+    if (activeTab.value === 'CHUNK_REVIEW') {
+      res = await reviewApi.chunkReview(params)
+    } else {
+      res = await reviewApi.pending(params)
+    }
     list.value = res.records
     pagination.setTotal(res.total)
   } finally {

@@ -7,6 +7,8 @@ export interface ReviewVO {
   result: string
   comment: string
   autoApproved: number
+  documentStatus?: string
+  chunkCount?: number
   reviewedAt: string
   createdAt: string
 }

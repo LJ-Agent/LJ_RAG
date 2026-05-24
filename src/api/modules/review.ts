@@ -11,6 +11,9 @@ export const reviewApi = {
   submit: (data: ReviewSubmitDTO): Promise<void> =>
     request.post(`${BASE}/submit`, data),
 
+  chunkReview: (params: { page?: number; size?: number }): Promise<Page<ReviewVO>> =>
+    request.get(`${BASE}/chunk-review`, { params }),
+
   batchApprove: (ids: number[]): Promise<void> =>
     request.post(`${BASE}/batch-approve`, ids),
 }
