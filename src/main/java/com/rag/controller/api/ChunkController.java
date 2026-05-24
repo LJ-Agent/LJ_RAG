@@ -57,9 +57,21 @@ public class ChunkController {
     @PutMapping("/batch-status")
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
     public Result<Void> batchSetStatus(@RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        List<Long> ids = ((List<Integer>) body.get("ids")).stream().map(Long::valueOf).toList();
-        String status = (String) body.get("status");
+        Object rawIds = body.get("ids");
+        if (!(rawIds instanceof List<?> rawList)) {
+            throw new com.rag.common.exception.BusinessException(
+                    com.rag.common.result.ResultCodeEnum.PARAM_ERROR.getCode(), "ids参数必须为数组");
+        }
+        List<Long> ids = rawList.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(o -> o instanceof Number n ? n.longValue() : Long.valueOf(o.toString()))
+                .toList();
+        Object rawStatus = body.get("status");
+        if (rawStatus == null) {
+            throw new com.rag.common.exception.BusinessException(
+                    com.rag.common.result.ResultCodeEnum.PARAM_ERROR.getCode(), "status参数不能为空");
+        }
+        String status = rawStatus.toString();
         return chunkService.batchSetStatus(ids, status);
     }
 

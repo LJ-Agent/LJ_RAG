@@ -122,7 +122,7 @@ public class ReviewServiceImpl implements ReviewService {
         // Construct cleaned path from the FILE_PROCESS convention
         String originalPath = doc.getMinioPath();
         String cleanedPath = originalPath != null
-                ? minioConfig.getBucketName() + "/" + originalPath.substring(0, originalPath.lastIndexOf('.')) + "_cleaned.md"
+                ? minioConfig.getBucketName() + "/" + buildCleanedPath(originalPath)
                 : "";
         message.setData(JSONUtil.createObj()
                 .set("cleanedPath", cleanedPath)
@@ -193,5 +193,14 @@ public class ReviewServiceImpl implements ReviewService {
                 log.info("超时自动审核通过: docId={}", doc.getId());
             });
         }
+    }
+
+    private String buildCleanedPath(String minioPath) {
+        if (minioPath == null) return "";
+        int lastDot = minioPath.lastIndexOf('.');
+        if (lastDot > 0) {
+            return minioPath.substring(0, lastDot) + "_cleaned.md";
+        }
+        return minioPath + "_cleaned.md";
     }
 }

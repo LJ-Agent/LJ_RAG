@@ -1,7 +1,6 @@
 package com.rag.service.qa.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rag.common.exception.BusinessException;
 import com.rag.common.result.Result;
@@ -98,11 +97,6 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         session.setUpdatedAt(LocalDateTime.now());
         sessionMapper.updateById(session);
 
-        // 软删除关联的问答记录
-        LambdaUpdateWrapper<ChatRecord> recordWrapper = new LambdaUpdateWrapper<ChatRecord>()
-                .eq(ChatRecord::getSessionId, sessionId);
-        chatRecordMapper.delete(recordWrapper);
-
         log.info("会话已删除: sessionId={}, userId={}", sessionId, userId);
         return Result.success();
     }
@@ -111,7 +105,7 @@ public class ChatSessionServiceImpl implements ChatSessionService {
     public Result<Page<ChatHistoryVO>> getSessionRecords(Long sessionId, Long userId, Integer page, Integer size) {
         // 验证会话属于当前用户
         ChatSession session = sessionMapper.selectById(sessionId);
-        if (session == null || session.getDeleted() == 1) {
+        if (session == null || session.getDeleted() == 1 || !session.getUserId().equals(userId)) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "会话不存在");
         }
 

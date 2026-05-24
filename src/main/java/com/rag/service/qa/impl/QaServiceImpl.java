@@ -51,8 +51,7 @@ public class QaServiceImpl implements QaService {
     @Override
     public Result<AnswerVO> chat(QuestionDTO dto, Long userId) {
         // 1. 检查缓存
-        String cacheKey = CacheConstants.QA_CACHE_PREFIX + StrUtil.uuid()
-                .substring(0, 8) + "_" + dto.getQuestion().hashCode();
+        String cacheKey = CacheConstants.QA_CACHE_PREFIX + (dto.getQuestion().hashCode() & 0x7fffffff);
         String cached = stringRedisTemplate.opsForValue().get(cacheKey);
         if (cached != null) {
             log.info("命中问答缓存: key={}", cacheKey);
@@ -133,6 +132,8 @@ public class QaServiceImpl implements QaService {
                     src.setDocumentId(chunk.getDocumentId());
                     src.setDocumentName(chunk.getDocumentName());
                     src.setChunkId(chunk.getChunkId());
+                    src.setChunkIndex(chunk.getChunkIndex());
+                    src.setContent(chunk.getContent());
                     src.setScore(chunk.getScore());
                     sourceDocs.add(src);
                 }

@@ -51,12 +51,12 @@ public class TaskCompleteConsumer {
             }
 
             stateMachine.transitToNext(doc);
+            acknowledgment.acknowledge();
         } catch (Exception e) {
             log.error("处理任务完成通知失败: taskId={}, docId={}",
                     message != null ? message.getTaskId() : "unknown",
                     message != null ? message.getDocumentId() : "unknown", e);
-        } finally {
-            acknowledgment.acknowledge();
+            // Do NOT acknowledge on failure — message will be re-delivered
         }
     }
 
