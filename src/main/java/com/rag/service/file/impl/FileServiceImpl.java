@@ -315,6 +315,56 @@ public class FileServiceImpl implements FileService {
         return fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
     }
 
+    @Override
+    public void raw(Long id, HttpServletResponse response) {
+        Document doc = documentMapper.selectById(id);
+        if (doc == null) {
+            throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
+        }
+
+        try {
+            InputStream is = minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(minioConfig.getBucketName())
+                    .object(doc.getMinioPath())
+                    .build());
+
+            String contentType = getMimeType(getFileExtension(doc.getFileName()));
+            response.setContentType(contentType);
+            response.setHeader("Content-Disposition", "inline; filename=" +
+                    URLEncoder.encode(doc.getFileName(), StandardCharsets.UTF_8));
+
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = is.read(buffer)) != -1) {
+                response.getOutputStream().write(buffer, 0, read);
+            }
+            is.close();
+            response.getOutputStream().flush();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取原始文件失败: id={}", id, e);
+            throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND);
+        }
+    }
+
+    private String getMimeType(String ext) {
+        return switch (ext.toLowerCase()) {
+            case "pdf" -> "application/pdf";
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "svg" -> "image/svg+xml";
+            case "bmp" -> "image/bmp";
+            case "txt", "md" -> "text/plain; charset=UTF-8";
+            case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            case "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+            default -> "application/octet-stream";
+        };
+    }
+
     private String buildCleanedPath(String minioPath) {
         if (minioPath == null) return null;
         int lastDot = minioPath.lastIndexOf('.');

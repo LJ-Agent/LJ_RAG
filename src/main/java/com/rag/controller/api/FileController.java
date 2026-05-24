@@ -67,4 +67,10 @@ public class FileController {
     public void getContent(@PathVariable Long id, HttpServletResponse response) {
         fileService.getContent(id, response);
     }
+
+    @Operation(summary = "获取原始文件（inline展示，非下载）")
+    @GetMapping("/{id}/raw")
+    public void raw(@PathVariable Long id, HttpServletResponse response) {
+        fileService.raw(id, response);
+    }
 }

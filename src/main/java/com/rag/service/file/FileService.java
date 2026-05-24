@@ -19,4 +19,6 @@ public interface FileService {
     void download(Long id, jakarta.servlet.http.HttpServletResponse response);
 
     void getContent(Long id, jakarta.servlet.http.HttpServletResponse response);
+
+    void raw(Long id, jakarta.servlet.http.HttpServletResponse response);
 }
