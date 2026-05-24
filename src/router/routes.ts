@@ -77,12 +77,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '知识问答', permissions: ['QA:ASK'], icon: 'ChatDotRound' },
       },
       {
-        path: 'qa/history',
-        name: 'QAHistory',
-        component: () => import('@/views/qa/QAHistory.vue'),
-        meta: { title: '问答历史', permissions: ['QA:HISTORY'], icon: 'Clock' },
-      },
-      {
         path: 'users',
         name: 'Users',
         component: () => import('@/views/users/UserList.vue'),

@@ -1,6 +1,13 @@
 import { ref } from 'vue'
 import { qaApi } from '@/api/modules/qa'
-import type { QuestionDTO } from '@/api/types/qa'
+import type { QuestionDTO, SourceDoc } from '@/api/types/qa'
+
+export interface StreamMetadata {
+  chatId?: number
+  tokenCount?: number
+  latencyMs?: number
+  sourceDocs?: SourceDoc[]
+}
 
 export function useSSE() {
   const isStreaming = ref(false)
@@ -11,7 +18,7 @@ export function useSSE() {
   async function startStream(
     question: QuestionDTO,
     onChunk: (text: string) => void,
-    onDone: (metadata: { chatId?: number; tokenCount?: number; latencyMs?: number }) => void
+    onDone: (metadata: StreamMetadata) => void
   ) {
     isStreaming.value = true
     streamContent.value = ''
@@ -28,6 +35,7 @@ export function useSSE() {
       const reader = response.body!.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      let currentEvent = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -38,29 +46,37 @@ export function useSSE() {
         buffer = lines.pop() || ''
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const chunk = line.slice(6)
-            streamContent.value += chunk
-            onChunk(chunk)
-          } else if (line.startsWith('event: done')) {
-            // 最后一条data在下一行
-          } else if (line.startsWith('data: {')) {
-            try {
-              const meta = JSON.parse(line.slice(6))
-              if (meta.chatId) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim()
+          } else if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (currentEvent === 'done') {
+              // 流式结束，解析元数据 JSON
+              try {
+                const meta: StreamMetadata = JSON.parse(data)
                 onDone(meta)
-              }
-            } catch { /* ignore parse errors */ }
+              } catch { /* ignore parse errors */ }
+              currentEvent = ''
+            } else if (currentEvent === 'error') {
+              error.value = data
+              currentEvent = ''
+            } else {
+              // 普通 token 数据
+              streamContent.value += data
+              onChunk(data)
+            }
           }
+          // 空行表示事件分隔，重置 currentEvent
+          // （SSE 协议中用空行分隔不同事件）
         }
       }
 
-      // 处理buffer残余
-      if (buffer.startsWith('data: ') && buffer.length > 6) {
+      // 处理 buffer 残余
+      if (buffer.startsWith('data: ')) {
         const remaining = buffer.slice(6)
-        if (remaining.startsWith('{')) {
+        if (currentEvent === 'done' && remaining.startsWith('{')) {
           try {
-            const meta = JSON.parse(remaining)
+            const meta: StreamMetadata = JSON.parse(remaining)
             onDone(meta)
           } catch { /* ignore */ }
         }

@@ -9,15 +9,22 @@
       </div>
       <div class="session-list">
         <div
-          v-for="s in sessions"
+          v-for="s in sortedSessions"
           :key="s.id"
           :class="['session-item', { active: activeSessionId === s.id }]"
           @click="switchSession(s.id)"
         >
           <div class="session-info">
             <span class="session-title">{{ s.title }}</span>
-            <span class="session-meta">{{ s.messageCount }} 条 · {{ formatTime(s.updatedAt) }}</span>
+            <span class="session-meta">{{ s.messageCount }} 条 · {{ formatTime(s.createdAt) }}</span>
           </div>
+          <span
+            :class="['session-star', { starred: pinnedId === s.id }]"
+            @click.stop="togglePin(s.id)"
+            title="置顶会话"
+          >
+            <el-icon><StarFilled v-if="pinnedId === s.id" /><Star v-else /></el-icon>
+          </span>
           <el-dropdown trigger="click" @command="(cmd: string) => handleSessionAction(cmd, s)">
             <span class="session-more" @click.stop><el-icon><MoreFilled /></el-icon></span>
             <template #dropdown>
@@ -28,7 +35,7 @@
             </template>
           </el-dropdown>
         </div>
-        <el-empty v-if="sessions.length === 0" description="暂无会话" :image-size="60" />
+        <el-empty v-if="sortedSessions.length === 0" description="暂无会话" :image-size="60" />
       </div>
     </div>
 
@@ -54,80 +61,59 @@
         <div v-for="(msg, idx) in messages" :key="idx" :class="['qa-message', msg.role]">
           <div class="qa-message__bubble">
             <div v-if="msg.role === 'user'">{{ msg.content }}</div>
-            <div v-else v-html="renderMarkdown(msg.content)" class="markdown-body"></div>
+            <div v-else>
+              <!-- 思考过程 -->
+              <div v-if="msg.thinking" class="thinking-block">
+                <el-collapse>
+                  <el-collapse-item title="思考过程">
+                    <div class="thinking-content">{{ msg.thinking }}</div>
+                  </el-collapse-item>
+                </el-collapse>
+              </div>
+              <!-- 回答内容 -->
+              <div v-html="renderMarkdown(msg.content)" class="markdown-body"></div>
+            </div>
 
-            <!-- 检索过程可视化 -->
+            <!-- 回答依据 -->
             <div v-if="msg.sourceDocs && msg.sourceDocs.length > 0" class="source-docs">
-              <el-collapse>
-                <el-collapse-item>
-                  <template #title>
-                    <div class="retrieval-title">
-                      <span>检索过程</span>
-                      <span class="retrieval-summary">
-                        命中 {{ msg.sourceDocs.length }} 条 · 耗时 {{ msg.latencyMs || '--' }}ms · {{ msg.tokenCount || '--' }} tokens
-                      </span>
-                    </div>
-                  </template>
-
-                  <!-- 检索步骤可视化 -->
-                  <div class="retrieval-steps">
-                    <div class="step-item">
-                      <div class="step-indicator step-1">
-                        <el-icon><Search /></el-icon>
-                      </div>
-                      <div class="step-content">
-                        <div class="step-title">向量检索（Milvus）</div>
-                        <div class="step-desc">使用 embedding 向量在 Milvus 中进行 ANN 搜索，召回语义相似的 Top-N 文档片段</div>
-                      </div>
-                    </div>
-                    <div class="step-item">
-                      <div class="step-indicator step-2">
-                        <el-icon><Document /></el-icon>
-                      </div>
-                      <div class="step-content">
-                        <div class="step-title">BM25 关键词检索</div>
-                        <div class="step-desc">基于 jieba 分词的 BM25 算法，匹配精确关键词，补充字面匹配结果</div>
-                      </div>
-                    </div>
-                    <div class="step-item">
-                      <div class="step-indicator step-3">
-                        <el-icon><Connection /></el-icon>
-                      </div>
-                      <div class="step-content">
-                        <div class="step-title">RRF 融合排序</div>
-                        <div class="step-desc">将向量检索和 BM25 检索结果通过 RRF 算法融合，重排序后返回最终 {{ msg.sourceDocs.length }} 条结果</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <el-divider />
-
-                  <!-- 命中文档列表 -->
-                  <div class="retrieval-results-header">
-                    <span>命中文档片段 ({{ msg.sourceDocs.length }})</span>
-                  </div>
-                  <div v-for="(doc, di) in msg.sourceDocs" :key="doc.chunkId" class="source-doc-item">
-                    <div class="source-doc-header">
-                      <span class="source-doc-name">
-                        <el-tag size="small" type="primary">{{ di + 1 }}</el-tag>
-                        {{ doc.documentName || '文档#' + doc.documentId }}
-                      </span>
-                      <el-tag size="small" :type="doc.score > 0.7 ? 'success' : doc.score > 0.4 ? 'warning' : 'info'">
-                        RRF: {{ (doc.score * 100).toFixed(2) }}%
-                      </el-tag>
-                    </div>
-                    <p class="source-doc-content">{{ doc.content }}</p>
-                  </div>
-                </el-collapse-item>
-              </el-collapse>
+              <div class="source-docs-header">
+                <el-icon><Document /></el-icon>
+                <span>回答依据</span>
+                <span class="retrieval-summary">
+                  共 {{ msg.sourceDocs.length }} 个片段 · 耗时 {{ msg.latencyMs || '--' }}ms · {{ msg.tokenCount || '--' }} tokens
+                </span>
+              </div>
+              <div
+                v-for="(doc, di) in msg.sourceDocs"
+                :key="doc.chunkId"
+                class="source-doc-item"
+              >
+                <div class="source-doc-header">
+                  <span class="source-doc-name">
+                    <el-tag size="small" type="primary">{{ di + 1 }}</el-tag>
+                    {{ doc.documentName || '文档#' + doc.documentId }}
+                    <span class="source-doc-chunk">Chunk #{{ doc.chunkIndex }}</span>
+                  </span>
+                  <el-tag size="small" :type="doc.score > 0.7 ? 'success' : doc.score > 0.4 ? 'warning' : 'info'">
+                    相似度: {{ (doc.score * 100).toFixed(1) }}%
+                  </el-tag>
+                </div>
+                <p class="source-doc-content">{{ doc.content }}</p>
+              </div>
             </div>
           </div>
         </div>
 
+        <!-- 流式输出：思考 + 回答 -->
         <div v-if="isStreaming" class="qa-message bot">
           <div class="qa-message__bubble">
-            <div v-if="streamContent" v-html="renderMarkdown(streamContent)" class="markdown-body"></div>
-            <span v-else class="typing-indicator">思考中...</span>
+            <div class="streaming-block">
+              <div class="streaming-header">
+                <span class="streaming-dot"></span>
+                <span>{{ streamContent ? '正在生成回答...' : '正在检索并思考...' }}</span>
+              </div>
+              <div v-if="streamContent" v-html="renderMarkdown(streamContent)" class="markdown-body"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -153,10 +139,11 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted } from 'vue'
-import { ChatDotRound, Plus, MoreFilled, Promotion, Search, Document, Connection } from '@element-plus/icons-vue'
+import { ChatDotRound, Plus, MoreFilled, Promotion, Document, Star, StarFilled } from '@element-plus/icons-vue'
 import { qaApi } from '@/api/modules/qa'
 import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
 import { useSSE } from '@/composables/useSSE'
+import type { StreamMetadata } from '@/composables/useSSE'
 import { sanitizeHtml } from '@/utils/sanitize'
 import { marked } from 'marked'
 import type { KnowledgeBaseVO } from '@/api/types/knowledgeBase'
@@ -166,10 +153,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 interface ChatMessage {
   role: 'user' | 'bot'
   content: string
+  thinking?: string
   sourceDocs?: SourceDoc[]
   tokenCount?: number
   latencyMs?: number
 }
+
+const STORAGE_KEY = 'rag-pinned-session'
 
 const kbList = ref<KnowledgeBaseVO[]>([])
 const selectedKbIds = ref<number[]>([])
@@ -180,20 +170,60 @@ const messagesRef = ref<HTMLElement>()
 
 const sessions = ref<ChatSessionVO[]>([])
 const activeSessionId = ref<number | null>(null)
+const pinnedId = ref<number | null>(loadPinnedId())
 
 const { isStreaming, streamContent, startStream } = useSSE()
 
 const canSend = computed(() => question.value.trim() && selectedKbIds.value.length > 0 && !isStreaming.value)
 
+const sortedSessions = computed(() => {
+  if (!pinnedId.value) return sessions.value
+  return [...sessions.value].sort((a, b) => {
+    if (a.id === pinnedId.value) return -1
+    if (b.id === pinnedId.value) return 1
+    return 0
+  })
+})
+
+function loadPinnedId(): number | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? Number(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function savePinnedId(id: number | null) {
+  if (id) {
+    localStorage.setItem(STORAGE_KEY, String(id))
+  } else {
+    localStorage.removeItem(STORAGE_KEY)
+  }
+}
+
+function togglePin(id: number) {
+  if (pinnedId.value === id) {
+    pinnedId.value = null
+    savePinnedId(null)
+  } else {
+    pinnedId.value = id
+    savePinnedId(id)
+  }
+}
+
 function formatTime(dateStr: string): string {
   if (!dateStr) return ''
   const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr
   const now = new Date()
   const diff = now.getTime() - d.getTime()
   if (diff < 60000) return '刚刚'
   if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
   if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
-  return d.toLocaleDateString()
+  if (diff < 604800000) return Math.floor(diff / 86400000) + '天前'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 function renderMarkdown(text: string): string {
@@ -236,11 +266,12 @@ async function switchSession(sessionId: number) {
       const msgs: ChatMessage[] = []
       for (const r of res.records) {
         msgs.push({ role: 'user', content: r.question })
-        const sourceDocs: SourceDoc[] = []
+        let sourceDocs: SourceDoc[] = []
         try {
-          if (r.answer) {
-            // sourceDocs stored in QaServiceImpl as JSON, available through the expanded history API
-            // For now, show answer without separate sourceDocs in history mode
+          if (r.sourceDocs) {
+            sourceDocs = typeof r.sourceDocs === 'string'
+              ? JSON.parse(r.sourceDocs)
+              : r.sourceDocs
           }
         } catch { /* ignore */ }
         msgs.push({
@@ -284,6 +315,11 @@ async function handleSessionAction(cmd: string, session: ChatSessionVO) {
         activeSessionId.value = null
         messages.value = []
       }
+      // 如果删除的是置顶会话，清除置顶
+      if (pinnedId.value === session.id) {
+        pinnedId.value = null
+        savePinnedId(null)
+      }
       await loadSessions()
     } catch { /* cancelled */ }
   }
@@ -296,6 +332,17 @@ async function ensureSession(): Promise<number | null> {
   await loadSessions()
   activeSessionId.value = s.id
   return s.id
+}
+
+function handleStreamDone(botMsg: ChatMessage, meta: StreamMetadata) {
+  botMsg.tokenCount = meta.tokenCount
+  botMsg.latencyMs = meta.latencyMs
+  botMsg.sourceDocs = meta.sourceDocs || []
+  if (!botMsg.content) {
+    botMsg.content = '[未获取到回答]'
+  }
+  scrollToBottom()
+  loadSessions()
 }
 
 async function handleSend() {
@@ -330,16 +377,9 @@ async function handleSend() {
         scrollToBottom()
       },
       (meta) => {
-        botMsg.tokenCount = meta.tokenCount
-        botMsg.latencyMs = meta.latencyMs
+        handleStreamDone(botMsg, meta)
       }
     )
-
-    if (!botMsg.content) {
-      botMsg.content = '[未获取到回答]'
-    }
-    // 刷新会话列表以更新消息计数
-    loadSessions()
   } else {
     try {
       const answer = await qaApi.chat(dto)
@@ -376,7 +416,7 @@ onMounted(async () => {
 
 /* 侧边栏 */
 .qa-sidebar {
-  width: 240px;
+  width: 260px;
   border-right: 1px solid #e4e7ed;
   display: flex;
   flex-direction: column;
@@ -415,6 +455,16 @@ onMounted(async () => {
   font-size: 12px;
   color: #909399;
 }
+.session-star {
+  cursor: pointer;
+  padding: 2px;
+  color: #c0c4cc;
+  font-size: 16px;
+  transition: color 0.2s;
+  margin-right: 2px;
+}
+.session-star:hover { color: #e6a23c; }
+.session-star.starred { color: #e6a23c; }
 .session-more {
   opacity: 0;
   cursor: pointer;
@@ -483,24 +533,62 @@ onMounted(async () => {
 .markdown-body :deep(th), .markdown-body :deep(td) { border: 1px solid #ddd; padding: 8px 12px; }
 .markdown-body :deep(th) { background: #f5f7fa; }
 
+/* 思考过程 */
+.thinking-block {
+  margin-bottom: 12px;
+}
+.thinking-content {
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* 回答依据 */
 .source-docs {
-  margin-top: 12px;
-  border-top: 1px solid #e4e7ed;
-  padding-top: 8px;
+  margin-top: 16px;
+  border-top: 2px solid #409eff;
+  padding-top: 12px;
+}
+.source-docs-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #303133;
+  margin-bottom: 10px;
+}
+.retrieval-summary {
+  font-weight: 400;
+  font-size: 12px;
+  color: #909399;
+  margin-left: auto;
 }
 .source-doc-item {
-  padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #fafafa;
+  border-radius: 6px;
+  border-left: 3px solid #409eff;
 }
 .source-doc-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .source-doc-name {
   font-weight: 500;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.source-doc-chunk {
+  font-size: 12px;
+  color: #909399;
+  font-weight: 400;
 }
 .source-doc-content {
   font-size: 13px;
@@ -508,62 +596,30 @@ onMounted(async () => {
   margin: 4px 0 0;
   white-space: pre-wrap;
   word-break: break-all;
+  line-height: 1.6;
 }
 
-.typing-indicator {
-  color: #909399;
-  font-style: italic;
+/* 流式输出 */
+.streaming-block {
+  min-width: 200px;
 }
-
-.retrieval-title {
+.streaming-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 13px;
-}
-.retrieval-summary {
+  gap: 8px;
   color: #909399;
-  font-size: 12px;
-}
-.retrieval-steps {
-  margin-bottom: 4px;
-}
-.step-item {
-  display: flex;
-  gap: 12px;
-  padding: 10px 0;
-}
-.step-indicator {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-.step-1 { background: #409eff; }
-.step-2 { background: #67c23a; }
-.step-3 { background: #e6a23c; }
-.step-content {
-  flex: 1;
-}
-.step-title {
-  font-weight: 500;
   font-size: 13px;
-  margin-bottom: 2px;
-}
-.step-desc {
-  font-size: 12px;
-  color: #909399;
-  line-height: 1.5;
-}
-.retrieval-results-header {
-  font-size: 13px;
-  font-weight: 500;
   margin-bottom: 8px;
-  color: #606266;
+}
+.streaming-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #409eff;
+  animation: blink 1.4s infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
 }
 </style>

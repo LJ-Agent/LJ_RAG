@@ -37,10 +37,6 @@
         <el-icon><ChatDotRound /></el-icon>
         <span>知识问答</span>
       </el-menu-item>
-      <el-menu-item index="/qa/history">
-        <el-icon><Clock /></el-icon>
-        <span>问答历史</span>
-      </el-menu-item>
       <el-menu-item index="/users">
         <el-icon><User /></el-icon>
         <span>用户管理</span>
@@ -67,7 +63,6 @@ const appStore = useAppStore()
 
 const activeMenu = computed(() => {
   const { path } = route
-  if (path.startsWith('/qa/history')) return '/qa/history'
   if (path.startsWith('/qa')) return '/qa'
   if (path.startsWith('/documents/upload')) return '/documents/upload'
   if (path.startsWith('/documents')) return '/documents'

@@ -28,6 +28,7 @@ export interface ChatHistoryVO {
   sessionId?: number
   question: string
   answer: string
+  sourceDocs?: string
   rating: number
   latencyMs: number
   isStream: number
@@ -42,4 +43,5 @@ export interface ChatSessionVO {
   messageCount: number
   createdAt: string
   updatedAt: string
+  pinned?: boolean
 }
