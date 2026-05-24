@@ -39,9 +39,16 @@ public class TaskCompleteConsumer {
             log.info("收到任务完成通知: taskId={}, type={}, docId={}",
                     message.getTaskId(), message.getTaskType(), message.getDocumentId());
 
+            // DOCUMENT_DELETE completion — document already removed, just ack
+            if ("DOCUMENT_DELETE".equals(message.getTaskType())) {
+                acknowledgment.acknowledge();
+                return;
+            }
+
             Document doc = documentMapper.selectById(message.getDocumentId());
             if (doc == null) {
                 log.warn("文档不存在: docId={}", message.getDocumentId());
+                acknowledgment.acknowledge();
                 return;
             }
 

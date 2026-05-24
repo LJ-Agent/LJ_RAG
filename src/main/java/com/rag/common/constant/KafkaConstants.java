@@ -11,6 +11,9 @@ public interface KafkaConstants {
     /** 向量化入库任务主题（Java -> Python） */
     String TOPIC_EMBED_PROCESS = "rag-embed-process";
 
+    /** 文档删除通知主题（Java -> Python） */
+    String TOPIC_DOCUMENT_DELETE = "rag-document-delete";
+
     /** 任务完成通知主题（Python -> Java） */
     String TOPIC_TASK_COMPLETE = "rag-task-complete";
 

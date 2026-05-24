@@ -13,7 +13,10 @@ import com.rag.common.result.ResultCodeEnum;
 import com.rag.common.util.Md5Util;
 import com.rag.communication.kafka.dto.KafkaMessage;
 import com.rag.domain.entity.Document;
+import com.rag.domain.entity.ReviewRecord;
+import com.rag.domain.mapper.DocumentChunkMapper;
 import com.rag.domain.mapper.DocumentMapper;
+import com.rag.domain.mapper.ReviewRecordMapper;
 import com.rag.infrastructure.config.MinioConfig;
 import com.rag.service.file.FileService;
 import com.rag.service.file.dto.FileQueryDTO;
@@ -44,6 +47,8 @@ public class FileServiceImpl implements FileService {
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final DocumentChunkMapper chunkMapper;
+    private final ReviewRecordMapper reviewRecordMapper;
 
     @Override
     @Transactional
@@ -148,18 +153,61 @@ public class FileServiceImpl implements FileService {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
 
-        // 删除MinIO文件
+        // 1. 删除文档块数据（document_chunks 表）
+        chunkMapper.delete(new LambdaQueryWrapper<com.rag.domain.entity.DocumentChunk>()
+                .eq(com.rag.domain.entity.DocumentChunk::getDocumentId, id));
+
+        // 2. 删除审核记录（review_records 表）
+        reviewRecordMapper.delete(new LambdaQueryWrapper<ReviewRecord>()
+                .eq(ReviewRecord::getDocumentId, id));
+
+        // 3. 删除MinIO原文件
         try {
             minioClient.removeObject(io.minio.RemoveObjectArgs.builder()
                     .bucket(minioConfig.getBucketName())
                     .object(doc.getMinioPath())
                     .build());
         } catch (Exception e) {
-            log.warn("MinIO文件删除失败: {}", doc.getMinioPath(), e);
+            log.warn("MinIO原文件删除失败: {}", doc.getMinioPath(), e);
         }
 
+        // 4. 删除MinIO清洗文件
+        String cleanedPath = buildCleanedPath(doc.getMinioPath());
+        if (cleanedPath != null) {
+            try {
+                minioClient.removeObject(io.minio.RemoveObjectArgs.builder()
+                        .bucket(minioConfig.getBucketName())
+                        .object(cleanedPath)
+                        .build());
+            } catch (Exception e) {
+                log.warn("MinIO清洗文件删除失败: {}", cleanedPath, e);
+            }
+        }
+
+        // 5. 删除文档元数据
         documentMapper.deleteById(id);
+
+        // 6. 通知Python清理Milvus向量和BM25索引
+        sendDocumentDeleteMessage(doc);
+
+        log.info("文档完整删除成功: id={}, fileName={}", id, doc.getFileName());
         return Result.success();
+    }
+
+    private void sendDocumentDeleteMessage(Document doc) {
+        try {
+            KafkaMessage message = new KafkaMessage();
+            message.setTaskId("delete-" + doc.getId() + "-" + System.currentTimeMillis());
+            message.setTaskType("DOCUMENT_DELETE");
+            message.setDocumentId(doc.getId());
+            message.setKbId(doc.getKbId());
+            message.setCreatedAt(LocalDateTime.now().toString());
+            kafkaTemplate.send(KafkaConstants.TOPIC_DOCUMENT_DELETE, message.getTaskId(),
+                    JSONUtil.toJsonStr(message));
+            log.info("DOCUMENT_DELETE消息已发送: docId={}", doc.getId());
+        } catch (Exception e) {
+            log.error("发送DOCUMENT_DELETE消息失败: docId={}", doc.getId(), e);
+        }
     }
 
     @Override
