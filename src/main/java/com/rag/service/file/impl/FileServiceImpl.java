@@ -323,17 +323,20 @@ public class FileServiceImpl implements FileService {
         }
 
         try {
-            String url = minioClient.getPresignedObjectUrl(
+            MinioClient client = minioClient;
+            if (minioConfig.getExternalEndpoint() != null && !minioConfig.getExternalEndpoint().isEmpty()) {
+                client = MinioClient.builder()
+                        .endpoint(minioConfig.getExternalEndpoint())
+                        .credentials(minioConfig.getAccessKey(), minioConfig.getSecretKey())
+                        .build();
+            }
+            String url = client.getPresignedObjectUrl(
                     io.minio.GetPresignedObjectUrlArgs.builder()
                             .method(io.minio.http.Method.GET)
                             .bucket(minioConfig.getBucketName())
                             .object(doc.getMinioPath())
                             .expiry(60 * 10) // 10 minutes
                             .build());
-            // Replace internal Docker hostname with external endpoint for browser access
-            if (minioConfig.getExternalEndpoint() != null && !minioConfig.getExternalEndpoint().isEmpty()) {
-                url = url.replace(minioConfig.getEndpoint(), minioConfig.getExternalEndpoint());
-            }
             return Result.success(url);
         } catch (Exception e) {
             log.error("生成预签名URL失败: id={}", id, e);
