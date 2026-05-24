@@ -9,19 +9,18 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("chat_records")
-public class ChatRecord implements Serializable {
+@TableName("document_chunks")
+public class DocumentChunk implements Serializable {
 
     @TableId(type = IdType.AUTO)
     private Long id;
-    private Long userId;
-    private Long sessionId;
-    private String kbIds;
-    private String question;
-    private String answer;
-    private String sourceDocs;
-    private Integer rating;
-    private Integer latencyMs;
-    private Integer isStream;
+    private Long documentId;
+    private String chunkId;
+    private Integer chunkIndex;
+    private String content;
+    private Integer level;
+    private String parentId;
+    private Integer charCount;
+    private String status;
     private LocalDateTime createdAt;
 }

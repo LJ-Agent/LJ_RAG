@@ -6,7 +6,8 @@ import lombok.Getter;
 public enum TaskType {
 
     FILE_PROCESS("文件处理"),
-    CHUNK_PROCESS("分块向量化");
+    CHUNK_PROCESS("分块处理"),
+    EMBED_PROCESS("向量化入库");
 
     private final String description;
 

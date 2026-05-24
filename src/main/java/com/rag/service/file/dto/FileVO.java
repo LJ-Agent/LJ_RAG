@@ -16,6 +16,7 @@ public class FileVO {
     private String status;
     private String errorMessage;
     private Integer chunkCount;
+    private String chunkStrategy;
     private Long uploadUserId;
     private LocalDateTime uploadAt;
     private LocalDateTime completedAt;

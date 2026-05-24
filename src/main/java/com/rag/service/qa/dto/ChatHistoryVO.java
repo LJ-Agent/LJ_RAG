@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public class ChatHistoryVO {
 
     private Long id;
+    private Long sessionId;
     private String question;
     private String answer;
     private Integer rating;

@@ -47,7 +47,7 @@ public class FileServiceImpl implements FileService {
 
     @Override
     @Transactional
-    public Result<FileVO> upload(MultipartFile file, Long kbId, Long userId) {
+    public Result<FileVO> upload(MultipartFile file, Long kbId, Long userId, String chunkStrategy) {
         // 1. 参数校验
         if (file.isEmpty()) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "文件不能为空");
@@ -98,6 +98,7 @@ public class FileServiceImpl implements FileService {
         doc.setFileMd5(md5);
         doc.setMinioPath(objectName);
         doc.setStatus(DocumentStatus.UPLOADED.name());
+        doc.setChunkStrategy(chunkStrategy != null ? chunkStrategy : "semantic");
         doc.setUploadUserId(userId);
         doc.setUploadAt(LocalDateTime.now());
         documentMapper.insert(doc);
@@ -162,6 +163,51 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
+    public void getContent(Long id, HttpServletResponse response) {
+        Document doc = documentMapper.selectById(id);
+        if (doc == null) {
+            throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
+        }
+
+        try {
+            String cleanedObjectName = buildCleanedPath(doc.getMinioPath());
+            InputStream is;
+            try {
+                is = minioClient.getObject(GetObjectArgs.builder()
+                        .bucket(minioConfig.getBucketName())
+                        .object(cleanedObjectName)
+                        .build());
+            } catch (Exception e) {
+                // 清洗文件不存在，回退到原始文件（仅限 txt/md）
+                String ext = getFileExtension(doc.getFileName());
+                if (!"txt".equals(ext) && !"md".equals(ext)) {
+                    throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND.getCode(), "文档内容尚未生成，请等待处理完成");
+                }
+                is = minioClient.getObject(GetObjectArgs.builder()
+                        .bucket(minioConfig.getBucketName())
+                        .object(doc.getMinioPath())
+                        .build());
+            }
+
+            response.setContentType("text/plain; charset=UTF-8");
+            response.setCharacterEncoding("UTF-8");
+
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = is.read(buffer)) != -1) {
+                response.getOutputStream().write(buffer, 0, read);
+            }
+            is.close();
+            response.getOutputStream().flush();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("获取文档内容失败: id={}", id, e);
+            throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND);
+        }
+    }
+
+    @Override
     public void download(Long id, HttpServletResponse response) {
         Document doc = documentMapper.selectById(id);
         if (doc == null) {
@@ -218,6 +264,7 @@ public class FileServiceImpl implements FileService {
         vo.setStatus(doc.getStatus());
         vo.setErrorMessage(doc.getErrorMessage());
         vo.setChunkCount(doc.getChunkCount());
+        vo.setChunkStrategy(doc.getChunkStrategy());
         vo.setUploadUserId(doc.getUploadUserId());
         vo.setUploadAt(doc.getUploadAt());
         vo.setCompletedAt(doc.getCompletedAt());
@@ -230,5 +277,13 @@ public class FileServiceImpl implements FileService {
             return "unknown";
         }
         return fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private String buildCleanedPath(String minioPath) {
+        int lastDot = minioPath.lastIndexOf('.');
+        if (lastDot > 0) {
+            return minioPath.substring(0, lastDot) + "_cleaned.md";
+        }
+        return minioPath + "_cleaned.md";
     }
 }

@@ -1,0 +1,79 @@
+package com.rag.controller.api;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.rag.common.result.Result;
+import com.rag.service.chunk.ChunkService;
+import com.rag.service.chunk.dto.ChunkVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.Map;
+
+@Tag(name = "分块管理", description = "文档块浏览、编辑、审核、向量化")
+@RestController
+@RequestMapping("/api/chunks")
+@RequiredArgsConstructor
+public class ChunkController {
+
+    private final ChunkService chunkService;
+
+    @Operation(summary = "获取文档块列表")
+    @GetMapping
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<Page<ChunkVO>> list(
+            @RequestParam Long documentId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return chunkService.listByDocumentId(documentId, page, size);
+    }
+
+    @Operation(summary = "编辑块内容")
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<ChunkVO> update(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        return chunkService.updateChunk(id, body.get("content"));
+    }
+
+    @Operation(summary = "删除块")
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<Void> delete(@PathVariable Long id) {
+        return chunkService.deleteChunk(id);
+    }
+
+    @Operation(summary = "批量修改块状态")
+    @PutMapping("/batch-status")
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<Void> batchSetStatus(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Long> ids = ((List<Integer>) body.get("ids")).stream().map(Long::valueOf).toList();
+        String status = (String) body.get("status");
+        return chunkService.batchSetStatus(ids, status);
+    }
+
+    @Operation(summary = "获取块统计")
+    @GetMapping("/stats")
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<ChunkVO.ChunkStats> stats(@RequestParam Long documentId) {
+        return chunkService.getStats(documentId);
+    }
+
+    @Operation(summary = "发起向量化入库")
+    @PostMapping("/start-embedding")
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<Void> startEmbedding(@RequestParam Long documentId) {
+        return chunkService.startEmbedding(documentId);
+    }
+}

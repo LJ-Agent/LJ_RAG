@@ -9,19 +9,16 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("chat_records")
-public class ChatRecord implements Serializable {
+@TableName("chat_sessions")
+public class ChatSession implements Serializable {
 
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long userId;
-    private Long sessionId;
+    private String title;
     private String kbIds;
-    private String question;
-    private String answer;
-    private String sourceDocs;
-    private Integer rating;
-    private Integer latencyMs;
-    private Integer isStream;
+    private Integer messageCount;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private Integer deleted;
 }

@@ -15,6 +15,7 @@ public class QuestionDTO {
     @NotNull(message = "知识库ID不能为空")
     private List<Long> kbIds;
 
+    private Long sessionId;
     private Integer topK = 5;
     private Float scoreThreshold = 0.7f;
 }

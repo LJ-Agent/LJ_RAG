@@ -15,8 +15,10 @@ import com.rag.communication.grpc.proto.DocumentChunk;
 import com.rag.communication.grpc.proto.GenerationResponse;
 import com.rag.communication.grpc.proto.RetrievalResponse;
 import com.rag.domain.entity.ChatRecord;
+import com.rag.domain.entity.ChatSession;
 import com.rag.domain.entity.Document;
 import com.rag.domain.mapper.ChatRecordMapper;
+import com.rag.domain.mapper.ChatSessionMapper;
 import com.rag.domain.mapper.DocumentMapper;
 import com.rag.service.qa.QaService;
 import com.rag.service.qa.dto.AnswerVO;
@@ -42,6 +44,7 @@ public class QaServiceImpl implements QaService {
     private final RetrievalServiceClient retrievalClient;
     private final GenerationServiceClient generationClient;
     private final ChatRecordMapper chatRecordMapper;
+    private final ChatSessionMapper sessionMapper;
     private final DocumentMapper documentMapper;
     private final StringRedisTemplate stringRedisTemplate;
 
@@ -91,6 +94,7 @@ public class QaServiceImpl implements QaService {
         // 6. 保存问答记录
         ChatRecord record = new ChatRecord();
         record.setUserId(userId);
+        record.setSessionId(dto.getSessionId());
         record.setKbIds(String.join(",", dto.getKbIds().stream().map(String::valueOf).toList()));
         record.setQuestion(dto.getQuestion());
         record.setAnswer(generationResponse.getContent());
@@ -99,6 +103,7 @@ public class QaServiceImpl implements QaService {
         record.setIsStream(0);
         record.setCreatedAt(LocalDateTime.now());
         chatRecordMapper.insert(record);
+        updateSessionAfterChat(dto.getSessionId());
 
         vo.setChatId(record.getId());
 
@@ -158,6 +163,7 @@ public class QaServiceImpl implements QaService {
                 int latency = (int) (System.currentTimeMillis() - startTime);
                 ChatRecord record = new ChatRecord();
                 record.setUserId(userId);
+                record.setSessionId(dto.getSessionId());
                 record.setKbIds(String.join(",", dto.getKbIds().stream().map(String::valueOf).toList()));
                 record.setQuestion(dto.getQuestion());
                 record.setAnswer(fullAnswer.toString());
@@ -166,6 +172,7 @@ public class QaServiceImpl implements QaService {
                 record.setIsStream(1);
                 record.setCreatedAt(LocalDateTime.now());
                 chatRecordMapper.insert(record);
+                updateSessionAfterChat(dto.getSessionId());
 
                 // 发送结束事件（包含完整元数据）
                 emitter.send(SseEmitter.event()
@@ -207,6 +214,7 @@ public class QaServiceImpl implements QaService {
         voPage.setRecords(result.getRecords().stream().map(r -> {
             ChatHistoryVO vo = new ChatHistoryVO();
             vo.setId(r.getId());
+            vo.setSessionId(r.getSessionId());
             vo.setQuestion(r.getQuestion());
             vo.setAnswer(r.getAnswer().length() > 200
                     ? r.getAnswer().substring(0, 200) + "..." : r.getAnswer());
@@ -217,5 +225,15 @@ public class QaServiceImpl implements QaService {
             return vo;
         }).toList());
         return Result.success(voPage);
+    }
+
+    private void updateSessionAfterChat(Long sessionId) {
+        if (sessionId == null) return;
+        ChatSession session = sessionMapper.selectById(sessionId);
+        if (session != null) {
+            session.setMessageCount(session.getMessageCount() + 1);
+            session.setUpdatedAt(LocalDateTime.now());
+            sessionMapper.updateById(session);
+        }
     }
 }

@@ -5,8 +5,11 @@ public interface KafkaConstants {
     /** 文件处理任务主题（Java -> Python） */
     String TOPIC_FILE_PROCESS = "rag-file-process";
 
-    /** 分块向量化任务主题（Java -> Python） */
+    /** 分块处理任务主题（Java -> Python） */
     String TOPIC_CHUNK_PROCESS = "rag-chunk-process";
+
+    /** 向量化入库任务主题（Java -> Python） */
+    String TOPIC_EMBED_PROCESS = "rag-embed-process";
 
     /** 任务完成通知主题（Python -> Java） */
     String TOPIC_TASK_COMPLETE = "rag-task-complete";

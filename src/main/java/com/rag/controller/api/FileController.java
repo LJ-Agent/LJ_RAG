@@ -31,9 +31,10 @@ public class FileController {
     @PostMapping("/upload")
     public Result<FileVO> upload(
             @RequestParam("file") MultipartFile file,
-            @RequestParam("kbId") Long kbId) {
+            @RequestParam("kbId") Long kbId,
+            @RequestParam(value = "chunkStrategy", required = false, defaultValue = "semantic") String chunkStrategy) {
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
-        return fileService.upload(file, kbId, userId);
+        return fileService.upload(file, kbId, userId, chunkStrategy);
     }
 
     @Operation(summary = "查询文档列表")
@@ -59,5 +60,11 @@ public class FileController {
     @GetMapping("/{id}/download")
     public void download(@PathVariable Long id, HttpServletResponse response) {
         fileService.download(id, response);
+    }
+
+    @Operation(summary = "获取文档内容（清洗后的markdown或原始文本）")
+    @GetMapping("/{id}/content")
+    public void getContent(@PathVariable Long id, HttpServletResponse response) {
+        fileService.getContent(id, response);
     }
 }

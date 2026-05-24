@@ -17,6 +17,7 @@ public enum DocumentStatus {
     APPROVED("已通过"),
     REJECTED("已驳回"),
     CHUNKING("分块中"),
+    CHUNK_REVIEW("待块审核"),
     EMBEDDING("向量化中"),
     COMPLETED("已完成"),
     PARSING_FAILED("解析失败"),
@@ -36,9 +37,10 @@ public enum DocumentStatus {
         PARSING.nextStates = Set.of(CLEANING, PARSING_FAILED);
         CLEANING.nextStates = Set.of(PENDING_REVIEW, CLEANING_FAILED);
         PENDING_REVIEW.nextStates = Set.of(APPROVED, REJECTED);
-        APPROVED.nextStates = Set.of(CHUNKING, COMPLETED);  // CHUNK_PROCESS handles chunking+embedding in one call
+        APPROVED.nextStates = Set.of(CHUNKING, COMPLETED);  // forward compat: old flow may go direct to COMPLETED
         REJECTED.nextStates = Set.of(PARSING);
-        CHUNKING.nextStates = Set.of(EMBEDDING, CHUNKING_FAILED);
+        CHUNKING.nextStates = Set.of(CHUNK_REVIEW, CHUNKING_FAILED);
+        CHUNK_REVIEW.nextStates = Set.of(EMBEDDING, CHUNKING);  // can re-chunk if needed
         EMBEDDING.nextStates = Set.of(COMPLETED, EMBEDDING_FAILED);
         PARSING_FAILED.nextStates = Set.of(PARSING);
         CLEANING_FAILED.nextStates = Set.of(CLEANING);
@@ -60,8 +62,10 @@ public enum DocumentStatus {
      */
     public static DocumentStatus nextAfterTaskComplete(DocumentStatus current) {
         return switch (current) {
-            case UPLOADED -> PENDING_REVIEW;  // FILE_PROCESS handles parsing+cleaning in one call
-            case APPROVED -> COMPLETED;       // CHUNK_PROCESS handles chunking+embedding in one call
+            case UPLOADED -> PENDING_REVIEW;   // FILE_PROCESS handles parsing+cleaning in one call
+            case APPROVED -> CHUNK_REVIEW;     // CHUNK_PROCESS chunk-only (new flow)
+            case CHUNKING -> CHUNK_REVIEW;     // CHUNK_PROCESS chunk-only (backward compat)
+            case EMBEDDING -> COMPLETED;       // EMBED_PROCESS done
             default -> null;  // already at target or unknown — caller handles idempotency
         };
     }

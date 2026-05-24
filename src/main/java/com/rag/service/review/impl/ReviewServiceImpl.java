@@ -103,6 +103,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         if ("APPROVED".equals(dto.getResult())) {
             stateMachine.transit(doc, DocumentStatus.APPROVED.name());
+            stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
             sendChunkProcessMessage(doc);
         } else {
             stateMachine.transit(doc, DocumentStatus.REJECTED.name());
@@ -126,7 +127,7 @@ public class ReviewServiceImpl implements ReviewService {
         message.setData(JSONUtil.createObj()
                 .set("cleanedPath", cleanedPath)
                 .set("fileName", doc.getFileName())
-                .set("chunkStrategy", "semantic"));
+                .set("chunkStrategy", doc.getChunkStrategy() != null ? doc.getChunkStrategy() : "semantic"));
         message.setCreatedAt(LocalDateTime.now().toString());
 
         kafkaTemplate.send(KafkaConstants.TOPIC_CHUNK_PROCESS, taskId, JSONUtil.toJsonStr(message));
@@ -187,6 +188,7 @@ public class ReviewServiceImpl implements ReviewService {
                 reviewRecordMapper.updateById(fresh);
 
                 stateMachine.transit(doc, DocumentStatus.APPROVED.name());
+                stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
                 sendChunkProcessMessage(doc);
                 log.info("超时自动审核通过: docId={}", doc.getId());
             });
