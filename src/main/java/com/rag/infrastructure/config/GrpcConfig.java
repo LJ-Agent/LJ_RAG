@@ -26,6 +26,7 @@ public class GrpcConfig {
         return ManagedChannelBuilder.forAddress(retrievalHost, retrievalPort)
                 .usePlaintext()
                 .keepAliveWithoutCalls(true)
+                .idleTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 .build();
     }
 
@@ -34,6 +35,7 @@ public class GrpcConfig {
         return ManagedChannelBuilder.forAddress(generationHost, generationPort)
                 .usePlaintext()
                 .keepAliveWithoutCalls(true)
+                .idleTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 .build();
     }
 }

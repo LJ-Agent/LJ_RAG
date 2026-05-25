@@ -115,7 +115,7 @@ public class QaServiceImpl implements QaService {
 
     @Override
     public SseEmitter streamChat(QuestionDTO dto, Long userId) {
-        SseEmitter emitter = new SseEmitter(300000L);
+        SseEmitter emitter = new SseEmitter(60000L);
 
         // 异步处理
         Thread thread = new Thread(() -> {
@@ -138,6 +138,9 @@ public class QaServiceImpl implements QaService {
                     sourceDocs.add(src);
                 }
 
+                // 发送初始心跳
+                emitter.send(SseEmitter.event().name("ping").data("").build());
+
                 // 2. 流式生成，每收到token通过SSE发送
                 StringBuilder fullAnswer = new StringBuilder();
                 int[] totalTokens = {0};
@@ -146,6 +149,7 @@ public class QaServiceImpl implements QaService {
                 Iterator<GenerationResponse> stream = generationClient.generateStreamIterator(
                         dto.getQuestion(), contexts);
 
+                long lastHeartbeat = System.currentTimeMillis();
                 while (stream.hasNext()) {
                     GenerationResponse resp = stream.next();
                     fullAnswer.append(resp.getContent());
@@ -154,6 +158,13 @@ public class QaServiceImpl implements QaService {
                     emitter.send(SseEmitter.event()
                             .data(resp.getContent())
                             .build());
+
+                    // 每15秒发送心跳防止连接超时
+                    long now = System.currentTimeMillis();
+                    if (now - lastHeartbeat > 15000) {
+                        emitter.send(SseEmitter.event().name("ping").data("").build());
+                        lastHeartbeat = now;
+                    }
 
                     if (resp.getIsEnd()) {
                         break;
@@ -197,8 +208,14 @@ public class QaServiceImpl implements QaService {
         thread.setDaemon(true);
         thread.start();
 
-        emitter.onCompletion(() -> log.info("SSE连接完成: userId={}", userId));
-        emitter.onTimeout(() -> log.warn("SSE连接超时: userId={}", userId));
+        emitter.onCompletion(() -> {
+            log.info("SSE连接完成: userId={}", userId);
+            thread.interrupt();
+        });
+        emitter.onTimeout(() -> {
+            log.warn("SSE连接超时: userId={}", userId);
+            thread.interrupt();
+        });
 
         return emitter;
     }
