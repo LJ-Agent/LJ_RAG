@@ -365,31 +365,31 @@ async function handleSend() {
   messages.value.push({ role: 'user', content: q })
   scrollToBottom()
 
-  const sessionId = await ensureSession()
-  const dto = {
-    question: q,
-    kbIds: selectedKbIds.value,
-    sessionId: sessionId || undefined,
-    topK: 5,
-    scoreThreshold: 0.7,
-  }
+  try {
+    const sessionId = await ensureSession()
+    const dto = {
+      question: q,
+      kbIds: selectedKbIds.value,
+      sessionId: sessionId || undefined,
+      topK: 5,
+      scoreThreshold: 0.3,
+    }
 
-  if (streamMode.value) {
-    const botMsg: ChatMessage = { role: 'bot', content: '' }
-    messages.value.push(botMsg)
+    if (streamMode.value) {
+      const botMsg: ChatMessage = { role: 'bot', content: '' }
+      messages.value.push(botMsg)
 
-    await startStream(
-      dto,
-      (chunk) => {
-        botMsg.content += chunk
-        scrollToBottom()
-      },
-      (meta) => {
-        handleStreamDone(botMsg, meta)
-      }
-    )
-  } else {
-    try {
+      await startStream(
+        dto,
+        (chunk) => {
+          botMsg.content += chunk
+          scrollToBottom()
+        },
+        (meta) => {
+          handleStreamDone(botMsg, meta)
+        }
+      )
+    } else {
       const answer = await qaApi.chat(dto)
       messages.value.push({
         role: 'bot',
@@ -399,9 +399,10 @@ async function handleSend() {
         latencyMs: answer.latencyMs,
       })
       loadSessions()
-    } catch {
-      messages.value.push({ role: 'bot', content: '[请求失败，请重试]' })
+      scrollToBottom()
     }
+  } catch {
+    messages.value.push({ role: 'bot', content: '[请求失败，请重试]' })
     scrollToBottom()
   }
 }

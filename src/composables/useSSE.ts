@@ -26,7 +26,13 @@ export function useSSE() {
     abortController = new AbortController()
 
     try {
-      const response = await qaApi.streamChat(question, abortController.signal)
+      // 合并手动中止信号和60秒超时信号
+      const timeoutSignal = AbortSignal.timeout(60000)
+      const combinedSignal = abortController
+        ? AbortSignal.any([abortController.signal, timeoutSignal])
+        : timeoutSignal
+
+      const response = await qaApi.streamChat(question, combinedSignal)
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`)
@@ -51,7 +57,6 @@ export function useSSE() {
           } else if (line.startsWith('data: ')) {
             const data = line.slice(6)
             if (currentEvent === 'done') {
-              // 流式结束，解析元数据 JSON
               try {
                 const meta: StreamMetadata = JSON.parse(data)
                 onDone(meta)
@@ -60,14 +65,17 @@ export function useSSE() {
             } else if (currentEvent === 'error') {
               error.value = data
               currentEvent = ''
+            } else if (currentEvent === 'ping') {
+              // 心跳事件，忽略
+              currentEvent = ''
             } else {
-              // 普通 token 数据
               streamContent.value += data
               onChunk(data)
             }
+          } else if (line === '') {
+            // SSE 协议空行分隔事件，重置事件类型
+            currentEvent = ''
           }
-          // 空行表示事件分隔，重置 currentEvent
-          // （SSE 协议中用空行分隔不同事件）
         }
       }
 
@@ -82,7 +90,11 @@ export function useSSE() {
         }
       }
     } catch (e: any) {
-      if (e.name !== 'AbortError') {
+      if (e.name === 'AbortError' || e.name === 'TimeoutError') {
+        if (!streamContent.value) {
+          error.value = '请求超时，请重试'
+        }
+      } else {
         error.value = e.message
       }
     } finally {
