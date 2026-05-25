@@ -1,0 +1,70 @@
+# RAG-MEMORY Service Configuration
+# Environment variables use ${VAR:default} syntax
+
+mysql:
+  host: ${MYSQL_HOST:localhost}
+  port: ${MYSQL_PORT:3307}
+  user: ${MYSQL_USER:root}
+  password: ${MYSQL_PASSWORD:root123}
+  database: ${MYSQL_DATABASE:rag_db}
+  pool_size: 10
+  charset: utf8mb4
+
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:redis123}
+  db: 1
+
+milvus:
+  host: ${MILVUS_HOST:localhost}
+  port: ${MILVUS_PORT:19530}
+  collection_name: user_memories
+  dim: 1536
+  index_type: HNSW
+  metric_type: COSINE
+  index_params:
+    M: 16
+    efConstruction: 200
+  search_params:
+    ef: 128
+
+kafka:
+  bootstrap_servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  group_id: rag-memory-consumer
+  topics:
+    distill: memory.distill
+    forget: memory.forget
+    archive: memory.archive
+    status: memory.status
+  consumer:
+    max_poll_records: 10
+    session_timeout_ms: 30000
+    heartbeat_interval_ms: 10000
+
+llm:
+  api_key: ${LLM_API_KEY:}
+  base_url: ${LLM_BASE_URL:}
+  embedding_model: ${EMBEDDING_MODEL:text-embedding-3-small}
+  chat_model: ${CHAT_MODEL:gpt-4o-mini}
+  timeout: 60
+
+grpc:
+  write_port: ${GRPC_MEMORY_WRITE_PORT:50053}
+  search_port: ${GRPC_MEMORY_SEARCH_PORT:50054}
+  max_workers: 10
+
+engine:
+  dedup_threshold: 0.85
+  dedup_related_threshold: 0.5
+  importance_threshold: 0.3
+  time_decay_lambda: 0.01
+  rrf_k: 60
+  max_working_entries_per_session: 100
+  max_persistent_working_entries: 50
+  snapshot_interval_hours: 168
+  working_memory_ttl_seconds: 3600
+
+logging:
+  level: ${LOG_LEVEL:INFO}
+  format: "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {message}"
