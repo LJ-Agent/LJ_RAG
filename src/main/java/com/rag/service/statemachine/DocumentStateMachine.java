@@ -60,13 +60,13 @@ public class DocumentStateMachine {
             document.setCompletedAt(LocalDateTime.now());
         }
 
-        // Auto-create review record when entering PENDING_REVIEW
-        if (to == DocumentStatus.PENDING_REVIEW) {
+        // Auto-create review record when entering PENDING_REVIEW or CHUNK_REVIEW
+        if (to == DocumentStatus.PENDING_REVIEW || to == DocumentStatus.CHUNK_REVIEW) {
             ReviewRecord record = new ReviewRecord();
             record.setDocumentId(document.getId());
             record.setResult(ReviewResult.PENDING.name());
             reviewRecordMapper.insert(record);
-            log.info("审核记录已创建: docId={}", document.getId());
+            log.info("审核记录已创建: docId={}, status={}", document.getId(), to.name());
         }
 
         log.info("状态转移成功: docId={}, {} -> {}", document.getId(), from.name(), to.name());

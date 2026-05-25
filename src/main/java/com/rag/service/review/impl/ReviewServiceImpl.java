@@ -114,7 +114,22 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
 
-        // 查找待审核记录
+        // --- 分支1: 块审核（CHUNK_REVIEW → EMBEDDING 或重新分块）---
+        if (DocumentStatus.CHUNK_REVIEW.name().equals(doc.getStatus())) {
+            if ("APPROVED".equals(dto.getResult())) {
+                stateMachine.transit(doc, DocumentStatus.EMBEDDING.name());
+                if (doc.getChunkCount() != null && doc.getChunkCount() > 0) {
+                    sendEmbedProcessMessage(doc);
+                }
+            } else {
+                // 驳回 → 重新分块
+                stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
+                sendChunkProcessMessage(doc);
+            }
+            return Result.success();
+        }
+
+        // --- 分支2: 内容审核（PENDING_REVIEW → APPROVED/REJECTED → CHUNKING）---
         ReviewRecord record = reviewRecordMapper.selectOne(
                 new LambdaQueryWrapper<ReviewRecord>()
                         .eq(ReviewRecord::getDocumentId, dto.getDocumentId())
@@ -164,6 +179,21 @@ public class ReviewServiceImpl implements ReviewService {
         log.info("CHUNK_PROCESS消息已发送: taskId={}, docId={}", taskId, doc.getId());
     }
 
+    private void sendEmbedProcessMessage(Document doc) {
+        String taskId = "task-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "-embed-" + doc.getId();
+        KafkaMessage message = new KafkaMessage();
+        message.setTaskId(taskId);
+        message.setTaskType(TaskType.EMBED_PROCESS.name());
+        message.setDocumentId(doc.getId());
+        message.setKbId(doc.getKbId());
+        message.setData(JSONUtil.createObj()
+                .set("fileName", doc.getFileName()));
+        message.setCreatedAt(LocalDateTime.now().toString());
+
+        kafkaTemplate.send(KafkaConstants.TOPIC_EMBED_PROCESS, taskId, JSONUtil.toJsonStr(message));
+        log.info("EMBED_PROCESS消息已发送: taskId={}, docId={}", taskId, doc.getId());
+    }
+
     @Override
     @Transactional
     public Result<Void> batchApprove(Long[] documentIds, Long reviewerId) {
@@ -179,6 +209,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     /**
      * 定时任务：每5分钟检查超时未审核的记录，自动通过。
+     * 同时处理内容审核（PENDING_REVIEW）和块审核（CHUNK_REVIEW）两种场景。
      */
     @Override
     @Scheduled(cron = "0 */5 * * * ?")
@@ -194,6 +225,8 @@ public class ReviewServiceImpl implements ReviewService {
         }
 
         LocalDateTime threshold = LocalDateTime.now().minusHours(hours);
+
+        // --- 内容审核超时（PENDING_REVIEW → APPROVED → CHUNKING）---
         List<ReviewRecord> timeoutRecords = reviewRecordMapper.selectList(
                 new LambdaQueryWrapper<ReviewRecord>()
                         .eq(ReviewRecord::getResult, ReviewResult.PENDING.name())
@@ -202,7 +235,6 @@ public class ReviewServiceImpl implements ReviewService {
         for (ReviewRecord record : timeoutRecords) {
             int finalHours = hours;
             redisLockUtil.executeWithLock("review:auto:" + record.getId(), () -> {
-                // 重新检查，防止并发
                 ReviewRecord fresh = reviewRecordMapper.selectById(record.getId());
                 if (fresh == null || !ReviewResult.PENDING.name().equals(fresh.getResult())) {
                     return;
@@ -220,7 +252,28 @@ public class ReviewServiceImpl implements ReviewService {
                 stateMachine.transit(doc, DocumentStatus.APPROVED.name());
                 stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
                 sendChunkProcessMessage(doc);
-                log.info("超时自动审核通过: docId={}", doc.getId());
+                log.info("超时自动审核通过(内容): docId={}", doc.getId());
+            });
+        }
+
+        // --- 块审核超时（CHUNK_REVIEW → EMBEDDING）---
+        List<Document> chunkReviewDocs = documentMapper.selectList(
+                new LambdaQueryWrapper<Document>()
+                        .eq(Document::getStatus, DocumentStatus.CHUNK_REVIEW.name())
+                        .lt(Document::getUpdatedAt, threshold));
+
+        for (Document doc : chunkReviewDocs) {
+            redisLockUtil.executeWithLock("review:auto:chunk:" + doc.getId(), () -> {
+                Document fresh = documentMapper.selectById(doc.getId());
+                if (fresh == null || !DocumentStatus.CHUNK_REVIEW.name().equals(fresh.getStatus())) {
+                    return;
+                }
+
+                stateMachine.transit(fresh, DocumentStatus.EMBEDDING.name());
+                if (fresh.getChunkCount() != null && fresh.getChunkCount() > 0) {
+                    sendEmbedProcessMessage(fresh);
+                }
+                log.info("超时自动审核通过(块审核): docId={}", fresh.getId());
             });
         }
     }
