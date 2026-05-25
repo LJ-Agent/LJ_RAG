@@ -320,6 +320,43 @@ services:
     networks:
       - rag-network
 
+  # ==================== 10. QUE Engine 查询理解与执行引擎 (gRPC :50055) ====================
+  que-engine:
+    build:
+      context: ../RAG-QUE
+      dockerfile: Dockerfile
+    image: rag-que:latest
+    container_name: rag-que
+    restart: unless-stopped
+    depends_on:
+      rag-python:
+        condition: service_healthy
+      rag-memory:
+        condition: service_healthy
+    ports:
+      - "${GRPC_QUE_PORT:-50055}:50055"
+    environment:
+      # gRPC clients
+      GRPC_RETRIEVAL_HOST: rag-python
+      GRPC_RETRIEVAL_PORT: 50051
+      GRPC_MEMORY_HOST: rag-memory
+      GRPC_MEMORY_SEARCH_PORT: 50054
+      # LLM
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ../RAG-QUE/config:/app/config:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('localhost:50055'); grpc.channel_ready_future(ch).result(timeout=3)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rag-network
+
 # ==================== 卷 ====================
 volumes:
   mysql_data:
