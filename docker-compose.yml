@@ -268,6 +268,58 @@ services:
     networks:
       - rag-network
 
+  # ==================== 9. RAG-MEMORY 记忆管理服务 (gRPC :50053 + :50054 + Kafka) ====================
+  rag-memory:
+    build:
+      context: ../RAG-MEMORY
+      dockerfile: Dockerfile
+    image: rag-memory:latest
+    container_name: rag-memory
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${GRPC_MEMORY_WRITE_PORT:-50053}:50053"
+      - "${GRPC_MEMORY_SEARCH_PORT:-50054}:50054"
+    environment:
+      # MySQL
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-root}
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-rag_db}
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      # Milvus
+      MILVUS_HOST: milvus
+      MILVUS_PORT: 19530
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # LLM
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ../RAG-MEMORY/config:/app/config:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('localhost:50053'); grpc.channel_ready_future(ch).result(timeout=3)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rag-network
+
 # ==================== 卷 ====================
 volumes:
   mysql_data:
