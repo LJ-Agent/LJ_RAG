@@ -216,6 +216,7 @@ async function doCreateChunk() {
 
 async function fetchStats() {
   try {
+    await chunkApi.syncCount(docId)
     stats.value = await chunkApi.getStats(docId)
   } catch { /* ignore */ }
 }

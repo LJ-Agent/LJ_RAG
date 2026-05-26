@@ -45,6 +45,9 @@ export const chunkApi = {
   getStats: (documentId: number): Promise<ChunkStats> =>
     request.get(`${BASE}/stats`, { params: { documentId } }),
 
+  syncCount: (documentId: number): Promise<number> =>
+    request.post(`${BASE}/sync-count`, null, { params: { documentId } }),
+
   startEmbedding: (documentId: number): Promise<void> =>
     request.post(`${BASE}/start-embedding`, null, { params: { documentId } }),
 }

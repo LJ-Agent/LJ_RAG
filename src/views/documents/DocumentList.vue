@@ -71,11 +71,6 @@
           <el-button link type="primary" size="small" @click="showDetail(row)">详情</el-button>
           <el-button link type="primary" size="small" @click="$router.push(`/documents/${row.id}/content`)">浏览</el-button>
           <el-button
-            v-if="row.status === 'CHUNK_REVIEW'"
-            link type="warning" size="small"
-            @click="$router.push(`/documents/${row.id}/chunks`)"
-          >块管理</el-button>
-          <el-button
             v-if="row.status === 'REJECTED' || row.status === 'CHUNKING_FAILED'"
             link type="warning" size="small"
             @click="openRechunk(row)"
