@@ -40,7 +40,7 @@
       <el-table-column type="selection" width="50" align="center" />
       <el-table-column label="文件名称" min-width="200">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="$router.push(`/documents/${row.id}/content`)">
+          <el-button link type="primary" size="small" @click="openRawFile(row)">
             {{ row.fileName }}
           </el-button>
         </template>
@@ -178,6 +178,7 @@ import { DOCUMENT_STATUS_MAP } from '@/utils/constants'
 import { CHUNK_STRATEGY_CONFIGS } from '@/api/types/file'
 import type { FileVO, StrategyField } from '@/api/types/file'
 import type { KnowledgeBaseVO } from '@/api/types/knowledgeBase'
+import { getAccessToken } from '@/utils/token'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
@@ -260,6 +261,12 @@ function onSelectionChange(rows: FileVO[]) {
 function showDetail(row: FileVO) {
   currentDoc.value = row
   detailVisible.value = true
+}
+
+function openRawFile(row: FileVO) {
+  const token = getAccessToken()
+  const url = `${import.meta.env.VITE_API_BASE_URL}/files/${row.id}/raw?token=${encodeURIComponent(token || '')}`
+  window.open(url, '_blank')
 }
 
 async function handleDownload(row: FileVO) {

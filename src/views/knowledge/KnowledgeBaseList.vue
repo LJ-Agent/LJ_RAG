@@ -29,7 +29,13 @@
     <!-- 数据表格 -->
     <el-table :data="list" v-loading="isLoading" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" align="center" />
-      <el-table-column prop="kbName" label="知识库名称" min-width="180" show-overflow-tooltip />
+      <el-table-column label="知识库名称" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          <el-button link type="primary" size="small" @click="$router.push(`/documents?kbId=${row.id}`)">
+            {{ row.kbName }}
+          </el-button>
+        </template>
+      </el-table-column>
       <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip />
       <el-table-column label="状态" width="80" align="center">
         <template #default="{ row }">
