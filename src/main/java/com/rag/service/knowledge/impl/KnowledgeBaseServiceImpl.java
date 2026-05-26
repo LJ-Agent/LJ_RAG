@@ -58,6 +58,15 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             throw new BusinessException(ResultCodeEnum.KB_NOT_FOUND);
         }
 
+        // 检查名称是否与其他知识库重复
+        Long count = kbMapper.selectCount(
+                new LambdaQueryWrapper<KnowledgeBase>()
+                        .eq(KnowledgeBase::getKbName, dto.getKbName())
+                        .ne(KnowledgeBase::getId, id));
+        if (count > 0) {
+            throw new BusinessException(ResultCodeEnum.KB_NAME_DUPLICATE);
+        }
+
         kb.setKbName(dto.getKbName());
         kb.setDescription(dto.getDescription());
         kb.setCoverUrl(dto.getCoverUrl());

@@ -16,6 +16,8 @@ public interface FileService {
 
     Result<Void> delete(Long id, Long userId);
 
+    Result<Void> batchDelete(Long[] ids, Long userId);
+
     void download(Long id, jakarta.servlet.http.HttpServletResponse response);
 
     void getContent(Long id, jakarta.servlet.http.HttpServletResponse response);

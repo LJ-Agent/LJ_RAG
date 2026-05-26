@@ -96,6 +96,13 @@ public class QaController {
         return sessionService.deleteSession(id, userId);
     }
 
+    @Operation(summary = "批量删除会话")
+    @PostMapping("/sessions/batch-delete")
+    public Result<Void> batchDeleteSessions(@RequestBody Long[] ids) {
+        Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
+        return sessionService.batchDeleteSessions(ids, userId);
+    }
+
     @Operation(summary = "获取会话的问答记录")
     @GetMapping("/sessions/{id}/records")
     public Result<Page<ChatHistoryVO>> getSessionRecords(

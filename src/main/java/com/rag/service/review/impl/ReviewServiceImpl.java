@@ -52,8 +52,9 @@ public class ReviewServiceImpl implements ReviewService {
     private final MinioConfig minioConfig;
 
     @Override
-    public Result<Page<ReviewVO>> getPendingList(Integer page, Integer size) {
-        return getPagedReviewRecords(ReviewResult.PENDING.name(), page, size);
+    public Result<Page<ReviewVO>> getPendingList(Integer page, Integer size, String result) {
+        String filter = result != null ? result : ReviewResult.PENDING.name();
+        return getPagedReviewRecords(filter, page, size);
     }
 
     @Override

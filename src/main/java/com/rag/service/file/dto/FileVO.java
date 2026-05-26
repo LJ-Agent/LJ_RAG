@@ -9,6 +9,7 @@ public class FileVO {
 
     private Long id;
     private Long kbId;
+    private String kbName;
     private String fileName;
     private String fileType;
     private Long fileSize;

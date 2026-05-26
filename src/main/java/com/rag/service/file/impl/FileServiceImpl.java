@@ -44,6 +44,7 @@ import java.time.format.DateTimeFormatter;
 public class FileServiceImpl implements FileService {
 
     private final DocumentMapper documentMapper;
+    private final com.rag.domain.mapper.KnowledgeBaseMapper kbMapper;
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -102,12 +103,19 @@ public class FileServiceImpl implements FileService {
         doc.setFileSize(file.getSize());
         doc.setFileMd5(md5);
         doc.setMinioPath(objectName);
-        doc.setStatus(DocumentStatus.UPLOADED.name());
+        doc.setStatus(DocumentStatus.PENDING_REVIEW.name());
         doc.setChunkStrategy(chunkStrategy != null ? chunkStrategy : "semantic");
         doc.setChunkConfig(chunkConfig);
         doc.setUploadUserId(userId);
         doc.setUploadAt(LocalDateTime.now());
         documentMapper.insert(doc);
+
+        // 5.1 创建待审核记录
+        ReviewRecord reviewRecord = new ReviewRecord();
+        reviewRecord.setDocumentId(doc.getId());
+        reviewRecord.setResult("PENDING");
+        reviewRecord.setCreatedAt(LocalDateTime.now());
+        reviewRecordMapper.insert(reviewRecord);
 
         // 6. 发送Kafka消息
         sendKafkaMessage(doc);
@@ -153,14 +161,31 @@ public class FileServiceImpl implements FileService {
         if (doc == null) {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
+        doDelete(doc);
+        return Result.success();
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> batchDelete(Long[] ids, Long userId) {
+        for (Long id : ids) {
+            Document doc = documentMapper.selectById(id);
+            if (doc != null) {
+                doDelete(doc);
+            }
+        }
+        return Result.success();
+    }
+
+    private void doDelete(Document doc) {
 
         // 1. 删除文档块数据（document_chunks 表）
         chunkMapper.delete(new LambdaQueryWrapper<com.rag.domain.entity.DocumentChunk>()
-                .eq(com.rag.domain.entity.DocumentChunk::getDocumentId, id));
+                .eq(com.rag.domain.entity.DocumentChunk::getDocumentId, doc.getId()));
 
         // 2. 删除审核记录（review_records 表）
         reviewRecordMapper.delete(new LambdaQueryWrapper<ReviewRecord>()
-                .eq(ReviewRecord::getDocumentId, id));
+                .eq(ReviewRecord::getDocumentId, doc.getId()));
 
         // 3. 删除MinIO原文件
         try {
@@ -186,13 +211,12 @@ public class FileServiceImpl implements FileService {
         }
 
         // 5. 删除文档元数据
-        documentMapper.deleteById(id);
+        documentMapper.deleteById(doc.getId());
 
         // 6. 通知Python清理Milvus向量和BM25索引
         sendDocumentDeleteMessage(doc);
 
-        log.info("文档完整删除成功: id={}, fileName={}", id, doc.getFileName());
-        return Result.success();
+        log.info("文档完整删除成功: id={}, fileName={}", doc.getId(), doc.getFileName());
     }
 
     private void sendDocumentDeleteMessage(Document doc) {
@@ -296,6 +320,13 @@ public class FileServiceImpl implements FileService {
         FileVO vo = new FileVO();
         vo.setId(doc.getId());
         vo.setKbId(doc.getKbId());
+        // 查询所属知识库名称
+        if (doc.getKbId() != null) {
+            var kb = kbMapper.selectById(doc.getKbId());
+            if (kb != null) {
+                vo.setKbName(kb.getKbName());
+            }
+        }
         vo.setFileName(doc.getFileName());
         vo.setFileType(doc.getFileType());
         vo.setFileSize(doc.getFileSize());

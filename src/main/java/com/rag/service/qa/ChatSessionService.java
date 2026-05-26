@@ -15,5 +15,7 @@ public interface ChatSessionService {
 
     Result<Void> deleteSession(Long sessionId, Long userId);
 
+    Result<Void> batchDeleteSessions(Long[] sessionIds, Long userId);
+
     Result<Page<ChatHistoryVO>> getSessionRecords(Long sessionId, Long userId, Integer page, Integer size);
 }

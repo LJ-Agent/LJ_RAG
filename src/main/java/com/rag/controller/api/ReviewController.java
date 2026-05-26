@@ -26,13 +26,14 @@ public class ReviewController {
 
     private final ReviewService reviewService;
 
-    @Operation(summary = "获取待审核列表")
+    @Operation(summary = "获取审核列表（可按结果过滤）")
     @GetMapping("/pending")
     @PreAuthorize("hasAuthority('REVIEW:VIEW')")
     public Result<Page<ReviewVO>> getPendingList(
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer size) {
-        return reviewService.getPendingList(page, size);
+            @RequestParam(defaultValue = "20") Integer size,
+            @RequestParam(required = false) String result) {
+        return reviewService.getPendingList(page, size, result);
     }
 
     @Operation(summary = "获取待块审核列表（CHUNK_REVIEW 状态的文档）")

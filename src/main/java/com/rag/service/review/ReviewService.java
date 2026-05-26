@@ -7,7 +7,7 @@ import com.rag.service.review.dto.ReviewVO;
 
 public interface ReviewService {
 
-    Result<Page<ReviewVO>> getPendingList(Integer page, Integer size);
+    Result<Page<ReviewVO>> getPendingList(Integer page, Integer size, String result);
 
     Result<Page<ReviewVO>> getChunkReviewList(Integer page, Integer size);
 

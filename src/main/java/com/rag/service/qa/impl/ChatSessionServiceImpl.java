@@ -1,6 +1,7 @@
 package com.rag.service.qa.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rag.common.exception.BusinessException;
 import com.rag.common.result.Result;
@@ -18,6 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -93,11 +96,30 @@ public class ChatSessionServiceImpl implements ChatSessionService {
         if (session == null || !session.getUserId().equals(userId)) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "会话不存在");
         }
-        session.setDeleted(1);
-        session.setUpdatedAt(LocalDateTime.now());
-        sessionMapper.updateById(session);
+        sessionMapper.update(null,
+                new LambdaUpdateWrapper<ChatSession>()
+                        .eq(ChatSession::getId, sessionId)
+                        .set(ChatSession::getDeleted, 1)
+                        .set(ChatSession::getUpdatedAt, LocalDateTime.now()));
 
         log.info("会话已删除: sessionId={}, userId={}", sessionId, userId);
+        return Result.success();
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> batchDeleteSessions(Long[] sessionIds, Long userId) {
+        for (Long sessionId : sessionIds) {
+            ChatSession session = sessionMapper.selectById(sessionId);
+            if (session != null && session.getUserId().equals(userId)) {
+                sessionMapper.update(null,
+                        new LambdaUpdateWrapper<ChatSession>()
+                                .eq(ChatSession::getId, sessionId)
+                                .set(ChatSession::getDeleted, 1)
+                                .set(ChatSession::getUpdatedAt, LocalDateTime.now()));
+            }
+        }
+        log.info("批量删除会话: sessionIds={}, userId={}", Arrays.toString(sessionIds), userId);
         return Result.success();
     }
 

@@ -121,11 +121,14 @@ public class QaServiceImpl implements QaService {
 
     @Override
     public SseEmitter streamChat(QuestionDTO dto, Long userId) {
-        SseEmitter emitter = new SseEmitter(60000L);
+        SseEmitter emitter = new SseEmitter(120000L);
 
         // 异步处理
         Thread thread = new Thread(() -> {
             try {
+                // 立即发送初始心跳，告知客户端连接已建立
+                emitter.send(SseEmitter.event().name("ping").data("connected").build());
+
                 // 1. gRPC检索
                 RetrievalResponse retrievalResponse = retrievalClient.retrieve(
                         dto.getQuestion(), dto.getKbIds(), dto.getTopK(), dto.getScoreThreshold());
