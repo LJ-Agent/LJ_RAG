@@ -413,6 +413,11 @@ public class FileServiceImpl implements FileService {
                     "当前状态不允许重新分块: " + currentStatus);
         }
 
+        // 清除旧分块数据
+        chunkMapper.delete(new LambdaQueryWrapper<DocumentChunk>()
+                .eq(DocumentChunk::getDocumentId, doc.getId()));
+        doc.setChunkCount(0);
+
         doc.setChunkStrategy(chunkStrategy != null ? chunkStrategy : "semantic");
         doc.setChunkConfig(chunkConfig);
         documentMapper.updateById(doc);
@@ -420,7 +425,7 @@ public class FileServiceImpl implements FileService {
         stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
         sendChunkProcessMessage(doc);
 
-        log.info("重新分块已触发: docId={}, strategy={}", doc.getId(), doc.getChunkStrategy());
+        log.info("重新分块已触发: docId={}, strategy={}, 旧分块已清除", doc.getId(), doc.getChunkStrategy());
         return Result.success(toVO(doc));
     }
 
