@@ -153,6 +153,9 @@ onMounted(async () => {
   const kbIdFromRoute = route.query.kbId
   if (kbIdFromRoute) {
     query.kbId = Number(kbIdFromRoute)
+    pagination.reset()
+    pagination.params.page = 1
+    fetchList()
   }
 })
 
