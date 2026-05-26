@@ -75,6 +75,11 @@
             link type="warning" size="small"
             @click="$router.push(`/documents/${row.id}/chunks`)"
           >块管理</el-button>
+          <el-button
+            v-if="row.status === 'REJECTED' || row.status === 'CHUNKING_FAILED'"
+            link type="warning" size="small"
+            @click="openRechunk(row)"
+          >重新分块</el-button>
           <el-button link type="primary" size="small" @click="handleDownload(row)">下载</el-button>
           <el-popconfirm title="确定要删除该文档吗？" @confirm="handleDelete(row.id)">
             <template #reference>
@@ -115,6 +120,29 @@
         <el-descriptions-item label="错误信息" :span="2">{{ currentDoc.errorMessage || '-' }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>
+
+    <!-- 重新分块弹窗 -->
+    <el-dialog v-model="rechunkVisible" title="重新分块" width="500px" destroy-on-close>
+      <el-form :model="rechunkForm" label-width="90px">
+        <el-form-item label="当前文件">
+          <span>{{ rechunkDoc?.fileName }}</span>
+        </el-form-item>
+        <el-form-item label="分块策略" required>
+          <el-select v-model="rechunkForm.chunkStrategy" placeholder="请选择" style="width: 100%">
+            <el-option label="固定大小分块" value="fixed" />
+            <el-option label="层级分块" value="hierarchical" />
+            <el-option label="语义分块" value="semantic" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="分块配置">
+          <el-input v-model="rechunkForm.chunkConfig" type="textarea" :rows="3" placeholder="JSON配置，如未指定则使用默认值" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="rechunkVisible = false">取消</el-button>
+        <el-button type="primary" :loading="rechunking" @click="handleRechunk">确认重新分块</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -141,6 +169,11 @@ const selectedIds = ref<number[]>([])
 
 const detailVisible = ref(false)
 const currentDoc = ref<FileVO | null>(null)
+
+const rechunkVisible = ref(false)
+const rechunkDoc = ref<FileVO | null>(null)
+const rechunkForm = reactive({ chunkStrategy: 'semantic', chunkConfig: '' })
+const rechunking = ref(false)
 
 onMounted(async () => {
   // 加载知识库列表供筛选下拉
@@ -227,6 +260,28 @@ async function handleBatchDelete() {
     selectedIds.value = []
     fetchList()
   } catch { /* cancelled or error */ }
+}
+
+function openRechunk(row: FileVO) {
+  rechunkDoc.value = row
+  rechunkForm.chunkStrategy = row.chunkStrategy || 'semantic'
+  rechunkForm.chunkConfig = row.chunkConfig || ''
+  rechunkVisible.value = true
+}
+
+async function handleRechunk() {
+  if (!rechunkDoc.value) return
+  rechunking.value = true
+  try {
+    await fileApi.rechunk(rechunkDoc.value.id, rechunkForm.chunkStrategy, rechunkForm.chunkConfig || undefined)
+    ElMessage.success('重新分块任务已发起')
+    rechunkVisible.value = false
+    fetchList()
+  } catch {
+    ElMessage.error('重新分块失败')
+  } finally {
+    rechunking.value = false
+  }
 }
 
 watch(pagination.params, () => fetchList(), { immediate: true })

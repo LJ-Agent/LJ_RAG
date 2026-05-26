@@ -28,6 +28,21 @@
       <span>总字符数: <b>{{ stats.totalChars.toLocaleString() }}</b></span>
     </div>
 
+    <div class="chunk-toolbar">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索块内容..."
+          clearable
+          @input="onSearch"
+          style="width: 260px"
+        >
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
+        <el-button type="primary" @click="openCreateDialog">新增块</el-button>
+      </div>
+    </div>
+
     <div class="chunk-layout">
       <!-- 左侧块列表 -->
       <div class="chunk-list-panel">
@@ -36,7 +51,7 @@
           v-loading="loading"
           highlight-current-row
           @current-change="selectChunk"
-          max-height="calc(100vh - 320px)"
+          max-height="calc(100vh - 380px)"
           stripe
         >
           <el-table-column label="#" width="50" align="center">
@@ -100,12 +115,25 @@
       </div>
     </div>
   </div>
+
+  <!-- 新增块弹窗 -->
+  <el-dialog v-model="createVisible" title="新增块" width="600px" destroy-on-close>
+    <el-form>
+      <el-form-item label="块内容" required>
+        <el-input v-model="newChunkContent" type="textarea" :rows="8" placeholder="请输入块内容" maxlength="5000" show-word-limit />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="createVisible = false">取消</el-button>
+      <el-button type="primary" :loading="creating" @click="doCreateChunk">确认新增</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, Search } from '@element-plus/icons-vue'
 import { chunkApi, type ChunkVO, type ChunkStats } from '@/api/modules/chunks'
 import { fileApi } from '@/api/modules/files'
 import { usePagination } from '@/composables/usePagination'
@@ -123,6 +151,10 @@ const loading = ref(false)
 const saving = ref(false)
 const selectedChunk = ref<ChunkVO | null>(null)
 const editContent = ref('')
+const searchKeyword = ref('')
+const createVisible = ref(false)
+const newChunkContent = ref('')
+const creating = ref(false)
 
 const pagination = usePagination()
 
@@ -131,17 +163,54 @@ function selectChunk(c: ChunkVO | null) {
   editContent.value = c?.content || ''
 }
 
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
 async function fetchChunks() {
   loading.value = true
   try {
+    const keyword = searchKeyword.value?.trim() || undefined
     const res = await chunkApi.list(docId, {
       page: pagination.params.page,
       size: pagination.params.size,
+      keyword,
     })
     chunkList.value = res.records
     pagination.setTotal(res.total)
   } finally {
     loading.value = false
+  }
+}
+
+function onSearch() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    pagination.params.page = 1
+    fetchChunks()
+  }, 300)
+}
+
+function openCreateDialog() {
+  newChunkContent.value = ''
+  createVisible.value = true
+}
+
+async function doCreateChunk() {
+  if (!newChunkContent.value.trim()) {
+    ElMessage.warning('请输入块内容')
+    return
+  }
+  creating.value = true
+  try {
+    await chunkApi.create(docId, newChunkContent.value.trim())
+    ElMessage.success('块已新增')
+    createVisible.value = false
+    pagination.params.page = 1
+    fetchChunks()
+    fetchStats()
+  } catch {
+    ElMessage.error('新增失败')
+  } finally {
+    creating.value = false
   }
 }
 
@@ -225,6 +294,12 @@ onMounted(() => {
   border-radius: 4px;
   font-size: 13px;
   color: #606266;
+}
+.chunk-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 .chunk-layout {
   display: flex;

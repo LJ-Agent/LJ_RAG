@@ -24,8 +24,11 @@ export interface ChunkStats {
 }
 
 export const chunkApi = {
-  list: (documentId: number, params?: { page?: number; size?: number }): Promise<Page<ChunkVO>> =>
+  list: (documentId: number, params?: { page?: number; size?: number; keyword?: string }): Promise<Page<ChunkVO>> =>
     request.get(BASE, { params: { documentId, ...params } }),
+
+  create: (documentId: number, content: string): Promise<ChunkVO> =>
+    request.post(BASE, { documentId, content }),
 
   getByChunkId: (chunkId: string): Promise<ChunkVO> =>
     request.get(`${BASE}/by-chunk-id/${chunkId}`),

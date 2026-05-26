@@ -36,6 +36,9 @@ export const fileApi = {
   batchDelete: (ids: number[]): Promise<void> =>
     request.post(`${BASE}/batch-delete`, ids),
 
+  rechunk: (id: number, chunkStrategy: string, chunkConfig?: string): Promise<FileVO> =>
+    request.post(`${BASE}/${id}/rechunk`, { chunkStrategy, chunkConfig }),
+
   download: async (id: number, fileName: string): Promise<void> => {
     const response = await request.get(`${BASE}/${id}/download`, {
       responseType: 'blob',
