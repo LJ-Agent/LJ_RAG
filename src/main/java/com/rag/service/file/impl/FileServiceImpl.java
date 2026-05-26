@@ -95,7 +95,7 @@ public class FileServiceImpl implements FileService {
             throw new BusinessException(ResultCodeEnum.FILE_UPLOAD_ERROR);
         }
 
-        // 5. 保存元数据
+        // 5. 保存元数据（捕获MD5唯一约束冲突，处理并发上传场景）
         Document doc = new Document();
         doc.setKbId(kbId);
         doc.setFileName(originalName);
@@ -108,7 +108,17 @@ public class FileServiceImpl implements FileService {
         doc.setChunkConfig(chunkConfig);
         doc.setUploadUserId(userId);
         doc.setUploadAt(LocalDateTime.now());
-        documentMapper.insert(doc);
+        try {
+            documentMapper.insert(doc);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            log.info("MD5唯一约束冲突（并发上传/重复文件）: md5={}, 回退查询已有记录", md5);
+            Document existing = documentMapper.selectOne(
+                    new LambdaQueryWrapper<Document>().eq(Document::getFileMd5, md5));
+            if (existing != null) {
+                return Result.success(toVO(existing));
+            }
+            throw new BusinessException(ResultCodeEnum.FILE_DUPLICATE);
+        }
 
         // 6. 发送Kafka消息
         sendKafkaMessage(doc);
