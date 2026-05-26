@@ -71,12 +71,19 @@ public class FileServiceImpl implements FileService {
             throw new BusinessException(ResultCodeEnum.FILE_UPLOAD_ERROR);
         }
 
-        // 3. 去重检查
+        // 3. 去重检查（非删除记录）
         Document existDoc = documentMapper.selectOne(
                 new LambdaQueryWrapper<Document>().eq(Document::getFileMd5, md5));
         if (existDoc != null) {
             log.info("文件已存在, MD5={}, 秒传", md5);
             return Result.success(toVO(existDoc));
+        }
+
+        // 3.1 检查是否已删除的同MD5记录，若存在则恢复
+        Document deletedDoc = documentMapper.selectDeletedByMd5(md5);
+        if (deletedDoc != null) {
+            log.info("恢复已删除文件: id={}, md5={}", deletedDoc.getId(), md5);
+            return Result.success(restoreDocument(deletedDoc, file, kbId, userId, chunkStrategy, chunkConfig));
         }
 
         // 4. 上传到MinIO
@@ -116,6 +123,12 @@ public class FileServiceImpl implements FileService {
                     new LambdaQueryWrapper<Document>().eq(Document::getFileMd5, md5));
             if (existing != null) {
                 return Result.success(toVO(existing));
+            }
+            // 可能是已删除记录占用唯一索引，再查一次
+            Document deleted = documentMapper.selectDeletedByMd5(md5);
+            if (deleted != null) {
+                log.info("冲突源为已删除记录，恢复: id={}, md5={}", deleted.getId(), md5);
+                return Result.success(restoreDocument(deleted, file, kbId, userId, chunkStrategy, chunkConfig));
             }
             throw new BusinessException(ResultCodeEnum.FILE_DUPLICATE);
         }
@@ -351,6 +364,36 @@ public class FileServiceImpl implements FileService {
             return "unknown";
         }
         return fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private FileVO restoreDocument(Document deletedDoc, MultipartFile file, Long kbId,
+                                    Long userId, String chunkStrategy, String chunkConfig) {
+        String ext = getFileExtension(deletedDoc.getFileName());
+        String datePath = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        String objectName = datePath + "/" + IdUtil.fastSimpleUUID() + "." + ext;
+
+        try (InputStream is = file.getInputStream()) {
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(minioConfig.getBucketName())
+                    .object(objectName)
+                    .stream(is, file.getSize(), -1)
+                    .contentType(file.getContentType())
+                    .build());
+        } catch (Exception e) {
+            log.error("MinIO上传失败(恢复)", e);
+            throw new BusinessException(ResultCodeEnum.FILE_UPLOAD_ERROR);
+        }
+
+        documentMapper.restoreById(deletedDoc.getId(), kbId, deletedDoc.getFileName(), ext,
+                file.getSize(), objectName, DocumentStatus.UPLOADED.name(),
+                chunkStrategy != null ? chunkStrategy : "semantic", chunkConfig,
+                userId, LocalDateTime.now());
+
+        Document restored = documentMapper.selectById(deletedDoc.getId());
+        sendKafkaMessage(restored);
+        log.info("已删除文件恢复成功: id={}, name={}, md5={}", restored.getId(), restored.getFileName(),
+                restored.getFileMd5());
+        return toVO(restored);
     }
 
     @Override
