@@ -107,7 +107,7 @@ onMounted(async () => {
       knowledgeBaseApi.list({ page: 1, size: 1 }),
       fileApi.list({ page: 1, size: 1 }),
       reviewApi.pending({ page: 1, size: 1 }),
-      qaApi.history({ page: 1, size: 1 }),
+      qaApi.getSessions({ page: 1, size: 1 }),
     ])
     if (kb.status === 'fulfilled') stats.kbCount = kb.value.total
     if (doc.status === 'fulfilled') stats.docCount = doc.value.total
