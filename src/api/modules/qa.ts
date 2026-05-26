@@ -39,6 +39,9 @@ export const qaApi = {
   deleteSession: (id: number): Promise<void> =>
     request.delete(`${BASE}/sessions/${id}`),
 
+  batchDeleteSessions: (ids: number[]): Promise<void> =>
+    request.post(`${BASE}/sessions/batch-delete`, ids),
+
   getSessionRecords: (sessionId: number, params?: { page?: number; size?: number }): Promise<Page<ChatHistoryVO>> =>
     request.get(`${BASE}/sessions/${sessionId}/records`, { params }),
 }

@@ -5,7 +5,7 @@ import type { Page } from '@/api/types/common'
 const BASE = '/review'
 
 export const reviewApi = {
-  pending: (params: { page?: number; size?: number }): Promise<Page<ReviewVO>> =>
+  pending: (params: { page?: number; size?: number; result?: string }): Promise<Page<ReviewVO>> =>
     request.get(`${BASE}/pending`, { params }),
 
   submit: (data: ReviewSubmitDTO): Promise<void> =>

@@ -26,8 +26,8 @@ export function useSSE() {
     abortController = new AbortController()
 
     try {
-      // 合并手动中止信号和60秒超时信号
-      const timeoutSignal = AbortSignal.timeout(60000)
+      // 合并手动中止信号和120秒超时信号
+      const timeoutSignal = AbortSignal.timeout(120000)
       const combinedSignal = abortController
         ? AbortSignal.any([abortController.signal, timeoutSignal])
         : timeoutSignal

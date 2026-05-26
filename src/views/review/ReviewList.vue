@@ -106,11 +106,12 @@ async function fetchList() {
   isLoading.value = true
   selectedIds.value = []
   try {
-    const params = { page: pagination.params.page, size: pagination.params.size }
+    const params: Record<string, any> = { page: pagination.params.page, size: pagination.params.size }
     let res
     if (activeTab.value === 'CHUNK_REVIEW') {
       res = await reviewApi.chunkReview(params)
     } else {
+      params.result = activeTab.value
       res = await reviewApi.pending(params)
     }
     list.value = res.records

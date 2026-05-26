@@ -1,6 +1,7 @@
 export interface FileVO {
   id: number
   kbId: number
+  kbName?: string
   fileName: string
   fileType: string
   fileSize: number

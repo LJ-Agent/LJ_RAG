@@ -39,7 +39,13 @@
         </template>
       </el-table-column>
       <el-table-column prop="ownerName" label="创建者" width="120" align="center" />
-      <el-table-column prop="documentCount" label="文档数" width="80" align="center" />
+      <el-table-column label="文档数" width="80" align="center">
+        <template #default="{ row }">
+          <el-button link type="primary" size="small" @click="$router.push(`/documents?kbId=${row.id}`)">
+            {{ row.documentCount }}
+          </el-button>
+        </template>
+      </el-table-column>
       <el-table-column prop="createdAt" label="创建时间" width="170" align="center">
         <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
       </el-table-column>

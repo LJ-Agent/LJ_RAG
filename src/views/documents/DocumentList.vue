@@ -2,14 +2,24 @@
   <div class="page-container">
     <div class="page-container__header">
       <h2>文档列表</h2>
-      <el-button type="primary" @click="$router.push('/documents/upload')" v-permission="'DOCUMENT:UPLOAD'">
-        <el-icon><Upload /></el-icon> 上传文档
-      </el-button>
+      <div class="header-actions">
+        <el-button type="danger" :disabled="selectedIds.length === 0" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon> 批量删除 ({{ selectedIds.length }})
+        </el-button>
+        <el-button type="primary" @click="$router.push('/documents/upload')" v-permission="'DOCUMENT:UPLOAD'">
+          <el-icon><Upload /></el-icon> 上传文档
+        </el-button>
+      </div>
     </div>
 
     <!-- 搜索栏 -->
     <div class="search-bar">
       <el-form :inline="true" :model="query" size="default">
+        <el-form-item label="所属知识库">
+          <el-select v-model="query.kbId" placeholder="全部" clearable style="width: 180px" @change="doSearch">
+            <el-option v-for="kb in kbList" :key="kb.id" :label="kb.kbName" :value="kb.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="文件名称">
           <el-input v-model="query.fileName" placeholder="输入文件名搜索" clearable @clear="doSearch" />
         </el-form-item>
@@ -26,14 +36,17 @@
     </div>
 
     <!-- 数据表格 -->
-    <el-table :data="list" v-loading="isLoading" stripe border style="width: 100%">
-      <el-table-column prop="id" label="ID" width="80" align="center" />
+    <el-table :data="list" v-loading="isLoading" stripe border style="width: 100%" @selection-change="onSelectionChange">
+      <el-table-column type="selection" width="50" align="center" />
       <el-table-column label="文件名称" min-width="200">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="$router.push(`/documents/${row.id}/content`)">
             {{ row.fileName }}
           </el-button>
         </template>
+      </el-table-column>
+      <el-table-column prop="kbName" label="所属知识库" width="150" align="center" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.kbName || '-' }}</template>
       </el-table-column>
       <el-table-column label="文件类型" width="100" align="center">
         <template #default="{ row }">
@@ -87,8 +100,8 @@
     <!-- 详情弹窗 -->
     <el-dialog v-model="detailVisible" title="文档详情" width="560px">
       <el-descriptions v-if="currentDoc" :column="2" border>
-        <el-descriptions-item label="ID">{{ currentDoc.id }}</el-descriptions-item>
         <el-descriptions-item label="文件名称">{{ currentDoc.fileName }}</el-descriptions-item>
+        <el-descriptions-item label="所属知识库">{{ currentDoc.kbName || '-' }}</el-descriptions-item>
         <el-descriptions-item label="文件类型">{{ currentDoc.fileType?.toUpperCase() }}</el-descriptions-item>
         <el-descriptions-item label="文件大小">{{ formatFileSize(currentDoc.fileSize) }}</el-descriptions-item>
         <el-descriptions-item label="MD5">{{ currentDoc.fileMd5 }}</el-descriptions-item>
@@ -106,31 +119,55 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
-import { Upload } from '@element-plus/icons-vue'
+import { ref, reactive, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { Upload, Delete } from '@element-plus/icons-vue'
 import { fileApi } from '@/api/modules/files'
+import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
 import { usePagination } from '@/composables/usePagination'
 import { formatDate, formatFileSize } from '@/utils/format'
 import { DOCUMENT_STATUS_MAP } from '@/utils/constants'
 import type { FileVO } from '@/api/types/file'
-import { ElMessage } from 'element-plus'
+import type { KnowledgeBaseVO } from '@/api/types/knowledgeBase'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
+const route = useRoute()
 const pagination = usePagination()
-const query = reactive({ fileName: '', status: undefined as string | undefined })
+const query = reactive({ kbId: undefined as number | undefined, fileName: '', status: undefined as string | undefined })
 const list = ref<FileVO[]>([])
 const isLoading = ref(false)
+const kbList = ref<KnowledgeBaseVO[]>([])
+const selectedIds = ref<number[]>([])
 
 const detailVisible = ref(false)
 const currentDoc = ref<FileVO | null>(null)
 
+onMounted(async () => {
+  // 加载知识库列表供筛选下拉
+  try {
+    const res = await knowledgeBaseApi.list({ page: 1, size: 100 })
+    kbList.value = res.records
+  } catch { /* ignore */ }
+
+  // 从路由参数获取 kbId（支持从知识库下钻）
+  const kbIdFromRoute = route.query.kbId
+  if (kbIdFromRoute) {
+    query.kbId = Number(kbIdFromRoute)
+  }
+})
+
 async function fetchList() {
   isLoading.value = true
+  selectedIds.value = []
   try {
-    const res = await fileApi.list({
-      ...query,
+    const params: Record<string, any> = {
       page: pagination.params.page,
       size: pagination.params.size,
-    })
+    }
+    if (query.kbId) params.kbId = query.kbId
+    if (query.fileName) params.fileName = query.fileName
+    if (query.status) params.status = query.status
+    const res = await fileApi.list(params)
     list.value = res.records
     pagination.setTotal(res.total)
   } finally {
@@ -145,9 +182,14 @@ function doSearch() {
 }
 
 function resetSearch() {
+  query.kbId = undefined
   query.fileName = ''
   query.status = undefined
   doSearch()
+}
+
+function onSelectionChange(rows: FileVO[]) {
+  selectedIds.value = rows.map((r) => r.id)
 }
 
 function showDetail(row: FileVO) {
@@ -169,10 +211,29 @@ async function handleDelete(id: number) {
   fetchList()
 }
 
+async function handleBatchDelete() {
+  if (selectedIds.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedIds.value.length} 个文档吗？此操作不可恢复。`,
+      '批量删除确认',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+    await fileApi.batchDelete(selectedIds.value)
+    ElMessage.success(`已删除 ${selectedIds.value.length} 个文档`)
+    selectedIds.value = []
+    fetchList()
+  } catch { /* cancelled or error */ }
+}
+
 watch(pagination.params, () => fetchList(), { immediate: true })
 </script>
 
 <style scoped>
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
 .search-bar {
   margin-bottom: 16px;
   padding: 16px;

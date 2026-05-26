@@ -16,7 +16,6 @@ export const fileApi = {
       formData.append('chunkConfig', chunkConfig)
     }
     return request.post(`${BASE}/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (event) => {
         if (event.total && onProgress) {
           onProgress(Math.round((event.loaded * 100) / event.total))
@@ -33,6 +32,9 @@ export const fileApi = {
 
   delete: (id: number): Promise<void> =>
     request.delete(`${BASE}/${id}`),
+
+  batchDelete: (ids: number[]): Promise<void> =>
+    request.post(`${BASE}/batch-delete`, ids),
 
   download: async (id: number, fileName: string): Promise<void> => {
     const response = await request.get(`${BASE}/${id}/download`, {

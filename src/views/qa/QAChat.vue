@@ -6,15 +6,27 @@
         <el-button type="primary" size="small" @click="createNewSession" style="width: 100%">
           <el-icon><Plus /></el-icon> 新建会话
         </el-button>
+        <el-button
+          v-if="selectedSessionIds.length > 0"
+          type="danger" size="small" style="width: 100%; margin-top: 6px"
+          @click="handleBatchDeleteSessions"
+        >
+          <el-icon><Delete /></el-icon> 批量删除 ({{ selectedSessionIds.length }})
+        </el-button>
       </div>
       <div class="session-list">
         <div
           v-for="s in sortedSessions"
           :key="s.id"
           :class="['session-item', { active: activeSessionId === s.id }]"
-          @click="switchSession(s.id)"
         >
-          <div class="session-info">
+          <el-checkbox
+            :model-value="selectedSessionIds.includes(s.id)"
+            class="session-checkbox"
+            @change="(val: boolean) => toggleSessionSelect(s.id, val)"
+            @click.stop
+          />
+          <div class="session-info" @click="switchSession(s.id)">
             <span class="session-title">{{ s.title }}</span>
             <span class="session-meta">{{ s.messageCount }} 条 · {{ formatTime(s.createdAt) }}</span>
           </div>
@@ -47,8 +59,7 @@
         <el-checkbox-group v-model="selectedKbIds" size="small">
           <el-checkbox v-for="kb in kbList" :key="kb.id" :value="kb.id" :label="kb.kbName" border />
         </el-checkbox-group>
-        <el-divider direction="vertical" />
-        <el-checkbox v-model="streamMode" label="流式输出" border size="small" />
+        <span v-if="selectedKbIds.length === 0" style="font-size: 12px; color: #e6a23c;">请选择一个知识库</span>
       </div>
 
       <!-- 消息区域 -->
@@ -106,7 +117,7 @@
           </div>
         </div>
 
-        <!-- 流式输出：思考 + 回答 -->
+        <!-- 流式输出 -->
         <div v-if="isStreaming" class="qa-message bot">
           <div class="qa-message__bubble">
             <div class="streaming-block">
@@ -142,7 +153,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChatDotRound, Plus, MoreFilled, Promotion, Document, Star, StarFilled } from '@element-plus/icons-vue'
+import { ChatDotRound, Plus, MoreFilled, Promotion, Document, Star, StarFilled, Delete } from '@element-plus/icons-vue'
 import { qaApi } from '@/api/modules/qa'
 import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
 import { useSSE } from '@/composables/useSSE'
@@ -166,7 +177,6 @@ const STORAGE_KEY = 'rag-pinned-session'
 
 const kbList = ref<KnowledgeBaseVO[]>([])
 const selectedKbIds = ref<number[]>([])
-const streamMode = ref(true)
 const question = ref('')
 const messages = ref<ChatMessage[]>([])
 const messagesRef = ref<HTMLElement>()
@@ -174,6 +184,7 @@ const messagesRef = ref<HTMLElement>()
 const sessions = ref<ChatSessionVO[]>([])
 const activeSessionId = ref<number | null>(null)
 const pinnedId = ref<number | null>(loadPinnedId())
+const selectedSessionIds = ref<number[]>([])
 
 const { isStreaming, streamContent, startStream } = useSSE()
 const router = useRouter()
@@ -213,6 +224,14 @@ function togglePin(id: number) {
   } else {
     pinnedId.value = id
     savePinnedId(id)
+  }
+}
+
+function toggleSessionSelect(id: number, val: boolean) {
+  if (val) {
+    selectedSessionIds.value.push(id)
+  } else {
+    selectedSessionIds.value = selectedSessionIds.value.filter(v => v !== id)
   }
 }
 
@@ -323,14 +342,37 @@ async function handleSessionAction(cmd: string, session: ChatSessionVO) {
         activeSessionId.value = null
         messages.value = []
       }
-      // 如果删除的是置顶会话，清除置顶
       if (pinnedId.value === session.id) {
         pinnedId.value = null
         savePinnedId(null)
       }
+      selectedSessionIds.value = selectedSessionIds.value.filter(v => v !== session.id)
       await loadSessions()
     } catch { /* cancelled */ }
   }
+}
+
+async function handleBatchDeleteSessions() {
+  if (selectedSessionIds.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedSessionIds.value.length} 个会话吗？`,
+      '批量删除确认',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+    await qaApi.batchDeleteSessions(selectedSessionIds.value)
+    ElMessage.success(`已删除 ${selectedSessionIds.value.length} 个会话`)
+    if (activeSessionId.value && selectedSessionIds.value.includes(activeSessionId.value)) {
+      activeSessionId.value = null
+      messages.value = []
+    }
+    if (pinnedId.value && selectedSessionIds.value.includes(pinnedId.value)) {
+      pinnedId.value = null
+      savePinnedId(null)
+    }
+    selectedSessionIds.value = []
+    await loadSessions()
+  } catch { /* cancelled */ }
 }
 
 async function ensureSession(): Promise<number | null> {
@@ -375,32 +417,19 @@ async function handleSend() {
       scoreThreshold: 0.3,
     }
 
-    if (streamMode.value) {
-      const botMsg: ChatMessage = { role: 'bot', content: '' }
-      messages.value.push(botMsg)
+    const botMsg: ChatMessage = { role: 'bot', content: '' }
+    messages.value.push(botMsg)
 
-      await startStream(
-        dto,
-        (chunk) => {
-          botMsg.content += chunk
-          scrollToBottom()
-        },
-        (meta) => {
-          handleStreamDone(botMsg, meta)
-        }
-      )
-    } else {
-      const answer = await qaApi.chat(dto)
-      messages.value.push({
-        role: 'bot',
-        content: answer.answer,
-        sourceDocs: answer.sourceDocs,
-        tokenCount: answer.tokenCount,
-        latencyMs: answer.latencyMs,
-      })
-      loadSessions()
-      scrollToBottom()
-    }
+    await startStream(
+      dto,
+      (chunk) => {
+        botMsg.content += chunk
+        scrollToBottom()
+      },
+      (meta) => {
+        handleStreamDone(botMsg, meta)
+      }
+    )
   } catch {
     messages.value.push({ role: 'bot', content: '[请求失败，请重试]' })
     scrollToBottom()
@@ -449,6 +478,9 @@ onMounted(async () => {
 }
 .session-item:hover { background: #ecf5ff; }
 .session-item.active { background: #d9ecff; }
+.session-checkbox {
+  margin-right: 6px;
+}
 .session-info {
   flex: 1;
   min-width: 0;
