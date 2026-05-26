@@ -50,8 +50,11 @@ public class QaServiceImpl implements QaService {
 
     @Override
     public Result<AnswerVO> chat(QuestionDTO dto, Long userId) {
-        // 1. 检查缓存
-        String cacheKey = CacheConstants.QA_CACHE_PREFIX + (dto.getQuestion().hashCode() & 0x7fffffff);
+        // 1. 检查缓存（含 kbIds 避免不同知识库污染）
+        String kbIdsKey = dto.getKbIds().stream().sorted().map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(","));
+        String cacheKey = CacheConstants.QA_CACHE_PREFIX + kbIdsKey + ":"
+                + (dto.getQuestion().hashCode() & 0x7fffffff);
         String cached = stringRedisTemplate.opsForValue().get(cacheKey);
         if (cached != null) {
             log.info("命中问答缓存: key={}", cacheKey);
@@ -106,9 +109,12 @@ public class QaServiceImpl implements QaService {
 
         vo.setChatId(record.getId());
 
-        // 7. 写入缓存
-        stringRedisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(vo),
-                Duration.ofSeconds(CacheConstants.QA_CACHE_TTL));
+        // 7. 写入缓存 — 仅缓存有效结果（非空检索+非空回答）
+        if (!sourceDocs.isEmpty() && StrUtil.isNotBlank(generationResponse.getContent())
+                && generationResponse.getTokenCount() > 0) {
+            stringRedisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(vo),
+                    Duration.ofSeconds(CacheConstants.QA_CACHE_TTL));
+        }
 
         return Result.success(vo);
     }

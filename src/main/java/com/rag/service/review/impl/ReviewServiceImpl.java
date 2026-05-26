@@ -12,8 +12,10 @@ import com.rag.common.result.Result;
 import com.rag.common.result.ResultCodeEnum;
 import com.rag.communication.kafka.dto.KafkaMessage;
 import com.rag.domain.entity.Document;
+import com.rag.domain.entity.DocumentChunk;
 import com.rag.domain.entity.ReviewRecord;
 import com.rag.domain.entity.SystemConfig;
+import com.rag.domain.mapper.DocumentChunkMapper;
 import com.rag.domain.mapper.DocumentMapper;
 import com.rag.domain.mapper.ReviewRecordMapper;
 import com.rag.domain.mapper.SystemConfigMapper;
@@ -42,6 +44,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRecordMapper reviewRecordMapper;
     private final DocumentMapper documentMapper;
+    private final DocumentChunkMapper chunkMapper;
     private final SystemConfigMapper systemConfigMapper;
     private final DocumentStateMachine stateMachine;
     private final RedisLockUtil redisLockUtil;
@@ -181,17 +184,33 @@ public class ReviewServiceImpl implements ReviewService {
 
     private void sendEmbedProcessMessage(Document doc) {
         String taskId = "task-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "-embed-" + doc.getId();
+
+        // Fetch chunks from database
+        List<DocumentChunk> chunks = chunkMapper.selectList(
+                new LambdaQueryWrapper<DocumentChunk>()
+                        .eq(DocumentChunk::getDocumentId, doc.getId())
+                        .eq(DocumentChunk::getStatus, "ACTIVE"));
+
+        List<cn.hutool.json.JSONObject> chunkList = new java.util.ArrayList<>();
+        for (DocumentChunk c : chunks) {
+            chunkList.add(JSONUtil.createObj()
+                    .set("chunk_id", c.getChunkId())
+                    .set("chunk_index", c.getChunkIndex())
+                    .set("content", c.getContent()));
+        }
+
         KafkaMessage message = new KafkaMessage();
         message.setTaskId(taskId);
         message.setTaskType(TaskType.EMBED_PROCESS.name());
         message.setDocumentId(doc.getId());
         message.setKbId(doc.getKbId());
         message.setData(JSONUtil.createObj()
-                .set("fileName", doc.getFileName()));
+                .set("fileName", doc.getFileName())
+                .set("chunks", chunkList));
         message.setCreatedAt(LocalDateTime.now().toString());
 
         kafkaTemplate.send(KafkaConstants.TOPIC_EMBED_PROCESS, taskId, JSONUtil.toJsonStr(message));
-        log.info("EMBED_PROCESS消息已发送: taskId={}, docId={}", taskId, doc.getId());
+        log.info("EMBED_PROCESS消息已发送: taskId={}, docId={}, chunks={}", taskId, doc.getId(), chunkList.size());
     }
 
     @Override
