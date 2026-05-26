@@ -109,4 +109,11 @@ public class ChunkController {
     public Result<Void> startEmbedding(@RequestParam Long documentId) {
         return chunkService.startEmbedding(documentId);
     }
+
+    @Operation(summary = "同步文档分块计数")
+    @PostMapping("/sync-count")
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<Integer> syncChunkCount(@RequestParam Long documentId) {
+        return chunkService.syncChunkCount(documentId);
+    }
 }

@@ -25,4 +25,6 @@ public interface ChunkService {
     Result<ChunkVO.ChunkStats> getStats(Long documentId);
 
     Result<Void> startEmbedding(Long documentId);
+
+    Result<Integer> syncChunkCount(Long documentId);
 }

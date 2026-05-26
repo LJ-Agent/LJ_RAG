@@ -457,11 +457,10 @@ public class FileServiceImpl implements FileService {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
 
-        try {
-            InputStream is = minioClient.getObject(GetObjectArgs.builder()
-                    .bucket(minioConfig.getBucketName())
-                    .object(doc.getMinioPath())
-                    .build());
+        try (InputStream is = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(minioConfig.getBucketName())
+                .object(doc.getMinioPath())
+                .build())) {
 
             String ext = getFileExtension(doc.getFileName());
             String contentType = switch (ext) {
@@ -472,23 +471,34 @@ public class FileServiceImpl implements FileService {
                 case "webp" -> "image/webp";
                 case "svg" -> "image/svg+xml";
                 case "bmp" -> "image/bmp";
+                case "doc" -> "application/msword";
+                case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                case "xls" -> "application/vnd.ms-excel";
+                case "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                case "ppt" -> "application/vnd.ms-powerpoint";
+                case "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                case "txt", "md", "csv" -> "text/plain; charset=UTF-8";
                 default -> "application/octet-stream";
             };
             response.setContentType(contentType);
-            response.setHeader("Content-Disposition", "inline; filename=" +
-                    URLEncoder.encode(doc.getFileName(), StandardCharsets.UTF_8));
+            response.setContentLengthLong(doc.getFileSize());
+
+            // RFC 5987 编码非ASCII文件名
+            String encodedName = URLEncoder.encode(doc.getFileName(), StandardCharsets.UTF_8)
+                    .replace("+", "%20");
+            response.setHeader("Content-Disposition",
+                    "inline; filename=\"" + encodedName + "\"; filename*=UTF-8''" + encodedName);
 
             byte[] buffer = new byte[8192];
             int read;
             while ((read = is.read(buffer)) != -1) {
                 response.getOutputStream().write(buffer, 0, read);
             }
-            is.close();
             response.getOutputStream().flush();
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("获取原始文件失败: id={}", id, e);
+            log.error("获取原始文件失败: id={}, minioPath={}", id, doc.getMinioPath(), e);
             throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND);
         }
     }

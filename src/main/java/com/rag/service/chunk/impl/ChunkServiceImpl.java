@@ -120,8 +120,17 @@ public class ChunkServiceImpl implements ChunkService {
         if (chunk == null) {
             throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "块不存在");
         }
-        chunk.setStatus("DELETED");
-        chunkMapper.updateById(chunk);
+        if (!"DELETED".equals(chunk.getStatus())) {
+            chunk.setStatus("DELETED");
+            chunkMapper.updateById(chunk);
+
+            // 同步文档的chunkCount
+            Document doc = documentMapper.selectById(chunk.getDocumentId());
+            if (doc != null) {
+                doc.setChunkCount(Math.max(0, (doc.getChunkCount() != null ? doc.getChunkCount() : 0) - 1));
+                documentMapper.updateById(doc);
+            }
+        }
         return Result.success();
     }
 
@@ -210,6 +219,21 @@ public class ChunkServiceImpl implements ChunkService {
         kafkaTemplate.send(KafkaConstants.TOPIC_EMBED_PROCESS, taskId, JSONUtil.toJsonStr(message));
         log.info("EMBED_PROCESS消息已发送: taskId={}, docId={}, chunkCount={}", taskId, doc.getId(), activeChunks.size());
         return Result.success();
+    }
+
+    @Override
+    public Result<Integer> syncChunkCount(Long documentId) {
+        Long activeCount = chunkMapper.selectCount(
+                new LambdaQueryWrapper<DocumentChunk>()
+                        .eq(DocumentChunk::getDocumentId, documentId)
+                        .eq(DocumentChunk::getStatus, "ACTIVE"));
+        Document doc = documentMapper.selectById(documentId);
+        if (doc != null) {
+            doc.setChunkCount(activeCount.intValue());
+            documentMapper.updateById(doc);
+        }
+        log.info("分块计数同步: docId={}, chunkCount={}", documentId, activeCount);
+        return Result.success(activeCount.intValue());
     }
 
     private ChunkVO toVO(DocumentChunk c) {
