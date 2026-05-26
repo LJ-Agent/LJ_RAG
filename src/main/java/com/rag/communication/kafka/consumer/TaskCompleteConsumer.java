@@ -4,22 +4,26 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.rag.common.constant.KafkaConstants;
+import com.rag.common.enums.DocumentStatus;
 import com.rag.common.enums.TaskType;
 import com.rag.communication.kafka.dto.KafkaMessage;
 import com.rag.domain.entity.Document;
 import com.rag.domain.entity.DocumentChunk;
 import com.rag.domain.mapper.DocumentChunkMapper;
 import com.rag.domain.mapper.DocumentMapper;
+import com.rag.infrastructure.config.MinioConfig;
 import com.rag.service.statemachine.DocumentStateMachine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Slf4j
 @Component
@@ -29,6 +33,8 @@ public class TaskCompleteConsumer {
     private final DocumentMapper documentMapper;
     private final DocumentChunkMapper chunkMapper;
     private final DocumentStateMachine stateMachine;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final MinioConfig minioConfig;
 
     @KafkaListener(topics = KafkaConstants.TOPIC_TASK_COMPLETE, groupId = KafkaConstants.CONSUMER_GROUP)
     @Transactional
@@ -57,7 +63,16 @@ public class TaskCompleteConsumer {
                 saveChunkData(doc, message);
             }
 
+            // State transition: FILE_PROCESS → PENDING_REVIEW, CHUNK_PROCESS → CHUNK_REVIEW, EMBED_PROCESS → COMPLETED
+            DocumentStatus before = DocumentStatus.valueOf(doc.getStatus());
             stateMachine.transitToNext(doc);
+            DocumentStatus after = DocumentStatus.valueOf(doc.getStatus());
+
+            // After FILE_PROCESS completes (UPLOADED → PENDING_REVIEW), chain CHUNK_PROCESS for pre-chunking
+            if (before == DocumentStatus.UPLOADED && after == DocumentStatus.PENDING_REVIEW) {
+                sendChunkProcessMessage(doc);
+            }
+
             acknowledgment.acknowledge();
         } catch (Exception e) {
             log.error("处理任务完成通知失败: taskId={}, docId={}",
@@ -65,6 +80,36 @@ public class TaskCompleteConsumer {
                     message != null ? message.getDocumentId() : "unknown", e);
             // Do NOT acknowledge on failure — message will be re-delivered
         }
+    }
+
+    private void sendChunkProcessMessage(Document doc) {
+        String taskId = "task-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "-chunk-" + doc.getId();
+        String cleanedPath = doc.getMinioPath() != null
+                ? minioConfig.getBucketName() + "/" + buildCleanedPath(doc.getMinioPath())
+                : "";
+        KafkaMessage message = new KafkaMessage();
+        message.setTaskId(taskId);
+        message.setTaskType(TaskType.CHUNK_PROCESS.name());
+        message.setDocumentId(doc.getId());
+        message.setKbId(doc.getKbId());
+        message.setData(JSONUtil.createObj()
+                .set("cleanedPath", cleanedPath)
+                .set("fileName", doc.getFileName())
+                .set("chunkStrategy", doc.getChunkStrategy() != null ? doc.getChunkStrategy() : "semantic")
+                .set("chunkConfig", doc.getChunkConfig()));
+        message.setCreatedAt(LocalDateTime.now().toString());
+
+        kafkaTemplate.send(KafkaConstants.TOPIC_CHUNK_PROCESS, taskId, JSONUtil.toJsonStr(message));
+        log.info("预分块消息已发送(自动): taskId={}, docId={}", taskId, doc.getId());
+    }
+
+    private String buildCleanedPath(String minioPath) {
+        if (minioPath == null) return "";
+        int lastDot = minioPath.lastIndexOf('.');
+        if (lastDot > 0) {
+            return minioPath.substring(0, lastDot) + "_cleaned.md";
+        }
+        return minioPath + "_cleaned.md";
     }
 
     private void saveChunkData(Document doc, KafkaMessage message) {
@@ -75,7 +120,6 @@ public class TaskCompleteConsumer {
         } else if (data instanceof JSONObject) {
             chunks = ((JSONObject) data).getJSONArray("chunks");
         } else {
-            // Data might be a map from deserialization
             String json = JSONUtil.toJsonStr(data);
             JSONObject obj = JSONUtil.parseObj(json);
             chunks = obj.getJSONArray("chunks");
@@ -106,7 +150,6 @@ public class TaskCompleteConsumer {
             savedCount++;
         }
 
-        // Update chunk count on document
         doc.setChunkCount(savedCount);
         documentMapper.updateById(doc);
         log.info("Chunk数据已保存: docId={}, chunkCount={}", doc.getId(), savedCount);

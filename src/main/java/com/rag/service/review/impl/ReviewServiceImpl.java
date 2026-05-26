@@ -103,6 +103,7 @@ public class ReviewServiceImpl implements ReviewService {
             if (doc != null) {
                 vo.setDocumentName(doc.getFileName());
                 vo.setDocumentStatus(doc.getStatus());
+                vo.setChunkCount(doc.getChunkCount());
             }
             return vo;
         }).toList();
@@ -118,7 +119,7 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
 
-        // --- 分支1: 块审核（CHUNK_REVIEW → EMBEDDING 或重新分块）---
+        // --- 分支1: 块审核（CHUNK_REVIEW → EMBEDDING 或重新分块）——兼容旧流程---
         if (DocumentStatus.CHUNK_REVIEW.name().equals(doc.getStatus())) {
             if ("APPROVED".equals(dto.getResult())) {
                 stateMachine.transit(doc, DocumentStatus.EMBEDDING.name());
@@ -126,14 +127,13 @@ public class ReviewServiceImpl implements ReviewService {
                     sendEmbedProcessMessage(doc);
                 }
             } else {
-                // 驳回 → 重新分块
                 stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
                 sendChunkProcessMessage(doc);
             }
             return Result.success();
         }
 
-        // --- 分支2: 内容审核（PENDING_REVIEW → APPROVED/REJECTED → CHUNKING）---
+        // --- 分支2: 内容审核 ---
         ReviewRecord record = reviewRecordMapper.selectOne(
                 new LambdaQueryWrapper<ReviewRecord>()
                         .eq(ReviewRecord::getDocumentId, dto.getDocumentId())
@@ -150,9 +150,15 @@ public class ReviewServiceImpl implements ReviewService {
         reviewRecordMapper.updateById(record);
 
         if ("APPROVED".equals(dto.getResult())) {
-            stateMachine.transit(doc, DocumentStatus.APPROVED.name());
-            stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
-            sendChunkProcessMessage(doc);
+            // 如果文档已有分块(预分块完成)，直接向量化；否则走旧流程先分块
+            if (doc.getChunkCount() != null && doc.getChunkCount() > 0) {
+                stateMachine.transit(doc, DocumentStatus.EMBEDDING.name());
+                sendEmbedProcessMessage(doc);
+            } else {
+                stateMachine.transit(doc, DocumentStatus.APPROVED.name());
+                stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
+                sendChunkProcessMessage(doc);
+            }
         } else {
             stateMachine.transit(doc, DocumentStatus.REJECTED.name());
         }
@@ -269,9 +275,15 @@ public class ReviewServiceImpl implements ReviewService {
                 fresh.setReviewedAt(LocalDateTime.now());
                 reviewRecordMapper.updateById(fresh);
 
-                stateMachine.transit(doc, DocumentStatus.APPROVED.name());
-                stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
-                sendChunkProcessMessage(doc);
+                // 已有分块→直接向量化；无分块→走旧流程先分块
+                if (doc.getChunkCount() != null && doc.getChunkCount() > 0) {
+                    stateMachine.transit(doc, DocumentStatus.EMBEDDING.name());
+                    sendEmbedProcessMessage(doc);
+                } else {
+                    stateMachine.transit(doc, DocumentStatus.APPROVED.name());
+                    stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
+                    sendChunkProcessMessage(doc);
+                }
                 log.info("超时自动审核通过(内容): docId={}", doc.getId());
             });
         }

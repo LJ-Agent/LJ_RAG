@@ -19,7 +19,7 @@
 - **问题**: Kafka 消费者收不到任何消息
 - **原因**: Kafka 4.2 KRaft 单 broker 模式下，`__consumer_offsets` 内部主题默认副本因子为 3，只有 1 个 broker 无法创建
 - **解决方案**: 手动创建主题 `kafka-topics.sh --create --topic __consumer_offsets --partitions 50 --replication-factor 1`
-- **规避**: 在 KRaft 初始化时通过 `KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1` 配置
+- **规避**: 在 KRaft 初始化时通过 `KAFKA_OFFSexitETS_TOPIC_REPLICATION_FACTOR=1` 配置
 
 #### 3.2 kafka-python 消费者组协议不兼容
 - **问题**: 即使用了 group_id，Python 消费者仍无法接收消息

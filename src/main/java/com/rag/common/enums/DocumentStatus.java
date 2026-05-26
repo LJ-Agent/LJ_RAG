@@ -36,8 +36,8 @@ public enum DocumentStatus {
         UPLOADED.nextStates = Set.of(PARSING, PENDING_REVIEW);  // FILE_PROCESS handles parsing+cleaning in one call
         PARSING.nextStates = Set.of(CLEANING, PARSING_FAILED);
         CLEANING.nextStates = Set.of(PENDING_REVIEW, CLEANING_FAILED);
-        PENDING_REVIEW.nextStates = Set.of(APPROVED, REJECTED);
-        APPROVED.nextStates = Set.of(CHUNKING, COMPLETED);  // forward compat: old flow may go direct to COMPLETED
+        PENDING_REVIEW.nextStates = Set.of(APPROVED, REJECTED, EMBEDDING);
+        APPROVED.nextStates = Set.of(CHUNKING, COMPLETED);
         REJECTED.nextStates = Set.of(PARSING);
         CHUNKING.nextStates = Set.of(CHUNK_REVIEW, CHUNKING_FAILED);
         CHUNK_REVIEW.nextStates = Set.of(EMBEDDING, CHUNKING);  // can re-chunk if needed

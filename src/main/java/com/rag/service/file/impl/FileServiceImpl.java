@@ -103,19 +103,12 @@ public class FileServiceImpl implements FileService {
         doc.setFileSize(file.getSize());
         doc.setFileMd5(md5);
         doc.setMinioPath(objectName);
-        doc.setStatus(DocumentStatus.PENDING_REVIEW.name());
+        doc.setStatus(DocumentStatus.UPLOADED.name());
         doc.setChunkStrategy(chunkStrategy != null ? chunkStrategy : "semantic");
         doc.setChunkConfig(chunkConfig);
         doc.setUploadUserId(userId);
         doc.setUploadAt(LocalDateTime.now());
         documentMapper.insert(doc);
-
-        // 5.1 创建待审核记录
-        ReviewRecord reviewRecord = new ReviewRecord();
-        reviewRecord.setDocumentId(doc.getId());
-        reviewRecord.setResult("PENDING");
-        reviewRecord.setCreatedAt(LocalDateTime.now());
-        reviewRecordMapper.insert(reviewRecord);
 
         // 6. 发送Kafka消息
         sendKafkaMessage(doc);
