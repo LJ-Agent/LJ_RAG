@@ -122,24 +122,44 @@
     </el-dialog>
 
     <!-- 重新分块弹窗 -->
-    <el-dialog v-model="rechunkVisible" title="重新分块" width="500px" destroy-on-close>
-      <el-form :model="rechunkForm" label-width="90px">
+    <el-dialog v-model="rechunkVisible" title="重新分块" width="560px" destroy-on-close>
+      <el-form label-width="90px">
         <el-form-item label="当前文件">
           <span>{{ rechunkDoc?.fileName }}</span>
         </el-form-item>
         <el-form-item label="分块策略" required>
-          <el-select v-model="rechunkForm.chunkStrategy" placeholder="请选择" style="width: 100%">
-            <el-option label="固定大小分块" value="fixed" />
-            <el-option label="层级分块" value="hierarchical" />
-            <el-option label="语义分块" value="semantic" />
+          <el-select v-model="rechunkForm.chunkStrategy" style="width: 100%" @change="onRechunkStrategyChange">
+            <el-option v-for="(cfg, key) in CHUNK_STRATEGY_CONFIGS" :key="key" :label="cfg.label" :value="key" />
           </el-select>
         </el-form-item>
-        <el-form-item label="分块配置">
-          <el-input v-model="rechunkForm.chunkConfig" type="textarea" :rows="3" placeholder="JSON配置，如未指定则使用默认值" />
-        </el-form-item>
+        <template v-if="rechunkFields.length > 0">
+          <el-divider content-position="left">{{ currentRechunkStrategyLabel }} — 参数配置</el-divider>
+          <el-form-item
+            v-for="field in rechunkFields"
+            :key="field.key"
+            :label="field.label"
+          >
+            <el-input-number
+              v-if="field.type === 'number'"
+              v-model="rechunkParams[field.key]"
+              :min="field.min"
+              :max="field.max"
+              :step="field.step || 1"
+              controls-position="right"
+              style="width: 280px"
+            />
+            <el-input
+              v-else
+              v-model="rechunkParams[field.key]"
+              style="width: 360px"
+              :placeholder="String(field.default)"
+            />
+          </el-form-item>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="rechunkVisible = false">取消</el-button>
+        <el-button @click="resetRechunkParams" text type="primary" style="float: left">恢复默认值</el-button>
         <el-button type="primary" :loading="rechunking" @click="handleRechunk">确认重新分块</el-button>
       </template>
     </el-dialog>
@@ -147,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Upload, Delete } from '@element-plus/icons-vue'
 import { fileApi } from '@/api/modules/files'
@@ -155,7 +175,8 @@ import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
 import { usePagination } from '@/composables/usePagination'
 import { formatDate, formatFileSize } from '@/utils/format'
 import { DOCUMENT_STATUS_MAP } from '@/utils/constants'
-import type { FileVO } from '@/api/types/file'
+import { CHUNK_STRATEGY_CONFIGS } from '@/api/types/file'
+import type { FileVO, StrategyField } from '@/api/types/file'
 import type { KnowledgeBaseVO } from '@/api/types/knowledgeBase'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -172,8 +193,16 @@ const currentDoc = ref<FileVO | null>(null)
 
 const rechunkVisible = ref(false)
 const rechunkDoc = ref<FileVO | null>(null)
-const rechunkForm = reactive({ chunkStrategy: 'semantic', chunkConfig: '' })
+const rechunkForm = reactive({ chunkStrategy: 'semantic' })
+const rechunkParams = reactive<Record<string, any>>({})
 const rechunking = ref(false)
+
+const rechunkFields = computed<StrategyField[]>(() =>
+  CHUNK_STRATEGY_CONFIGS[rechunkForm.chunkStrategy]?.fields || []
+)
+const currentRechunkStrategyLabel = computed(() =>
+  CHUNK_STRATEGY_CONFIGS[rechunkForm.chunkStrategy]?.label || ''
+)
 
 onMounted(async () => {
   // 加载知识库列表供筛选下拉
@@ -265,15 +294,45 @@ async function handleBatchDelete() {
 function openRechunk(row: FileVO) {
   rechunkDoc.value = row
   rechunkForm.chunkStrategy = row.chunkStrategy || 'semantic'
-  rechunkForm.chunkConfig = row.chunkConfig || ''
+  initRechunkParams(rechunkForm.chunkStrategy, row.chunkConfig)
   rechunkVisible.value = true
+}
+
+function initRechunkParams(strategy: string, existingConfig?: string) {
+  const fields = CHUNK_STRATEGY_CONFIGS[strategy]?.fields || []
+  const defaults: Record<string, any> = {}
+  for (const f of fields) {
+    defaults[f.key] = f.default
+  }
+  // Try to parse existing config to restore previous values
+  if (existingConfig) {
+    try {
+      const parsed = JSON.parse(existingConfig)
+      for (const f of fields) {
+        if (parsed[f.key] !== undefined) {
+          defaults[f.key] = parsed[f.key]
+        }
+      }
+    } catch { /* ignore parse error, use defaults */ }
+  }
+  Object.keys(rechunkParams).forEach(k => delete rechunkParams[k])
+  Object.assign(rechunkParams, defaults)
+}
+
+function onRechunkStrategyChange(strategy: string) {
+  initRechunkParams(strategy)
+}
+
+function resetRechunkParams() {
+  initRechunkParams(rechunkForm.chunkStrategy)
 }
 
 async function handleRechunk() {
   if (!rechunkDoc.value) return
   rechunking.value = true
   try {
-    await fileApi.rechunk(rechunkDoc.value.id, rechunkForm.chunkStrategy, rechunkForm.chunkConfig || undefined)
+    const configJson = JSON.stringify({ ...rechunkParams })
+    await fileApi.rechunk(rechunkDoc.value.id, rechunkForm.chunkStrategy, configJson)
     ElMessage.success('重新分块任务已发起')
     rechunkVisible.value = false
     fetchList()
