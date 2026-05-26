@@ -1,5 +1,6 @@
 package com.rag.service.chunk.impl;
 
+import cn.hutool.core.util.IdUtil;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -49,6 +50,56 @@ public class ChunkServiceImpl implements ChunkService {
         Page<ChunkVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
         voPage.setRecords(result.getRecords().stream().map(this::toVO).toList());
         return Result.success(voPage);
+    }
+
+    @Override
+    public Result<Page<ChunkVO>> searchChunks(Long documentId, String keyword, Integer page, Integer size) {
+        Page<DocumentChunk> pg = new Page<>(page, size);
+        LambdaQueryWrapper<DocumentChunk> wrapper = new LambdaQueryWrapper<DocumentChunk>()
+                .eq(DocumentChunk::getDocumentId, documentId)
+                .like(keyword != null && !keyword.isEmpty(), DocumentChunk::getContent, keyword)
+                .orderByAsc(DocumentChunk::getChunkIndex);
+        Page<DocumentChunk> result = chunkMapper.selectPage(pg, wrapper);
+        Page<ChunkVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
+        voPage.setRecords(result.getRecords().stream().map(this::toVO).toList());
+        return Result.success(voPage);
+    }
+
+    @Override
+    public Result<ChunkVO> createChunk(Long documentId, String content) {
+        if (content == null || content.isBlank()) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "块内容不能为空");
+        }
+
+        // 获取当前最大 chunkIndex
+        List<DocumentChunk> existing = chunkMapper.selectList(
+                new LambdaQueryWrapper<DocumentChunk>()
+                        .eq(DocumentChunk::getDocumentId, documentId)
+                        .orderByDesc(DocumentChunk::getChunkIndex)
+                        .last("LIMIT 1"));
+
+        int nextIndex = existing.isEmpty() ? 0 : existing.get(0).getChunkIndex() + 1;
+
+        DocumentChunk chunk = new DocumentChunk();
+        chunk.setDocumentId(documentId);
+        chunk.setChunkId(IdUtil.fastSimpleUUID());
+        chunk.setChunkIndex(nextIndex);
+        chunk.setContent(content);
+        chunk.setCharCount(content.length());
+        chunk.setLevel(0);
+        chunk.setStatus("ACTIVE");
+        chunk.setCreatedAt(LocalDateTime.now());
+        chunkMapper.insert(chunk);
+
+        // 更新文档的 chunkCount
+        Document doc = documentMapper.selectById(documentId);
+        if (doc != null) {
+            doc.setChunkCount(doc.getChunkCount() != null ? doc.getChunkCount() + 1 : 1);
+            documentMapper.updateById(doc);
+        }
+
+        log.info("手动新增块: docId={}, chunkIndex={}, charCount={}", documentId, nextIndex, content.length());
+        return Result.success(toVO(chunk));
     }
 
     @Override

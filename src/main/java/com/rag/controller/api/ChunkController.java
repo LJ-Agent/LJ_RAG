@@ -35,8 +35,22 @@ public class ChunkController {
     public Result<Page<ChunkVO>> list(
             @RequestParam Long documentId,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer size) {
+            @RequestParam(defaultValue = "20") Integer size,
+            @RequestParam(required = false) String keyword) {
+        if (keyword != null && !keyword.isEmpty()) {
+            return chunkService.searchChunks(documentId, keyword, page, size);
+        }
         return chunkService.listByDocumentId(documentId, page, size);
+    }
+
+    @Operation(summary = "新增块")
+    @PostMapping
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<ChunkVO> create(@RequestBody Map<String, Object> body) {
+        Long documentId = body.get("documentId") != null
+                ? ((Number) body.get("documentId")).longValue() : null;
+        String content = body.get("content") != null ? body.get("content").toString() : null;
+        return chunkService.createChunk(documentId, content);
     }
 
     @Operation(summary = "按业务chunkId查询单个块")

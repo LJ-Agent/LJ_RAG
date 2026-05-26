@@ -10,6 +10,10 @@ public interface ChunkService {
 
     Result<Page<ChunkVO>> listByDocumentId(Long documentId, Integer page, Integer size);
 
+    Result<Page<ChunkVO>> searchChunks(Long documentId, String keyword, Integer page, Integer size);
+
+    Result<ChunkVO> createChunk(Long documentId, String content);
+
     Result<ChunkVO> updateChunk(Long id, String content);
 
     Result<Void> deleteChunk(Long id);

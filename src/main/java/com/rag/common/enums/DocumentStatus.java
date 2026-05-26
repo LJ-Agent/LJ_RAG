@@ -38,7 +38,7 @@ public enum DocumentStatus {
         CLEANING.nextStates = Set.of(PENDING_REVIEW, CLEANING_FAILED);
         PENDING_REVIEW.nextStates = Set.of(APPROVED, REJECTED, EMBEDDING);
         APPROVED.nextStates = Set.of(CHUNKING, COMPLETED);
-        REJECTED.nextStates = Set.of(PARSING);
+        REJECTED.nextStates = Set.of(PARSING, CHUNKING);
         CHUNKING.nextStates = Set.of(CHUNK_REVIEW, CHUNKING_FAILED);
         CHUNK_REVIEW.nextStates = Set.of(EMBEDDING, CHUNKING);  // can re-chunk if needed
         EMBEDDING.nextStates = Set.of(COMPLETED, EMBEDDING_FAILED);

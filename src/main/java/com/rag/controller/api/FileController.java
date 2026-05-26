@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Map;
+
 @Tag(name = "文件管理", description = "文件上传、下载、删除、查询")
 @RestController
 @RequestMapping("/api/files")
@@ -63,6 +65,14 @@ public class FileController {
     public Result<Void> batchDelete(@RequestBody Long[] ids) {
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
         return fileService.batchDelete(ids, userId);
+    }
+
+    @Operation(summary = "重新分块（驳回后选择新策略重新分块）")
+    @PostMapping("/{id}/rechunk")
+    public Result<FileVO> rechunk(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        return fileService.rechunk(id,
+                body.getOrDefault("chunkStrategy", "semantic"),
+                body.get("chunkConfig"));
     }
 
     @Operation(summary = "下载原始文件")

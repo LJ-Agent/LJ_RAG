@@ -23,4 +23,6 @@ public interface FileService {
     void getContent(Long id, jakarta.servlet.http.HttpServletResponse response);
 
     void raw(Long id, jakarta.servlet.http.HttpServletResponse response);
+
+    Result<FileVO> rechunk(Long id, String chunkStrategy, String chunkConfig);
 }

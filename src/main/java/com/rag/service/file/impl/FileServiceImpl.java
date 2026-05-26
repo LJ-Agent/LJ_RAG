@@ -13,6 +13,7 @@ import com.rag.common.result.ResultCodeEnum;
 import com.rag.common.util.Md5Util;
 import com.rag.communication.kafka.dto.KafkaMessage;
 import com.rag.domain.entity.Document;
+import com.rag.domain.entity.DocumentChunk;
 import com.rag.domain.entity.ReviewRecord;
 import com.rag.domain.mapper.DocumentChunkMapper;
 import com.rag.domain.mapper.DocumentMapper;
@@ -21,6 +22,7 @@ import com.rag.infrastructure.config.MinioConfig;
 import com.rag.service.file.FileService;
 import com.rag.service.file.dto.FileQueryDTO;
 import com.rag.service.file.dto.FileVO;
+import com.rag.service.statemachine.DocumentStateMachine;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -50,6 +52,7 @@ public class FileServiceImpl implements FileService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final DocumentChunkMapper chunkMapper;
     private final ReviewRecordMapper reviewRecordMapper;
+    private final DocumentStateMachine stateMachine;
 
     @Override
     @Transactional
@@ -394,6 +397,52 @@ public class FileServiceImpl implements FileService {
         log.info("已删除文件恢复成功: id={}, name={}, md5={}", restored.getId(), restored.getFileName(),
                 restored.getFileMd5());
         return toVO(restored);
+    }
+
+    @Override
+    @Transactional
+    public Result<FileVO> rechunk(Long id, String chunkStrategy, String chunkConfig) {
+        Document doc = documentMapper.selectById(id);
+        if (doc == null) {
+            throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
+        }
+        String currentStatus = doc.getStatus();
+        if (!DocumentStatus.REJECTED.name().equals(currentStatus)
+                && !DocumentStatus.CHUNKING_FAILED.name().equals(currentStatus)) {
+            throw new BusinessException(ResultCodeEnum.DOCUMENT_STATUS_ERROR.getCode(),
+                    "当前状态不允许重新分块: " + currentStatus);
+        }
+
+        doc.setChunkStrategy(chunkStrategy != null ? chunkStrategy : "semantic");
+        doc.setChunkConfig(chunkConfig);
+        documentMapper.updateById(doc);
+
+        stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
+        sendChunkProcessMessage(doc);
+
+        log.info("重新分块已触发: docId={}, strategy={}", doc.getId(), doc.getChunkStrategy());
+        return Result.success(toVO(doc));
+    }
+
+    private void sendChunkProcessMessage(Document doc) {
+        String taskId = "task-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))
+                + "-chunk-" + doc.getId();
+        String cleanedPath = doc.getMinioPath() != null
+                ? minioConfig.getBucketName() + "/" + buildCleanedPath(doc.getMinioPath())
+                : "";
+        KafkaMessage message = new KafkaMessage();
+        message.setTaskId(taskId);
+        message.setTaskType(TaskType.CHUNK_PROCESS.name());
+        message.setDocumentId(doc.getId());
+        message.setKbId(doc.getKbId());
+        message.setData(JSONUtil.createObj()
+                .set("cleanedPath", cleanedPath)
+                .set("fileName", doc.getFileName())
+                .set("chunkStrategy", doc.getChunkStrategy() != null ? doc.getChunkStrategy() : "semantic")
+                .set("chunkConfig", doc.getChunkConfig()));
+        message.setCreatedAt(LocalDateTime.now().toString());
+        kafkaTemplate.send(KafkaConstants.TOPIC_CHUNK_PROCESS, taskId, JSONUtil.toJsonStr(message));
+        log.info("CHUNK_PROCESS消息已发送(重新分块): taskId={}, docId={}", taskId, doc.getId());
     }
 
     @Override
