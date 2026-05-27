@@ -73,13 +73,9 @@
           <div class="qa-message__bubble">
             <div v-if="msg.role === 'user'">{{ msg.content }}</div>
             <div v-else>
-              <!-- 思考过程 -->
-              <div v-if="msg.thinking" class="thinking-block">
-                <el-collapse>
-                  <el-collapse-item title="思考过程">
-                    <div class="thinking-content">{{ msg.thinking }}</div>
-                  </el-collapse-item>
-                </el-collapse>
+              <!-- 思考过程（浅灰色） -->
+              <div v-if="msg.thinking" class="thinking-display">
+                {{ msg.thinking }}
               </div>
               <!-- 回答内容 -->
               <div v-html="renderMarkdown(msg.content)" class="markdown-body"></div>
@@ -123,8 +119,13 @@
             <div class="streaming-block">
               <div class="streaming-header">
                 <span class="streaming-dot"></span>
-                <span>{{ streamContent ? '正在生成回答...' : '正在检索并思考...' }}</span>
+                <span>{{ streamContent ? '正在生成回答...' : streamThinking ? '正在思考...' : '正在检索并思考...' }}</span>
               </div>
+              <!-- 思考过程（浅灰色） -->
+              <div v-if="streamThinking" class="streaming-thinking">
+                {{ streamThinking }}
+              </div>
+              <!-- 回答内容（黑色） -->
               <div v-if="streamContent" v-html="renderMarkdown(streamContent)" class="markdown-body"></div>
             </div>
           </div>
@@ -186,7 +187,7 @@ const activeSessionId = ref<number | null>(null)
 const pinnedId = ref<number | null>(loadPinnedId())
 const selectedSessionIds = ref<number[]>([])
 
-const { isStreaming, streamContent, startStream } = useSSE()
+const { isStreaming, streamContent, streamThinking, startStream } = useSSE()
 const router = useRouter()
 
 const canSend = computed(() => question.value.trim() && selectedKbIds.value.length > 0 && !isStreaming.value)
@@ -387,8 +388,9 @@ async function ensureSession(): Promise<number | null> {
 function handleStreamDone(botMsg: ChatMessage, meta: StreamMetadata) {
   botMsg.tokenCount = meta.tokenCount
   botMsg.latencyMs = meta.latencyMs
+  botMsg.thinking = meta.thinking || undefined
   botMsg.sourceDocs = meta.sourceDocs || []
-  if (!botMsg.content) {
+  if (!botMsg.content && !botMsg.thinking) {
     botMsg.content = '[未获取到回答]'
   }
   scrollToBottom()
@@ -422,6 +424,10 @@ async function handleSend() {
 
     await startStream(
       dto,
+      (thinking) => {
+        botMsg.thinking = (botMsg.thinking || '') + thinking
+        scrollToBottom()
+      },
       (chunk) => {
         botMsg.content += chunk
         scrollToBottom()
@@ -574,15 +580,17 @@ onMounted(async () => {
 .markdown-body :deep(th), .markdown-body :deep(td) { border: 1px solid #ddd; padding: 8px 12px; }
 .markdown-body :deep(th) { background: #f5f7fa; }
 
-/* 思考过程 */
-.thinking-block {
-  margin-bottom: 12px;
-}
-.thinking-content {
+/* 思考过程（浅灰色） */
+.thinking-display {
   font-size: 13px;
-  color: #909399;
-  line-height: 1.6;
+  color: #b0b3bb;
+  line-height: 1.7;
   white-space: pre-wrap;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f9f9fb;
+  border-radius: 6px;
+  border-left: 2px solid #dcdfe6;
 }
 
 /* 回答依据 */
@@ -668,5 +676,18 @@ onMounted(async () => {
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.2; }
+}
+
+/* 流式思考过程 — 浅灰色 */
+.streaming-thinking {
+  font-size: 13px;
+  color: #b0b3bb;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: #f9f9fb;
+  border-radius: 6px;
+  border-left: 2px solid #dcdfe6;
 }
 </style>

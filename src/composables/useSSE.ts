@@ -6,22 +6,26 @@ export interface StreamMetadata {
   chatId?: number
   tokenCount?: number
   latencyMs?: number
+  thinking?: string
   sourceDocs?: SourceDoc[]
 }
 
 export function useSSE() {
   const isStreaming = ref(false)
   const streamContent = ref('')
+  const streamThinking = ref('')
   const error = ref<string | null>(null)
   let abortController: AbortController | null = null
 
   async function startStream(
     question: QuestionDTO,
+    onThinking: (text: string) => void,
     onChunk: (text: string) => void,
     onDone: (metadata: StreamMetadata) => void
   ) {
     isStreaming.value = true
     streamContent.value = ''
+    streamThinking.value = ''
     error.value = null
     abortController = new AbortController()
 
@@ -68,6 +72,9 @@ export function useSSE() {
             } else if (currentEvent === 'ping') {
               // 心跳事件，忽略
               currentEvent = ''
+            } else if (currentEvent === 'reasoning') {
+              streamThinking.value += data
+              onThinking(data)
             } else {
               streamContent.value += data
               onChunk(data)
@@ -107,5 +114,5 @@ export function useSSE() {
     isStreaming.value = false
   }
 
-  return { isStreaming, streamContent, error, startStream, stopStream }
+  return { isStreaming, streamContent, streamThinking, error, startStream, stopStream }
 }
