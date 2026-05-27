@@ -9,7 +9,7 @@
         <el-tag v-if="docStatus" size="small">{{ DOCUMENT_STATUS_MAP[docStatus]?.label || docStatus }}</el-tag>
       </div>
       <div style="display: flex; gap: 8px;">
-        <!-- chunk-edit 模式：提交审核 -->
+        <!-- chunk-edit 模式：发起审核 -->
         <el-button
           v-if="mode === 'chunk-edit' && stats"
           type="primary"
@@ -17,16 +17,7 @@
           :loading="submittingReview"
           @click="doSubmitForReview"
         >
-          提交审核 ({{ stats.activeCount }} 个块)
-        </el-button>
-        <!-- content-review 模式：向量化 -->
-        <el-button
-          v-if="mode === 'content-review' && stats"
-          type="primary"
-          :disabled="stats.activeCount === 0"
-          @click="doStartEmbedding"
-        >
-          发起向量化 ({{ stats.activeCount }} 个块)
+          发起审核 ({{ stats.activeCount }} 个块)
         </el-button>
       </div>
     </div>
@@ -172,14 +163,13 @@ const submittingReview = ref(false)
 const pagination = usePagination()
 
 const mode = computed(() => {
+  // 仅 CHUNK_REVIEW 状态允许编辑分块，提交审核后变为只读
   if (docStatus.value === 'CHUNK_REVIEW') return 'chunk-edit'
-  if (docStatus.value === 'PENDING_REVIEW') return 'content-review'
   return 'read-only'
 })
 
 const pageTitle = computed(() => {
   if (mode.value === 'chunk-edit') return `分块编辑 — ${docName.value}`
-  if (mode.value === 'content-review') return `分块审核 — ${docName.value}`
   return `查看分块 — ${docName.value}`
 })
 
