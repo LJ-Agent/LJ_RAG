@@ -440,7 +440,7 @@ async function handleSend() {
     // 新会话首次提问时，自动将标题设为问题前15字+省略号
     const session = sessions.value.find(s => s.id === sessionId)
     if (session && session.title === '新会话' && session.messageCount === 0) {
-      const shortTitle = q.length > 15 ? q.substring(0, 15) + '...' : q
+      const shortTitle = q.length > 7 ? q.substring(0, 7) + '...' : q
       try {
         await qaApi.updateSession(sessionId!, { title: shortTitle })
         session.title = shortTitle
