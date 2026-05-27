@@ -90,6 +90,7 @@ export function useSSE() {
               streamThinking.value += data
               onThinking(data)
             } else if (currentEvent === 'sourceDocs') {
+              streamPhase.value = 'thinking'
               try {
                 const docs: SourceDoc[] = JSON.parse(data)
                 streamSourceDocs.value = docs
