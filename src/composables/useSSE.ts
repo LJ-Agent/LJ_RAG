@@ -21,7 +21,8 @@ export function useSSE() {
     question: QuestionDTO,
     onThinking: (text: string) => void,
     onChunk: (text: string) => void,
-    onDone: (metadata: StreamMetadata) => void
+    onDone: (metadata: StreamMetadata) => void,
+    onSourceDocs?: (docs: SourceDoc[]) => void
   ) {
     isStreaming.value = true
     streamContent.value = ''
@@ -78,6 +79,12 @@ export function useSSE() {
             } else if (currentEvent === 'reasoning') {
               streamThinking.value += data
               onThinking(data)
+            } else if (currentEvent === 'sourceDocs') {
+              try {
+                const docs: SourceDoc[] = JSON.parse(data)
+                onSourceDocs?.(docs)
+              } catch { /* ignore parse errors */ }
+              currentEvent = ''
             } else {
               streamContent.value += data
               onChunk(data)
