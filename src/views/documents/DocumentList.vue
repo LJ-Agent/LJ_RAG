@@ -40,7 +40,7 @@
       <el-table-column type="selection" width="50" align="center" />
       <el-table-column label="文件名称" min-width="200">
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="openRawFile(row)">
+          <el-button link type="primary" size="small" @click="$router.push(`/documents/${row.id}/content`)">
             {{ row.fileName }}
           </el-button>
         </template>
