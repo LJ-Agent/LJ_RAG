@@ -19,6 +19,24 @@
         >
           发起审核 ({{ stats.activeCount }} 个块)
         </el-button>
+        <!-- content-review 模式：审核通过/驳回 -->
+        <template v-if="mode === 'content-review'">
+          <el-button
+            type="danger"
+            :loading="reviewing"
+            @click="doReject"
+          >
+            驳回
+          </el-button>
+          <el-button
+            type="success"
+            :loading="reviewing"
+            :disabled="(stats?.activeCount || 0) === 0"
+            @click="doApprove"
+          >
+            审核通过
+          </el-button>
+        </template>
       </div>
     </div>
 
@@ -139,6 +157,7 @@ import { useRoute } from 'vue-router'
 import { ArrowLeft, Search } from '@element-plus/icons-vue'
 import { chunkApi, type ChunkVO, type ChunkStats } from '@/api/modules/chunks'
 import { fileApi } from '@/api/modules/files'
+import { reviewApi } from '@/api/modules/review'
 import { usePagination } from '@/composables/usePagination'
 import { DOCUMENT_STATUS_MAP } from '@/utils/constants'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -159,17 +178,19 @@ const createVisible = ref(false)
 const newChunkContent = ref('')
 const creating = ref(false)
 const submittingReview = ref(false)
+const reviewing = ref(false)
 
 const pagination = usePagination()
 
 const mode = computed(() => {
-  // 仅 CHUNK_REVIEW 状态允许编辑分块，提交审核后变为只读
   if (docStatus.value === 'CHUNK_REVIEW') return 'chunk-edit'
+  if (docStatus.value === 'PENDING_REVIEW') return 'content-review'
   return 'read-only'
 })
 
 const pageTitle = computed(() => {
   if (mode.value === 'chunk-edit') return `分块编辑 — ${docName.value}`
+  if (mode.value === 'content-review') return `分块审核 — ${docName.value}`
   return `查看分块 — ${docName.value}`
 })
 
@@ -309,6 +330,37 @@ async function doStartEmbedding() {
     ElMessage.success('向量化任务已发起')
     fetchDocInfo()
   } catch { /* cancelled */ }
+}
+
+async function doApprove() {
+  try {
+    await ElMessageBox.confirm(
+      '确认审核通过？通过后将发起向量化入库。',
+      '审核通过',
+      { type: 'success', confirmButtonText: '确认通过', cancelButtonText: '取消' }
+    )
+    reviewing.value = true
+    await reviewApi.submit({ documentId: docId, result: 'APPROVED' })
+    ElMessage.success('审核已通过')
+    fetchDocInfo()
+  } catch { /* cancelled */ }
+  finally { reviewing.value = false }
+}
+
+async function doReject() {
+  try {
+    const { value: comment } = await ElMessageBox.prompt('请输入驳回原因', '驳回', {
+      type: 'warning',
+      confirmButtonText: '确认驳回',
+      cancelButtonText: '取消',
+      inputValidator: (v: string) => v?.trim() ? true : '请输入驳回原因',
+    })
+    reviewing.value = true
+    await reviewApi.submit({ documentId: docId, result: 'REJECTED', comment: comment || '' })
+    ElMessage.success('已驳回')
+    fetchDocInfo()
+  } catch { /* cancelled */ }
+  finally { reviewing.value = false }
 }
 
 watch(pagination.params, () => fetchChunks(), { immediate: true })
