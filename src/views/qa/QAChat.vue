@@ -129,7 +129,7 @@
             <div class="streaming-block">
               <div class="streaming-header">
                 <span class="streaming-dot"></span>
-                <span>{{ streamContent ? '正在生成回答...' : streamThinking ? '正在思考...' : '正在检索并思考...' }}</span>
+                <span>{{ phaseLabel }}</span>
               </div>
               <!-- 错误提示 -->
               <div v-if="error" class="streaming-error">
@@ -202,10 +202,20 @@ const activeSessionId = ref<number | null>(null)
 const pinnedId = ref<number | null>(loadPinnedId())
 const selectedSessionIds = ref<number[]>([])
 
-const { isStreaming, streamContent, streamThinking, error, startStream } = useSSE()
+const { isStreaming, streamPhase, streamContent, streamThinking, error, startStream } = useSSE()
 const router = useRouter()
 
 const canSend = computed(() => question.value.trim() && selectedKbIds.value.length > 0 && !isStreaming.value)
+
+const phaseLabel = computed(() => {
+  const labels: Record<string, string> = {
+    retrieving: '正在检索相关知识...',
+    thinking: 'AI 正在思考...',
+    reasoning: 'AI 正在深度推理...',
+    generating: '正在生成回答...',
+  }
+  return labels[streamPhase.value] || '处理中...'
+})
 
 const sortedSessions = computed(() => {
   if (!pinnedId.value) return sessions.value

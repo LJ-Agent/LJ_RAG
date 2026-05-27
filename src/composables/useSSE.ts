@@ -12,6 +12,7 @@ export interface StreamMetadata {
 
 export function useSSE() {
   const isStreaming = ref(false)
+  const streamPhase = ref<'retrieving' | 'thinking' | 'reasoning' | 'generating'>('retrieving')
   const streamContent = ref('')
   const streamThinking = ref('')
   const error = ref<string | null>(null)
@@ -25,6 +26,7 @@ export function useSSE() {
     onSourceDocs?: (docs: SourceDoc[]) => void
   ) {
     isStreaming.value = true
+    streamPhase.value = 'retrieving'
     streamContent.value = ''
     streamThinking.value = ''
     error.value = null
@@ -47,6 +49,7 @@ export function useSSE() {
       const decoder = new TextDecoder()
       let buffer = ''
       let currentEvent = ''
+      let initialPingReceived = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -74,9 +77,14 @@ export function useSSE() {
               error.value = data
               currentEvent = ''
             } else if (currentEvent === 'ping') {
-              // 心跳事件，忽略
+              if (!initialPingReceived && data === 'connected') {
+                initialPingReceived = true
+              } else if (initialPingReceived && streamPhase.value === 'retrieving') {
+                streamPhase.value = 'thinking'
+              }
               currentEvent = ''
             } else if (currentEvent === 'reasoning') {
+              streamPhase.value = 'reasoning'
               streamThinking.value += data
               onThinking(data)
             } else if (currentEvent === 'sourceDocs') {
@@ -86,6 +94,7 @@ export function useSSE() {
               } catch { /* ignore parse errors */ }
               currentEvent = ''
             } else {
+              streamPhase.value = 'generating'
               streamContent.value += data
               onChunk(data)
             }
@@ -132,7 +141,8 @@ export function useSSE() {
   function stopStream() {
     abortController?.abort()
     isStreaming.value = false
+    streamPhase.value = 'retrieving'
   }
 
-  return { isStreaming, streamContent, streamThinking, error, startStream, stopStream }
+  return { isStreaming, streamPhase, streamContent, streamThinking, error, startStream, stopStream }
 }
