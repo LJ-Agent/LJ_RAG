@@ -50,8 +50,54 @@ export function useSSE() {
       const reader = response.body!.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let currentEvent = ''
-      let initialPingReceived = false
+      const eventBuffer: string[] = []
+
+      function dispatchEvent(eventType: string, data: string) {
+        if (eventType === 'done') {
+          try {
+            const meta: StreamMetadata = JSON.parse(data)
+            onDone(meta)
+          } catch { /* ignore */ }
+        } else if (eventType === 'error') {
+          error.value = data
+        } else if (eventType === 'ping') {
+          if (data !== 'connected' && streamPhase.value === 'retrieving') {
+            streamPhase.value = 'thinking'
+          }
+        } else if (eventType === 'reasoning') {
+          streamPhase.value = 'reasoning'
+          streamThinking.value += data
+          onThinking(data)
+        } else if (eventType === 'sourceDocs') {
+          streamPhase.value = 'thinking'
+          try {
+            const docs: SourceDoc[] = JSON.parse(data)
+            streamSourceDocs.value = docs
+            onSourceDocs?.(docs)
+          } catch { /* ignore */ }
+        } else if (eventType === '') {
+          streamPhase.value = 'generating'
+          streamContent.value += data
+          onChunk(data)
+        }
+      }
+
+      function flushEvent(lines: string[]) {
+        if (lines.length === 0) return
+        let eventType = ''
+        const dataLines: string[] = []
+        for (const line of lines) {
+          const clean = line.endsWith('\r') ? line.slice(0, -1) : line
+          if (clean.startsWith('event:')) {
+            eventType = clean.slice(6).trim()
+          } else if (clean.startsWith('data:')) {
+            dataLines.push(clean.slice(5).trimStart())
+          }
+        }
+        if (dataLines.length > 0) {
+          dispatchEvent(eventType, dataLines.join('\n'))
+        }
+      }
 
       while (true) {
         const { done, value } = await reader.read()
@@ -62,71 +108,26 @@ export function useSSE() {
         buffer = lines.pop() || ''
 
         for (const line of lines) {
-          // 去掉 \r（兼容 Windows 风格 CRLF 换行）
-          const cleanLine = line.endsWith('\r') ? line.slice(0, -1) : line
-          if (cleanLine.startsWith('event:')) {
-            currentEvent = cleanLine.slice(6).trim()
-          } else if (cleanLine.startsWith('data:')) {
-            // 兼容 "data:" 和 "data: " 两种格式
-            const data = cleanLine.slice(5).trimStart()
-            if (currentEvent === 'done') {
-              try {
-                const meta: StreamMetadata = JSON.parse(data)
-                onDone(meta)
-              } catch { /* ignore parse errors */ }
-              currentEvent = ''
-            } else if (currentEvent === 'error') {
-              error.value = data
-              currentEvent = ''
-            } else if (currentEvent === 'ping') {
-              if (!initialPingReceived && data === 'connected') {
-                initialPingReceived = true
-              } else if (initialPingReceived && streamPhase.value === 'retrieving') {
-                streamPhase.value = 'thinking'
-              }
-              currentEvent = ''
-            } else if (currentEvent === 'reasoning') {
-              streamPhase.value = 'reasoning'
-              streamThinking.value += data
-              onThinking(data)
-            } else if (currentEvent === 'sourceDocs') {
-              streamPhase.value = 'thinking'
-              try {
-                const docs: SourceDoc[] = JSON.parse(data)
-                streamSourceDocs.value = docs
-                onSourceDocs?.(docs)
-              } catch { /* ignore parse errors */ }
-              currentEvent = ''
-            } else {
-              streamPhase.value = 'generating'
-              streamContent.value += data
-              onChunk(data)
-            }
-          } else if (cleanLine === '') {
-            // SSE 协议空行分隔事件，重置事件类型
-            currentEvent = ''
+          if (line === '' || line === '\r') {
+            flushEvent(eventBuffer)
+            eventBuffer.length = 0
+          } else {
+            eventBuffer.push(line)
           }
-          // 非 event/data/空行 的行（如注释行）忽略
         }
       }
 
-      // 处理 buffer 残余（连接提前关闭或最后一行不完整时）
-      if (buffer && currentEvent !== 'ping') {
-        const cleanBuffer = buffer.endsWith('\r') ? buffer.slice(0, -1) : buffer
-        if (cleanBuffer.startsWith('data:')) {
-          const remaining = cleanBuffer.slice(5).trimStart()
-          if (currentEvent === 'done' && remaining.startsWith('{')) {
-            try {
-              const meta: StreamMetadata = JSON.parse(remaining)
-              onDone(meta)
-            } catch { /* ignore */ }
-          } else if (currentEvent === 'reasoning') {
-            streamThinking.value += remaining
-            onThinking(remaining)
-          } else if (currentEvent === '' && remaining) {
-            streamContent.value += remaining
-            onChunk(remaining)
-          }
+      // 处理最后可能未以空行结尾的事件
+      if (eventBuffer.length > 0) {
+        flushEvent(eventBuffer)
+        eventBuffer.length = 0
+      }
+      // 处理 buffer 中残余的不完整行
+      if (buffer) {
+        const clean = buffer.endsWith('\r') ? buffer.slice(0, -1) : buffer
+        if (clean) {
+          eventBuffer.push(clean)
+          flushEvent(eventBuffer)
         }
       }
     } catch (e: any) {
