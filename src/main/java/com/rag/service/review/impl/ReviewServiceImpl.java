@@ -138,8 +138,7 @@ public class ReviewServiceImpl implements ReviewService {
                     sendEmbedProcessMessage(doc);
                 }
             } else {
-                stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
-                sendChunkProcessMessage(doc);
+                stateMachine.transit(doc, DocumentStatus.REJECTED.name());
             }
             return Result.success();
         }

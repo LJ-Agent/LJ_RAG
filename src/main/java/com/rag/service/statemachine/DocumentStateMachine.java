@@ -60,8 +60,8 @@ public class DocumentStateMachine {
             document.setCompletedAt(LocalDateTime.now());
         }
 
-        // Auto-create review record when entering PENDING_REVIEW or CHUNK_REVIEW
-        if (to == DocumentStatus.PENDING_REVIEW || to == DocumentStatus.CHUNK_REVIEW) {
+        // Auto-create review record only when entering PENDING_REVIEW (not CHUNK_REVIEW — chunk edit phase)
+        if (to == DocumentStatus.PENDING_REVIEW) {
             ReviewRecord record = new ReviewRecord();
             record.setDocumentId(document.getId());
             record.setResult(ReviewResult.PENDING.name());
