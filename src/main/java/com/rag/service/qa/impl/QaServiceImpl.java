@@ -201,8 +201,21 @@ public class QaServiceImpl implements QaService {
                     }
                 }
 
-                // 3. 保存问答记录
+                // 3. 先发送 done 事件，让前端立即结束流式状态
                 int latency = (int) (System.currentTimeMillis() - startTime);
+                String doneData = cn.hutool.json.JSONUtil.createObj()
+                        .set("tokenCount", totalTokens[0])
+                        .set("latencyMs", latency)
+                        .set("thinking", fullThinking.toString())
+                        .set("sourceDocs", sourceDocs)
+                        .toString();
+                emitter.send(SseEmitter.event()
+                        .name("done")
+                        .data(doneData)
+                        .build());
+                emitter.complete();
+
+                // 4. 异步保存问答记录（不阻塞前端响应）
                 ChatRecord record = new ChatRecord();
                 record.setUserId(userId);
                 record.setSessionId(dto.getSessionId());
@@ -215,21 +228,6 @@ public class QaServiceImpl implements QaService {
                 record.setCreatedAt(LocalDateTime.now());
                 chatRecordMapper.insert(record);
                 updateSessionAfterChat(dto.getSessionId());
-
-                // 发送结束事件（包含完整元数据、思考过程和检索来源）
-                String doneData = cn.hutool.json.JSONUtil.createObj()
-                        .set("chatId", record.getId())
-                        .set("tokenCount", totalTokens[0])
-                        .set("latencyMs", latency)
-                        .set("thinking", fullThinking.toString())
-                        .set("sourceDocs", sourceDocs)
-                        .toString();
-                emitter.send(SseEmitter.event()
-                        .name("done")
-                        .data(doneData)
-                        .build());
-
-                emitter.complete();
             } catch (Exception e) {
                 log.error("SSE流式问答异常", e);
                 try {
