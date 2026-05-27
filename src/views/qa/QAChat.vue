@@ -121,12 +121,16 @@
                 <span class="streaming-dot"></span>
                 <span>{{ streamContent ? '正在生成回答...' : streamThinking ? '正在思考...' : '正在检索并思考...' }}</span>
               </div>
+              <!-- 错误提示 -->
+              <div v-if="error" class="streaming-error">
+                {{ error }}
+              </div>
               <!-- 思考过程（浅灰色） -->
               <div v-if="streamThinking" class="streaming-thinking">
                 {{ streamThinking }}
               </div>
-              <!-- 回答内容（黑色） -->
-              <div v-if="streamContent" v-html="renderMarkdown(streamContent)" class="markdown-body"></div>
+              <!-- 回答内容 — 流式阶段用纯文本避免 Markdown 部分渲染乱码 -->
+              <div v-if="streamContent" class="streaming-content">{{ streamContent }}</div>
             </div>
           </div>
         </div>
@@ -187,7 +191,7 @@ const activeSessionId = ref<number | null>(null)
 const pinnedId = ref<number | null>(loadPinnedId())
 const selectedSessionIds = ref<number[]>([])
 
-const { isStreaming, streamContent, streamThinking, startStream } = useSSE()
+const { isStreaming, streamContent, streamThinking, error, startStream } = useSSE()
 const router = useRouter()
 
 const canSend = computed(() => question.value.trim() && selectedKbIds.value.length > 0 && !isStreaming.value)
@@ -689,5 +693,25 @@ onMounted(async () => {
   background: #f9f9fb;
   border-radius: 6px;
   border-left: 2px solid #dcdfe6;
+}
+
+/* 流式回答内容 — 纯文本，避免 Markdown 部分渲染乱码 */
+.streaming-content {
+  font-size: 14px;
+  color: #303133;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 流式错误提示 */
+.streaming-error {
+  font-size: 13px;
+  color: #f56c6c;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: #fef0f0;
+  border-radius: 6px;
+  border-left: 2px solid #f56c6c;
 }
 </style>

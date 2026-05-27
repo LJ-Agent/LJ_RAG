@@ -56,10 +56,13 @@ export function useSSE() {
         buffer = lines.pop() || ''
 
         for (const line of lines) {
-          if (line.startsWith('event:')) {
-            currentEvent = line.slice(6).trim()
-          } else if (line.startsWith('data: ')) {
-            const data = line.slice(6)
+          // 去掉 \r（兼容 Windows 风格 CRLF 换行）
+          const cleanLine = line.endsWith('\r') ? line.slice(0, -1) : line
+          if (cleanLine.startsWith('event:')) {
+            currentEvent = cleanLine.slice(6).trim()
+          } else if (cleanLine.startsWith('data:')) {
+            // 兼容 "data:" 和 "data: " 两种格式
+            const data = cleanLine.slice(5).trimStart()
             if (currentEvent === 'done') {
               try {
                 const meta: StreamMetadata = JSON.parse(data)
@@ -79,21 +82,31 @@ export function useSSE() {
               streamContent.value += data
               onChunk(data)
             }
-          } else if (line === '') {
+          } else if (cleanLine === '') {
             // SSE 协议空行分隔事件，重置事件类型
             currentEvent = ''
           }
+          // 非 event/data/空行 的行（如注释行）忽略
         }
       }
 
-      // 处理 buffer 残余
-      if (buffer.startsWith('data: ')) {
-        const remaining = buffer.slice(6)
-        if (currentEvent === 'done' && remaining.startsWith('{')) {
-          try {
-            const meta: StreamMetadata = JSON.parse(remaining)
-            onDone(meta)
-          } catch { /* ignore */ }
+      // 处理 buffer 残余（连接提前关闭或最后一行不完整时）
+      if (buffer && currentEvent !== 'ping') {
+        const cleanBuffer = buffer.endsWith('\r') ? buffer.slice(0, -1) : buffer
+        if (cleanBuffer.startsWith('data:')) {
+          const remaining = cleanBuffer.slice(5).trimStart()
+          if (currentEvent === 'done' && remaining.startsWith('{')) {
+            try {
+              const meta: StreamMetadata = JSON.parse(remaining)
+              onDone(meta)
+            } catch { /* ignore */ }
+          } else if (currentEvent === 'reasoning') {
+            streamThinking.value += remaining
+            onThinking(remaining)
+          } else if (currentEvent === '' && remaining) {
+            streamContent.value += remaining
+            onChunk(remaining)
+          }
         }
       }
     } catch (e: any) {
