@@ -139,27 +139,6 @@
               <div v-if="streamThinking" class="streaming-thinking">
                 {{ streamThinking }}
               </div>
-              <!-- 检索来源 — 实时展示 -->
-              <div v-if="streamSourceDocs.length > 0" class="source-docs streaming-source-docs">
-                <div class="source-docs-header">
-                  <el-icon><Document /></el-icon>
-                  <span>检索来源</span>
-                  <span class="retrieval-summary">共 {{ streamSourceDocs.length }} 个片段</span>
-                </div>
-                <div v-for="(doc, di) in streamSourceDocs" :key="doc.chunkId" class="source-doc-item">
-                  <div class="source-doc-header">
-                    <span class="source-doc-name">
-                      <el-tag size="small" type="primary">{{ di + 1 }}</el-tag>
-                      <a class="source-doc-link" @click.stop="openRawFileById(doc.documentId)" :title="'打开原文件: ' + (doc.documentName || '')">{{ doc.documentName || '文档#' + doc.documentId }}</a>
-                      <span class="source-doc-chunk">Chunk #{{ doc.chunkIndex }}</span>
-                    </span>
-                    <el-tag size="small" :type="doc.score > 0.7 ? 'success' : doc.score > 0.4 ? 'warning' : 'info'">
-                      相似度: {{ (doc.score * 100).toFixed(1) }}%
-                    </el-tag>
-                  </div>
-                  <p class="source-doc-content">{{ doc.content }}</p>
-                </div>
-              </div>
               <!-- 回答内容 — 流式阶段用纯文本避免 Markdown 部分渲染乱码 -->
               <div v-if="streamContent" class="streaming-content">{{ streamContent }}</div>
             </div>
@@ -222,8 +201,6 @@ const sessions = ref<ChatSessionVO[]>([])
 const activeSessionId = ref<number | null>(null)
 const pinnedId = ref<number | null>(loadPinnedId())
 const selectedSessionIds = ref<number[]>([])
-
-const streamSourceDocs = ref<SourceDoc[]>([])
 
 const { isStreaming, streamContent, streamThinking, error, startStream } = useSSE()
 const router = useRouter()
@@ -490,8 +467,6 @@ async function handleSend() {
     const botMsg: ChatMessage = { role: 'bot', content: '' }
     messages.value.push(botMsg)
 
-    streamSourceDocs.value = []
-
     await startStream(
       dto,
       (thinking) => {
@@ -504,10 +479,6 @@ async function handleSend() {
       },
       (meta) => {
         handleStreamDone(botMsg, meta)
-      },
-      (docs) => {
-        streamSourceDocs.value = docs
-        scrollToBottom()
       }
     )
   } catch {
@@ -733,13 +704,6 @@ onMounted(async () => {
 }
 .source-doc-link:hover {
   text-decoration: underline;
-}
-.streaming-source-docs {
-  margin: 8px 0;
-  padding: 8px 10px;
-  background: #f9fafb;
-  border-radius: 6px;
-  border: 1px solid #e4e7ed;
 }
 .source-doc-content {
   font-size: 13px;
