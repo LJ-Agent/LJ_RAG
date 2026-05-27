@@ -153,8 +153,12 @@ public class QaServiceImpl implements QaService {
                 // 回填文档名称（Milvus 未存储文档名，通过 DB 批量查询补全）
                 enrichDocumentNames(sourceDocs);
 
-                // 发送初始心跳
-                emitter.send(SseEmitter.event().name("ping").data("").build());
+                // 检索完成后立即发送 sourceDocs，让前端即刻展示检索结果
+                String sourceDocsJson = JSONUtil.toJsonStr(sourceDocs);
+                emitter.send(SseEmitter.event()
+                        .name("sourceDocs")
+                        .data(sourceDocsJson)
+                        .build());
 
                 // 2. 流式生成，每收到token通过SSE发送
                 StringBuilder fullAnswer = new StringBuilder();
