@@ -6,13 +6,20 @@
         <el-button type="primary" size="small" @click="createNewSession" style="width: 100%">
           <el-icon><Plus /></el-icon> 新建会话
         </el-button>
-        <el-button
-          v-if="selectedSessionIds.length > 0"
-          type="danger" size="small" style="width: 100%; margin-top: 6px"
-          @click="handleBatchDeleteSessions"
-        >
-          <el-icon><Delete /></el-icon> 批量删除 ({{ selectedSessionIds.length }})
-        </el-button>
+        <div v-if="sortedSessions.length > 0" class="session-select-all">
+          <el-checkbox
+            :model-value="isAllSelected"
+            :indeterminate="isIndeterminate"
+            @change="toggleSelectAll"
+          >全选</el-checkbox>
+          <el-button
+            v-if="selectedSessionIds.length > 0"
+            type="danger" size="small"
+            @click="handleBatchDeleteSessions"
+          >
+            <el-icon><Delete /></el-icon> 批量删除 ({{ selectedSessionIds.length }})
+          </el-button>
+        </div>
       </div>
       <div class="session-list">
         <div
@@ -232,6 +239,21 @@ function togglePin(id: number) {
   }
 }
 
+const isAllSelected = computed(() =>
+  sortedSessions.value.length > 0 && selectedSessionIds.value.length === sortedSessions.value.length
+)
+const isIndeterminate = computed(() =>
+  selectedSessionIds.value.length > 0 && selectedSessionIds.value.length < sortedSessions.value.length
+)
+
+function toggleSelectAll() {
+  if (isAllSelected.value) {
+    selectedSessionIds.value = []
+  } else {
+    selectedSessionIds.value = sortedSessions.value.map(s => s.id)
+  }
+}
+
 function toggleSessionSelect(id: number, val: boolean) {
   if (val) {
     selectedSessionIds.value.push(id)
@@ -415,6 +437,15 @@ async function handleSend() {
 
   try {
     const sessionId = await ensureSession()
+    // 新会话首次提问时，自动将标题设为问题前15字+省略号
+    const session = sessions.value.find(s => s.id === sessionId)
+    if (session && session.title === '新会话' && session.messageCount === 0) {
+      const shortTitle = q.length > 15 ? q.substring(0, 15) + '...' : q
+      try {
+        await qaApi.updateSession(sessionId!, { title: shortTitle })
+        session.title = shortTitle
+      } catch { /* ignore */ }
+    }
     const dto = {
       question: q,
       kbIds: selectedKbIds.value,
@@ -473,6 +504,13 @@ onMounted(async () => {
 .sidebar-header {
   padding: 12px;
   border-bottom: 1px solid #e4e7ed;
+}
+.session-select-all {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  gap: 6px;
 }
 .session-list {
   flex: 1;
