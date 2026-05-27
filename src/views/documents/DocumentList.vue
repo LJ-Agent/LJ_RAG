@@ -66,12 +66,22 @@
       <el-table-column label="上传时间" width="170" align="center">
         <template #default="{ row }">{{ formatDate(row.uploadAt || row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="340" align="center" fixed="right">
+      <el-table-column label="操作" width="380" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="showDetail(row)">详情</el-button>
           <el-button link type="primary" size="small" @click="$router.push(`/documents/${row.id}/content`)">浏览</el-button>
           <el-button
-            v-if="row.status === 'REJECTED' || row.status === 'CHUNKING_FAILED'"
+            v-if="row.status === 'CHUNK_REVIEW'"
+            link type="primary" size="small"
+            @click="$router.push(`/documents/${row.id}/chunks`)"
+          >分块详情</el-button>
+          <el-button
+            v-if="row.status === 'PENDING_REVIEW'"
+            link type="primary" size="small"
+            @click="$router.push(`/documents/${row.id}/chunks`)"
+          >查看分块</el-button>
+          <el-button
+            v-if="row.status === 'REJECTED' || row.status === 'CHUNKING_FAILED' || row.status === 'COMPLETED'"
             link type="warning" size="small"
             @click="openRechunk(row)"
           >重新分块</el-button>

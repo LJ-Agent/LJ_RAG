@@ -50,4 +50,7 @@ export const chunkApi = {
 
   startEmbedding: (documentId: number): Promise<void> =>
     request.post(`${BASE}/start-embedding`, null, { params: { documentId } }),
+
+  submitForReview: (documentId: number): Promise<void> =>
+    request.post(`${BASE}/submit-for-review`, null, { params: { documentId } }),
 }

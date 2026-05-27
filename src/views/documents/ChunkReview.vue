@@ -5,12 +5,23 @@
         <el-button @click="$router.back()" text>
           <el-icon><ArrowLeft /></el-icon> 返回
         </el-button>
-        <h2>块审核 — {{ docName }}</h2>
+        <h2>{{ pageTitle }}</h2>
         <el-tag v-if="docStatus" size="small">{{ DOCUMENT_STATUS_MAP[docStatus]?.label || docStatus }}</el-tag>
       </div>
       <div style="display: flex; gap: 8px;">
+        <!-- chunk-edit 模式：提交审核 -->
         <el-button
-          v-if="stats"
+          v-if="mode === 'chunk-edit' && stats"
+          type="primary"
+          :disabled="stats.activeCount === 0"
+          :loading="submittingReview"
+          @click="doSubmitForReview"
+        >
+          提交审核 ({{ stats.activeCount }} 个块)
+        </el-button>
+        <!-- content-review 模式：向量化 -->
+        <el-button
+          v-if="mode === 'content-review' && stats"
           type="primary"
           :disabled="stats.activeCount === 0"
           @click="doStartEmbedding"
@@ -39,7 +50,7 @@
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button type="primary" @click="openCreateDialog">新增块</el-button>
+        <el-button v-if="mode !== 'read-only'" type="primary" @click="openCreateDialog">新增块</el-button>
       </div>
     </div>
 
@@ -94,7 +105,7 @@
         <div v-else class="edit-area">
           <div class="edit-header">
             <span>块 #{{ selectedChunk.chunkIndex }} ({{ selectedChunk.charCount }} 字符)</span>
-            <div style="display: flex; gap: 4px;">
+            <div v-if="mode !== 'read-only'" style="display: flex; gap: 4px;">
               <el-button size="small" type="primary" :loading="saving" @click="saveChunk">保存</el-button>
               <el-button
                 v-if="selectedChunk.status === 'ACTIVE'"
@@ -110,6 +121,7 @@
             :rows="20"
             resize="vertical"
             placeholder="块内容"
+            :disabled="mode === 'read-only'"
           />
         </div>
       </div>
@@ -131,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowLeft, Search } from '@element-plus/icons-vue'
 import { chunkApi, type ChunkVO, type ChunkStats } from '@/api/modules/chunks'
@@ -155,8 +167,21 @@ const searchKeyword = ref('')
 const createVisible = ref(false)
 const newChunkContent = ref('')
 const creating = ref(false)
+const submittingReview = ref(false)
 
 const pagination = usePagination()
+
+const mode = computed(() => {
+  if (docStatus.value === 'CHUNK_REVIEW') return 'chunk-edit'
+  if (docStatus.value === 'PENDING_REVIEW') return 'content-review'
+  return 'read-only'
+})
+
+const pageTitle = computed(() => {
+  if (mode.value === 'chunk-edit') return `分块编辑 — ${docName.value}`
+  if (mode.value === 'content-review') return `分块审核 — ${docName.value}`
+  return `查看分块 — ${docName.value}`
+})
 
 function selectChunk(c: ChunkVO | null) {
   selectedChunk.value = c
@@ -258,6 +283,25 @@ async function deleteChunk() {
     fetchChunks()
     fetchStats()
   } catch { /* cancelled */ }
+}
+
+async function doSubmitForReview() {
+  if (!stats.value || stats.value.activeCount === 0) {
+    ElMessage.warning('没有可提交的块')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确认将 ${stats.value.activeCount} 个活跃块提交至审核吗？提交后不再支持编辑。`,
+      '提交审核',
+      { type: 'info', confirmButtonText: '确认提交', cancelButtonText: '取消' }
+    )
+    submittingReview.value = true
+    await chunkApi.submitForReview(docId)
+    ElMessage.success('已提交审核')
+    fetchDocInfo()
+  } catch { /* cancelled */ }
+  finally { submittingReview.value = false }
 }
 
 async function doStartEmbedding() {
