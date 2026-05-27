@@ -119,8 +119,19 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
 
-        // --- 分支1: 块审核（CHUNK_REVIEW → EMBEDDING 或重新分块）——兼容旧流程---
+        // --- 分支1: 块审核（CHUNK_REVIEW → EMBEDDING 或重新分块）---
         if (DocumentStatus.CHUNK_REVIEW.name().equals(doc.getStatus())) {
+            ReviewRecord record = reviewRecordMapper.selectOne(
+                    new LambdaQueryWrapper<ReviewRecord>()
+                            .eq(ReviewRecord::getDocumentId, dto.getDocumentId())
+                            .eq(ReviewRecord::getResult, ReviewResult.PENDING.name()));
+            if (record != null) {
+                record.setReviewerId(reviewerId);
+                record.setResult(dto.getResult());
+                record.setComment(dto.getComment());
+                record.setReviewedAt(LocalDateTime.now());
+                reviewRecordMapper.updateById(record);
+            }
             if ("APPROVED".equals(dto.getResult())) {
                 stateMachine.transit(doc, DocumentStatus.EMBEDDING.name());
                 if (doc.getChunkCount() != null && doc.getChunkCount() > 0) {
@@ -148,6 +159,14 @@ public class ReviewServiceImpl implements ReviewService {
         record.setComment(dto.getComment());
         record.setReviewedAt(LocalDateTime.now());
         reviewRecordMapper.updateById(record);
+
+        // 仅当文档处于可审核状态时才触发状态转移，终态/已处理状态仅更新审核记录
+        String docStatus = doc.getStatus();
+        if (!DocumentStatus.PENDING_REVIEW.name().equals(docStatus)
+                && !DocumentStatus.CHUNK_REVIEW.name().equals(docStatus)) {
+            log.warn("文档状态不是待审核/待块审核，仅更新审核记录: docId={}, status={}", doc.getId(), docStatus);
+            return Result.success();
+        }
 
         if ("APPROVED".equals(dto.getResult())) {
             // 如果文档已有分块(预分块完成)，直接向量化；否则走旧流程先分块
@@ -249,8 +268,9 @@ public class ReviewServiceImpl implements ReviewService {
         if (config != null) {
             hours = Integer.parseInt(config.getConfigValue());
         }
+        final int autoApproveHours = hours;
 
-        LocalDateTime threshold = LocalDateTime.now().minusHours(hours);
+        LocalDateTime threshold = LocalDateTime.now().minusHours(autoApproveHours);
 
         // --- 内容审核超时（PENDING_REVIEW → APPROVED → CHUNKING）---
         List<ReviewRecord> timeoutRecords = reviewRecordMapper.selectList(
@@ -259,7 +279,7 @@ public class ReviewServiceImpl implements ReviewService {
                         .lt(ReviewRecord::getCreatedAt, threshold));
 
         for (ReviewRecord record : timeoutRecords) {
-            int finalHours = hours;
+            int finalHours = autoApproveHours;
             redisLockUtil.executeWithLock("review:auto:" + record.getId(), () -> {
                 ReviewRecord fresh = reviewRecordMapper.selectById(record.getId());
                 if (fresh == null || !ReviewResult.PENDING.name().equals(fresh.getResult())) {
@@ -304,6 +324,18 @@ public class ReviewServiceImpl implements ReviewService {
                 stateMachine.transit(fresh, DocumentStatus.EMBEDDING.name());
                 if (fresh.getChunkCount() != null && fresh.getChunkCount() > 0) {
                     sendEmbedProcessMessage(fresh);
+                }
+                // 更新对应 CHUNK_REVIEW 的待审核记录
+                ReviewRecord chunkRecord = reviewRecordMapper.selectOne(
+                        new LambdaQueryWrapper<ReviewRecord>()
+                                .eq(ReviewRecord::getDocumentId, fresh.getId())
+                                .eq(ReviewRecord::getResult, ReviewResult.PENDING.name()));
+                if (chunkRecord != null) {
+                    chunkRecord.setResult(ReviewResult.APPROVED.name());
+                    chunkRecord.setAutoApproved(1);
+                    chunkRecord.setComment("[系统] 超过" + autoApproveHours + "小时未审核，自动通过(块审核)");
+                    chunkRecord.setReviewedAt(LocalDateTime.now());
+                    reviewRecordMapper.updateById(chunkRecord);
                 }
                 log.info("超时自动审核通过(块审核): docId={}", fresh.getId());
             });
