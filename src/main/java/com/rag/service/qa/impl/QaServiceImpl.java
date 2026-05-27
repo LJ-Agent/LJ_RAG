@@ -82,6 +82,9 @@ public class QaServiceImpl implements QaService {
             sourceDocs.add(src);
         }
 
+        // 3.1 回填文档名称（Milvus 未存储文档名，通过 DB 批量查询补全）
+        enrichDocumentNames(sourceDocs);
+
         // 4. gRPC生成
         GenerationResponse generationResponse = generationClient.generate(dto.getQuestion(), contexts);
         int latency = (int) (System.currentTimeMillis() - startTime);
@@ -146,6 +149,9 @@ public class QaServiceImpl implements QaService {
                     src.setScore(chunk.getScore());
                     sourceDocs.add(src);
                 }
+
+                // 回填文档名称（Milvus 未存储文档名，通过 DB 批量查询补全）
+                enrichDocumentNames(sourceDocs);
 
                 // 发送初始心跳
                 emitter.send(SseEmitter.event().name("ping").data("").build());
@@ -270,6 +276,24 @@ public class QaServiceImpl implements QaService {
             return vo;
         }).toList());
         return Result.success(voPage);
+    }
+
+    private void enrichDocumentNames(List<AnswerVO.SourceDoc> sourceDocs) {
+        if (sourceDocs.isEmpty()) return;
+        java.util.Set<Long> docIds = sourceDocs.stream()
+                .map(AnswerVO.SourceDoc::getDocumentId)
+                .collect(java.util.stream.Collectors.toSet());
+        java.util.Map<Long, String> nameMap = documentMapper.selectBatchIds(docIds).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        com.rag.domain.entity.Document::getId,
+                        com.rag.domain.entity.Document::getFileName,
+                        (a, b) -> a));
+        for (AnswerVO.SourceDoc src : sourceDocs) {
+            String name = nameMap.get(src.getDocumentId());
+            if (name != null) {
+                src.setDocumentName(name);
+            }
+        }
     }
 
     private void updateSessionAfterChat(Long sessionId) {
