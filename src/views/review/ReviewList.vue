@@ -8,13 +8,14 @@
     </div>
 
     <el-tabs v-model="activeTab" @tab-change="onTabChange">
+      <el-tab-pane name="CHUNK_REVIEW" label="待块审核" />
       <el-tab-pane name="PENDING" label="待审核" />
       <el-tab-pane name="APPROVED" label="已通过" />
       <el-tab-pane name="REJECTED" label="已驳回" />
     </el-tabs>
 
     <el-table :data="list" v-loading="isLoading" stripe border style="width: 100%" @selection-change="onSelectionChange">
-      <el-table-column type="selection" width="50" v-if="activeTab === 'PENDING'" />
+      <el-table-column type="selection" width="50" v-if="activeTab === 'PENDING' || activeTab === 'CHUNK_REVIEW'" />
       <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="documentName" label="文档名称" min-width="200" show-overflow-tooltip />
       <el-table-column prop="chunkCount" label="块数" width="70" align="center" />
@@ -24,7 +25,7 @@
       <el-table-column label="审核结果" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="REVIEW_RESULT_MAP[row.result]?.type || 'info'" size="small">
-            {{ REVIEW_RESULT_MAP[row.result]?.label || row.result }}
+            {{ REVIEW_RESULT_MAP[row.result]?.label || row.result || '待块审核' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -34,7 +35,7 @@
       <el-table-column label="时间" width="170" align="center">
         <template #default="{ row }">{{ formatDate(row.reviewedAt || row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column v-if="activeTab === 'PENDING'" label="操作" width="260" align="center" fixed="right">
+      <el-table-column v-if="activeTab === 'PENDING' || activeTab === 'CHUNK_REVIEW'" label="操作" width="260" align="center" fixed="right">
         <template #default="{ row }">
           <el-button v-if="row.chunkCount > 0" link type="primary" size="small" @click="$router.push(`/documents/${row.documentId}/chunks`)">分块详情</el-button>
           <el-button link type="success" size="small" @click="approve(row)">通过</el-button>
@@ -94,8 +95,13 @@ async function fetchList() {
   isLoading.value = true
   selectedIds.value = []
   try {
-    const params: Record<string, any> = { page: pagination.params.page, size: pagination.params.size, result: activeTab.value }
-    const res = await reviewApi.pending(params)
+    let res
+    if (activeTab.value === 'CHUNK_REVIEW') {
+      res = await reviewApi.chunkReview({ page: pagination.params.page, size: pagination.params.size })
+    } else {
+      const params: Record<string, any> = { page: pagination.params.page, size: pagination.params.size, result: activeTab.value }
+      res = await reviewApi.pending(params)
+    }
     list.value = res.records
     pagination.setTotal(res.total)
   } finally {
@@ -106,7 +112,6 @@ async function fetchList() {
 function onTabChange() {
   pagination.reset()
   pagination.params.page = 1
-  // 当切换tab时重新获取（目前API只支持pending，后续可扩展）
   fetchList()
 }
 
