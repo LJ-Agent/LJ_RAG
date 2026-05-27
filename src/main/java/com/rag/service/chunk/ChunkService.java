@@ -27,4 +27,6 @@ public interface ChunkService {
     Result<Void> startEmbedding(Long documentId);
 
     Result<Integer> syncChunkCount(Long documentId);
+
+    Result<Void> submitForReview(Long documentId);
 }

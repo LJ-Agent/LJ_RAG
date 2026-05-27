@@ -33,20 +33,20 @@ public enum DocumentStatus {
     }
 
     static {
-        UPLOADED.nextStates = Set.of(PARSING, PENDING_REVIEW);  // FILE_PROCESS handles parsing+cleaning in one call
+        UPLOADED.nextStates = Set.of(PARSING, CHUNKING, PENDING_REVIEW);  // pre-chunk: UPLOADED→CHUNKING; legacy: UPLOADED→PENDING_REVIEW
         PARSING.nextStates = Set.of(CLEANING, PARSING_FAILED);
         CLEANING.nextStates = Set.of(PENDING_REVIEW, CLEANING_FAILED);
         PENDING_REVIEW.nextStates = Set.of(APPROVED, REJECTED, EMBEDDING);
         APPROVED.nextStates = Set.of(CHUNKING, COMPLETED);
         REJECTED.nextStates = Set.of(PARSING, CHUNKING);
         CHUNKING.nextStates = Set.of(CHUNK_REVIEW, CHUNKING_FAILED);
-        CHUNK_REVIEW.nextStates = Set.of(EMBEDDING, CHUNKING);  // can re-chunk if needed
+        CHUNK_REVIEW.nextStates = Set.of(PENDING_REVIEW, EMBEDDING, CHUNKING);  // submit for review / approve / re-chunk
         EMBEDDING.nextStates = Set.of(COMPLETED, EMBEDDING_FAILED);
         PARSING_FAILED.nextStates = Set.of(PARSING);
         CLEANING_FAILED.nextStates = Set.of(CLEANING);
         CHUNKING_FAILED.nextStates = Set.of(CHUNKING);
         EMBEDDING_FAILED.nextStates = Set.of(EMBEDDING);
-        COMPLETED.nextStates = Set.of();
+        COMPLETED.nextStates = Set.of(CHUNKING);  // re-chunk when vector quality is poor
     }
 
     public boolean canTransitTo(DocumentStatus target) {
@@ -62,7 +62,7 @@ public enum DocumentStatus {
      */
     public static DocumentStatus nextAfterTaskComplete(DocumentStatus current) {
         return switch (current) {
-            case UPLOADED -> PENDING_REVIEW;   // FILE_PROCESS handles parsing+cleaning in one call
+            case UPLOADED -> CHUNKING;         // FILE_PROCESS done → auto-trigger CHUNK_PROCESS
             case APPROVED -> CHUNK_REVIEW;     // CHUNK_PROCESS chunk-only (new flow)
             case CHUNKING -> CHUNK_REVIEW;     // CHUNK_PROCESS chunk-only (backward compat)
             case EMBEDDING -> COMPLETED;       // EMBED_PROCESS done

@@ -116,4 +116,11 @@ public class ChunkController {
     public Result<Integer> syncChunkCount(@RequestParam Long documentId) {
         return chunkService.syncChunkCount(documentId);
     }
+
+    @Operation(summary = "提交分块审核（CHUNK_REVIEW → PENDING_REVIEW）")
+    @PostMapping("/submit-for-review")
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
+    public Result<Void> submitForReview(@RequestParam Long documentId) {
+        return chunkService.submitForReview(documentId);
+    }
 }

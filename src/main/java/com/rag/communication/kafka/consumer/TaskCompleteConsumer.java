@@ -63,13 +63,13 @@ public class TaskCompleteConsumer {
                 saveChunkData(doc, message);
             }
 
-            // State transition: FILE_PROCESS → PENDING_REVIEW, CHUNK_PROCESS → CHUNK_REVIEW, EMBED_PROCESS → COMPLETED
+            // State transition: FILE_PROCESS → CHUNKING, CHUNK_PROCESS → CHUNK_REVIEW, EMBED_PROCESS → COMPLETED
             DocumentStatus before = DocumentStatus.valueOf(doc.getStatus());
             stateMachine.transitToNext(doc);
             DocumentStatus after = DocumentStatus.valueOf(doc.getStatus());
 
-            // After FILE_PROCESS completes (UPLOADED → PENDING_REVIEW), chain CHUNK_PROCESS for pre-chunking
-            if (before == DocumentStatus.UPLOADED && after == DocumentStatus.PENDING_REVIEW) {
+            // After FILE_PROCESS completes (UPLOADED → CHUNKING), auto-trigger CHUNK_PROCESS for pre-chunking
+            if (before == DocumentStatus.UPLOADED && after == DocumentStatus.CHUNKING) {
                 sendChunkProcessMessage(doc);
             }
 

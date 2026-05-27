@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rag.common.constant.KafkaConstants;
 import com.rag.common.enums.DocumentStatus;
+import com.rag.common.enums.ReviewResult;
 import com.rag.common.enums.TaskType;
 import com.rag.common.exception.BusinessException;
 import com.rag.common.result.Result;
@@ -13,8 +14,10 @@ import com.rag.common.result.ResultCodeEnum;
 import com.rag.communication.kafka.dto.KafkaMessage;
 import com.rag.domain.entity.Document;
 import com.rag.domain.entity.DocumentChunk;
+import com.rag.domain.entity.ReviewRecord;
 import com.rag.domain.mapper.DocumentChunkMapper;
 import com.rag.domain.mapper.DocumentMapper;
+import com.rag.domain.mapper.ReviewRecordMapper;
 import com.rag.service.chunk.ChunkService;
 import com.rag.service.chunk.dto.ChunkVO;
 import com.rag.service.statemachine.DocumentStateMachine;
@@ -36,6 +39,7 @@ public class ChunkServiceImpl implements ChunkService {
 
     private final DocumentChunkMapper chunkMapper;
     private final DocumentMapper documentMapper;
+    private final ReviewRecordMapper reviewRecordMapper;
     private final DocumentStateMachine stateMachine;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
@@ -234,6 +238,36 @@ public class ChunkServiceImpl implements ChunkService {
         }
         log.info("分块计数同步: docId={}, chunkCount={}", documentId, activeCount);
         return Result.success(activeCount.intValue());
+    }
+
+    @Override
+    @Transactional
+    public Result<Void> submitForReview(Long documentId) {
+        Document doc = documentMapper.selectById(documentId);
+        if (doc == null) {
+            throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
+        }
+        DocumentStatus current = DocumentStatus.valueOf(doc.getStatus());
+        if (current != DocumentStatus.CHUNK_REVIEW) {
+            throw new BusinessException(ResultCodeEnum.DOCUMENT_STATUS_ERROR.getCode(),
+                    "当前文档状态不允许提交审核: " + current.getDescription());
+        }
+
+        // 解析 CHUNK_REVIEW 阶段的待审核记录（块编辑阶段完成，进入正式审核）
+        ReviewRecord record = reviewRecordMapper.selectOne(
+                new LambdaQueryWrapper<ReviewRecord>()
+                        .eq(ReviewRecord::getDocumentId, documentId)
+                        .eq(ReviewRecord::getResult, ReviewResult.PENDING.name()));
+        if (record != null) {
+            record.setResult(ReviewResult.APPROVED.name());
+            record.setComment("已提交至内容审核");
+            record.setReviewedAt(LocalDateTime.now());
+            reviewRecordMapper.updateById(record);
+        }
+
+        stateMachine.transit(doc, DocumentStatus.PENDING_REVIEW.name());
+        log.info("文档已提交审核: docId={}", documentId);
+        return Result.success();
     }
 
     private ChunkVO toVO(DocumentChunk c) {

@@ -407,10 +407,17 @@ public class FileServiceImpl implements FileService {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
         String currentStatus = doc.getStatus();
+        boolean isCompleted = DocumentStatus.COMPLETED.name().equals(currentStatus);
         if (!DocumentStatus.REJECTED.name().equals(currentStatus)
-                && !DocumentStatus.CHUNKING_FAILED.name().equals(currentStatus)) {
+                && !DocumentStatus.CHUNKING_FAILED.name().equals(currentStatus)
+                && !isCompleted) {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_STATUS_ERROR.getCode(),
                     "当前状态不允许重新分块: " + currentStatus);
+        }
+
+        // COMPLETED 状态：先清理 Milvus 向量和 BM25 索引
+        if (isCompleted) {
+            sendDocumentDeleteMessage(doc);
         }
 
         // 清除旧分块数据
