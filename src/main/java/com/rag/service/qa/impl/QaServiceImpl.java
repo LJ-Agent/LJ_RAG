@@ -201,13 +201,12 @@ public class QaServiceImpl implements QaService {
                     }
                 }
 
-                // 3. 先发送 done 事件，让前端立即结束流式状态
+                // 3. 先发送 done 事件，让前端立即结束流式状态（sourceDocs 已在前面的单独事件中发送）
                 int latency = (int) (System.currentTimeMillis() - startTime);
                 String doneData = cn.hutool.json.JSONUtil.createObj()
                         .set("tokenCount", totalTokens[0])
                         .set("latencyMs", latency)
                         .set("thinking", fullThinking.toString())
-                        .set("sourceDocs", sourceDocs)
                         .toString();
                 emitter.send(SseEmitter.event()
                         .name("done")
