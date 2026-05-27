@@ -56,8 +56,8 @@ export function useSSE() {
         buffer = lines.pop() || ''
 
         for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7).trim()
+          if (line.startsWith('event:')) {
+            currentEvent = line.slice(6).trim()
           } else if (line.startsWith('data: ')) {
             const data = line.slice(6)
             if (currentEvent === 'done') {

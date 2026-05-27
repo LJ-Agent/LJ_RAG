@@ -23,7 +23,7 @@
           <el-checkbox
             :model-value="selectedSessionIds.includes(s.id)"
             class="session-checkbox"
-            @change="(val: boolean) => toggleSessionSelect(s.id, val)"
+            @change="(val: any) => toggleSessionSelect(s.id, val)"
             @click.stop
           />
           <div class="session-info" @click="switchSession(s.id)">
