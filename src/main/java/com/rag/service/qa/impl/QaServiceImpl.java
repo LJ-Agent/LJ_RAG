@@ -152,6 +152,7 @@ public class QaServiceImpl implements QaService {
 
                 // 2. 流式生成，每收到token通过SSE发送
                 StringBuilder fullAnswer = new StringBuilder();
+                StringBuilder fullThinking = new StringBuilder();
                 int[] totalTokens = {0};
                 long startTime = System.currentTimeMillis();
 
@@ -161,12 +162,22 @@ public class QaServiceImpl implements QaService {
                 long lastHeartbeat = System.currentTimeMillis();
                 while (stream.hasNext()) {
                     GenerationResponse resp = stream.next();
-                    fullAnswer.append(resp.getContent());
+                    String contentType = resp.getContentType();
+                    String content = resp.getContent();
                     totalTokens[0] = resp.getTokenCount();
 
-                    emitter.send(SseEmitter.event()
-                            .data(resp.getContent())
-                            .build());
+                    if ("reasoning".equals(contentType)) {
+                        fullThinking.append(content);
+                        emitter.send(SseEmitter.event()
+                                .name("reasoning")
+                                .data(content)
+                                .build());
+                    } else {
+                        fullAnswer.append(content);
+                        emitter.send(SseEmitter.event()
+                                .data(content)
+                                .build());
+                    }
 
                     // 每15秒发送心跳防止连接超时
                     long now = System.currentTimeMillis();
@@ -195,10 +206,17 @@ public class QaServiceImpl implements QaService {
                 chatRecordMapper.insert(record);
                 updateSessionAfterChat(dto.getSessionId());
 
-                // 发送结束事件（包含完整元数据和检索来源）
+                // 发送结束事件（包含完整元数据、思考过程和检索来源）
+                String doneData = cn.hutool.json.JSONUtil.createObj()
+                        .set("chatId", record.getId())
+                        .set("tokenCount", totalTokens[0])
+                        .set("latencyMs", latency)
+                        .set("thinking", fullThinking.toString())
+                        .set("sourceDocs", sourceDocs)
+                        .toString();
                 emitter.send(SseEmitter.event()
                         .name("done")
-                        .data("{\"chatId\":" + record.getId() + ",\"tokenCount\":" + totalTokens[0] + ",\"latencyMs\":" + latency + ",\"sourceDocs\":" + JSONUtil.toJsonStr(sourceDocs) + "}")
+                        .data(doneData)
                         .build());
 
                 emitter.complete();
