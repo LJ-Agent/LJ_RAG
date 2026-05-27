@@ -76,8 +76,10 @@
           <p style="margin-top: 12px;">选择一个知识库，开始提问吧</p>
         </div>
 
-        <div v-for="(msg, idx) in messages" :key="idx" :class="['qa-message', msg.role]">
-          <div class="qa-message__bubble">
+        <template v-for="(msg, idx) in messages" :key="idx">
+          <!-- 流式输出期间跳过最后一条bot消息，由streaming区域独立展示避免重复 -->
+          <div v-if="!(isStreaming && msg.role === 'bot' && idx === messages.length - 1)" :class="['qa-message', msg.role]">
+            <div class="qa-message__bubble">
             <div v-if="msg.role === 'user'">{{ msg.content }}</div>
             <div v-else>
               <!-- 思考过程（浅灰色） -->
@@ -119,6 +121,7 @@
             </div>
           </div>
         </div>
+        </template>
 
         <!-- 流式输出 -->
         <div v-if="isStreaming" class="qa-message bot">
