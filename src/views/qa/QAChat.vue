@@ -135,6 +135,31 @@
               <div v-if="error" class="streaming-error">
                 {{ error }}
               </div>
+              <!-- 检索结果 — 检索完成后立即展示 -->
+              <div v-if="streamSourceDocs.length > 0" class="source-docs streaming-source-docs">
+                <div class="source-docs-header">
+                  <el-icon><Document /></el-icon>
+                  <span>检索结果</span>
+                  <span class="retrieval-summary">共 {{ streamSourceDocs.length }} 个片段</span>
+                </div>
+                <div
+                  v-for="(doc, di) in streamSourceDocs"
+                  :key="doc.chunkId"
+                  class="source-doc-item"
+                >
+                  <div class="source-doc-header">
+                    <span class="source-doc-name">
+                      <el-tag size="small" type="primary">{{ di + 1 }}</el-tag>
+                      <a class="source-doc-link" @click.stop="openRawFileById(doc.documentId)" :title="'打开原文件: ' + (doc.documentName || '')">{{ doc.documentName || '文档#' + doc.documentId }}</a>
+                      <span class="source-doc-chunk">Chunk #{{ doc.chunkIndex }}</span>
+                    </span>
+                    <el-tag size="small" :type="doc.score > 0.7 ? 'success' : doc.score > 0.4 ? 'warning' : 'info'">
+                      相似度: {{ (doc.score * 100).toFixed(1) }}%
+                    </el-tag>
+                  </div>
+                  <p class="source-doc-content">{{ doc.content }}</p>
+                </div>
+              </div>
               <!-- 思考过程（浅灰色） -->
               <div v-if="streamThinking" class="streaming-thinking">
                 {{ streamThinking }}
@@ -202,7 +227,7 @@ const activeSessionId = ref<number | null>(null)
 const pinnedId = ref<number | null>(loadPinnedId())
 const selectedSessionIds = ref<number[]>([])
 
-const { isStreaming, streamPhase, streamContent, streamThinking, error, startStream } = useSSE()
+const { isStreaming, streamPhase, streamContent, streamThinking, streamSourceDocs, error, startStream } = useSSE()
 const router = useRouter()
 
 const canSend = computed(() => question.value.trim() && selectedKbIds.value.length > 0 && !isStreaming.value)
@@ -762,6 +787,10 @@ onMounted(async () => {
 }
 
 /* 流式回答内容 — 纯文本，避免 Markdown 部分渲染乱码 */
+.streaming-source-docs {
+  margin-top: 0 !important;
+  margin-bottom: 12px;
+}
 .streaming-content {
   font-size: 14px;
   color: #303133;

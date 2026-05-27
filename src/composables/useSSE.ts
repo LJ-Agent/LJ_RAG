@@ -15,6 +15,7 @@ export function useSSE() {
   const streamPhase = ref<'retrieving' | 'thinking' | 'reasoning' | 'generating'>('retrieving')
   const streamContent = ref('')
   const streamThinking = ref('')
+  const streamSourceDocs = ref<SourceDoc[]>([])
   const error = ref<string | null>(null)
   let abortController: AbortController | null = null
 
@@ -29,6 +30,7 @@ export function useSSE() {
     streamPhase.value = 'retrieving'
     streamContent.value = ''
     streamThinking.value = ''
+    streamSourceDocs.value = []
     error.value = null
     abortController = new AbortController()
 
@@ -90,6 +92,7 @@ export function useSSE() {
             } else if (currentEvent === 'sourceDocs') {
               try {
                 const docs: SourceDoc[] = JSON.parse(data)
+                streamSourceDocs.value = docs
                 onSourceDocs?.(docs)
               } catch { /* ignore parse errors */ }
               currentEvent = ''
@@ -144,5 +147,5 @@ export function useSSE() {
     streamPhase.value = 'retrieving'
   }
 
-  return { isStreaming, streamPhase, streamContent, streamThinking, error, startStream, stopStream }
+  return { isStreaming, streamPhase, streamContent, streamThinking, streamSourceDocs, error, startStream, stopStream }
 }
