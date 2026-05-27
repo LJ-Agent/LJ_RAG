@@ -12,8 +12,8 @@ export const qaApi = {
   // SSE流式问答 - 使用fetch + ReadableStream，直连后端绕过Vite代理避免缓冲
   streamChat: (data: QuestionDTO, signal?: AbortSignal): Promise<Response> => {
     const token = getAccessToken()
-    const apiBase = import.meta.env.DEV ? 'http://localhost:8080' : import.meta.env.VITE_API_BASE_URL
-    return fetch(`${apiBase}${BASE}/chat/stream`, {
+    const apiBase = import.meta.env.DEV ? 'http://localhost:8080' : ''
+    return fetch(`${apiBase}${import.meta.env.VITE_API_BASE_URL}${BASE}/chat/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
