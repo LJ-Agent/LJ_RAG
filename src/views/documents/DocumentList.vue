@@ -76,7 +76,7 @@
             @click="$router.push(`/documents/${row.id}/chunks`)"
           >分块详情</el-button>
           <el-button
-            v-if="row.status === 'PENDING_REVIEW'"
+            v-if="row.status === 'PENDING_REVIEW' || row.status === 'COMPLETED'"
             link type="primary" size="small"
             @click="$router.push(`/documents/${row.id}/chunks`)"
           >查看分块</el-button>
