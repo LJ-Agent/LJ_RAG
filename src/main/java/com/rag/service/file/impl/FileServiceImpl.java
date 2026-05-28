@@ -408,9 +408,11 @@ public class FileServiceImpl implements FileService {
         }
         String currentStatus = doc.getStatus();
         boolean isCompleted = DocumentStatus.COMPLETED.name().equals(currentStatus);
+        boolean isChunkReview = DocumentStatus.CHUNK_REVIEW.name().equals(currentStatus);
         if (!DocumentStatus.REJECTED.name().equals(currentStatus)
                 && !DocumentStatus.CHUNKING_FAILED.name().equals(currentStatus)
-                && !isCompleted) {
+                && !isCompleted
+                && !isChunkReview) {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_STATUS_ERROR.getCode(),
                     "当前状态不允许重新分块: " + currentStatus);
         }
