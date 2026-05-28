@@ -9,6 +9,7 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-rag_db}
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
+      TZ: Asia/Shanghai
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -200,6 +201,7 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       # HuggingFace Mirror (for downloading embedding model)
       HF_ENDPOINT: https://hf-mirror.com
+      TZ: Asia/Shanghai
     volumes:
       - ../RAG-PYTHON/config:/app/config:ro
     healthcheck:
@@ -258,7 +260,8 @@ services:
       # JWT
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
       # JVM
-      JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Duser.timezone=Asia/Shanghai"
+      TZ: Asia/Shanghai
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
       interval: 30s
@@ -309,6 +312,7 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TZ: Asia/Shanghai
     volumes:
       - ../RAG-MEMORY/config:/app/config:ro
     healthcheck:
@@ -346,6 +350,7 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TZ: Asia/Shanghai
     volumes:
       - ../RAG-QUE/config:/app/config:ro
     healthcheck:
@@ -384,6 +389,7 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TZ: Asia/Shanghai
     volumes:
       - ../RAG-CLEANING/config:/app/config:ro
     healthcheck:
