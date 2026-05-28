@@ -103,8 +103,8 @@
                 v-for="(doc, di) in msg.sourceDocs"
                 :key="doc.chunkId"
                 class="source-doc-item"
-                @click="goToChunkDetail(doc.chunkId)"
-                title="点击查看块详情"
+                @click="openChunkDetail(doc.chunkId, doc.documentId, doc.content)"
+                title="点击查看块详情及原文对照"
               >
                 <div class="source-doc-header">
                   <span class="source-doc-name">
@@ -163,13 +163,55 @@
       </div>
     </div>
   </div>
+
+  <!-- 块详情弹窗（含原文对照） -->
+  <el-dialog v-model="chunkDetailVisible" title="块详情" width="900px" destroy-on-close top="5vh" @opened="scrollToHighlight">
+    <template v-if="chunkDetailLoading">
+      <el-skeleton :rows="10" animated />
+    </template>
+    <template v-else-if="chunkDetail">
+      <!-- 块信息 -->
+      <el-descriptions :column="3" border size="small" style="margin-bottom: 16px">
+        <el-descriptions-item label="文档">{{ chunkDocName }}</el-descriptions-item>
+        <el-descriptions-item label="块序号">#{{ chunkDetail.chunkIndex }}</el-descriptions-item>
+        <el-descriptions-item label="字符数">{{ chunkDetail.charCount }}</el-descriptions-item>
+      </el-descriptions>
+
+      <!-- 块内容 -->
+      <div class="chunk-detail-section">
+        <div class="chunk-detail-section-title">
+          <el-icon><Collection /></el-icon> 块内容
+        </div>
+        <div class="chunk-detail-content markdown-body" v-html="renderMarkdown(chunkDetail.content || '')"></div>
+      </div>
+
+      <!-- 原文对照 -->
+      <div class="chunk-detail-section" v-if="docContent">
+        <div class="chunk-detail-section-title">
+          <el-icon><Document /></el-icon> 原文对照（标黄处为对应块内容）
+        </div>
+        <div ref="docContentRef" class="chunk-doc-content">
+          <pre class="doc-text" v-html="highlightedDocContent"></pre>
+        </div>
+      </div>
+      <div v-else-if="!chunkDetailLoading && docContentError" class="chunk-doc-empty">
+        {{ docContentError }}
+      </div>
+    </template>
+    <template #footer>
+      <el-button @click="chunkDetailVisible = false">关闭</el-button>
+      <el-button type="primary" @click="goToChunkDetailPage">在新页面打开完整详情</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChatDotRound, Plus, MoreFilled, Promotion, Document, Star, StarFilled, Delete } from '@element-plus/icons-vue'
+import { ChatDotRound, Plus, MoreFilled, Promotion, Document, Collection, Star, StarFilled, Delete } from '@element-plus/icons-vue'
 import { qaApi } from '@/api/modules/qa'
+import { chunkApi, type ChunkVO } from '@/api/modules/chunks'
+import { fileApi } from '@/api/modules/files'
 import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
 import { useSSE } from '@/composables/useSSE'
 import type { StreamMetadata } from '@/composables/useSSE'
@@ -201,6 +243,16 @@ const sessions = ref<ChatSessionVO[]>([])
 const activeSessionId = ref<number | null>(null)
 const pinnedId = ref<number | null>(loadPinnedId())
 const selectedSessionIds = ref<number[]>([])
+
+// 块详情弹窗
+const chunkDetailVisible = ref(false)
+const chunkDetailLoading = ref(false)
+const chunkDetail = ref<ChunkVO | null>(null)
+const chunkDocName = ref('')
+const docContent = ref('')
+const docContentError = ref('')
+const docContentRef = ref<HTMLElement>()
+const highlightedDocContent = ref('')
 
 const { isStreaming, streamPhase, streamContent, streamThinking, streamSourceDocs, error, startStream } = useSSE()
 const router = useRouter()
@@ -278,15 +330,35 @@ function toggleSessionSelect(id: number, val: boolean) {
 
 function formatTime(dateStr: string): string {
   if (!dateStr) return ''
-  const d = new Date(dateStr)
+  // 尝试兼容多种日期格式，确保按本地时间解析
+  let d = new Date(dateStr)
+  if (isNaN(d.getTime())) {
+    // 尝试替换空格为T（兼容 "2026-05-29 14:30:00" 格式）
+    d = new Date(dateStr.replace(' ', 'T'))
+  }
   if (isNaN(d.getTime())) return dateStr
   const now = new Date()
   const diff = now.getTime() - d.getTime()
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
-  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
-  if (diff < 604800000) return Math.floor(diff / 86400000) + '天前'
   const pad = (n: number) => String(n).padStart(2, '0')
+  const timeStr = `${pad(d.getHours())}:${pad(d.getMinutes())}`
+
+  if (diff < 60000) return '刚刚'
+  if (diff < 1800000) return Math.floor(diff / 60000) + '分钟前'
+  if (diff < 21600000) return Math.floor(diff / 3600000) + '小时前'
+  // 今天之内：显示具体时间
+  if (d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()) {
+    return '今天 ' + timeStr
+  }
+  // 昨天
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+  if (d.getFullYear() === yesterday.getFullYear() &&
+      d.getMonth() === yesterday.getMonth() &&
+      d.getDate() === yesterday.getDate()) {
+    return '昨天 ' + timeStr
+  }
+  if (diff < 604800000) return Math.floor(diff / 86400000) + '天前'
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
@@ -301,8 +373,95 @@ function openRawFileById(documentId: number) {
   window.open(url, '_blank')
 }
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 function goToChunkDetail(chunkId: string) {
   router.push(`/chunks/${encodeURIComponent(chunkId)}/detail`)
+}
+
+function goToChunkDetailPage() {
+  if (chunkDetail.value) {
+    router.push(`/chunks/${encodeURIComponent(chunkDetail.value.chunkId)}/detail`)
+  }
+}
+
+async function openChunkDetail(chunkId: string, documentId: number, chunkContent: string) {
+  chunkDetailVisible.value = true
+  chunkDetailLoading.value = true
+  chunkDetail.value = null
+  chunkDocName.value = ''
+  docContent.value = ''
+  docContentError.value = ''
+  highlightedDocContent.value = ''
+
+  try {
+    // 并行加载块详情和文档内容
+    const [chunk, docInfo] = await Promise.all([
+      chunkApi.getByChunkId(chunkId),
+      fileApi.detail(documentId).catch(() => null),
+    ])
+    chunkDetail.value = chunk
+    chunkDocName.value = docInfo?.fileName || `文档#${documentId}`
+
+    // 加载原文内容
+    try {
+      const text = await fileApi.getContent(documentId)
+      docContent.value = text
+      // 高亮块内容在原文中的位置
+      highlightedDocContent.value = buildHighlightedDoc(text, chunkContent)
+    } catch {
+      docContentError.value = '无法加载原文内容'
+    }
+  } catch {
+    docContentError.value = '加载块详情失败'
+  } finally {
+    chunkDetailLoading.value = false
+  }
+}
+
+function buildHighlightedDoc(docText: string, chunkText: string): string {
+  const escaped = escapeHtml(docText)
+  const trimmed = chunkText.trim()
+  if (!trimmed) return escaped
+
+  // 在原文中查找块内容（忽略前后空白差异）
+  const idx = docText.indexOf(trimmed)
+  if (idx === -1) {
+    // 尝试查找前100字符的匹配
+    const shortChunk = trimmed.substring(0, Math.min(100, trimmed.length))
+    const shortIdx = docText.indexOf(shortChunk)
+    if (shortIdx === -1) {
+      // 完全匹配不上，返回转义后的原文并在顶部提示
+      return '<p style="color:#909399;">（未找到块内容在原文中的精确位置）</p>' + escaped
+    }
+    // 标记短匹配的结束位置为 chunk 末尾
+    const endIdx = shortIdx + trimmed.length
+    const before = escapeHtml(docText.substring(0, shortIdx))
+    const match = escapeHtml(docText.substring(shortIdx, Math.min(endIdx, docText.length)))
+    const after = escapeHtml(docText.substring(Math.min(endIdx, docText.length)))
+    return before + '<mark class="chunk-highlight">' + match + '</mark>' + after
+  }
+
+  const before = escapeHtml(docText.substring(0, idx))
+  const match = escapeHtml(docText.substring(idx, idx + trimmed.length))
+  const after = escapeHtml(docText.substring(idx + trimmed.length))
+  return before + '<mark class="chunk-highlight" id="chunk-highlight-anchor">' + match + '</mark>' + after
+}
+
+function scrollToHighlight() {
+  // 等待 DOM 更新后滚动到高亮位置
+  setTimeout(() => {
+    const el = document.getElementById('chunk-highlight-anchor')
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, 100)
 }
 
 function scrollToBottom() {
@@ -779,5 +938,59 @@ onMounted(async () => {
   background: #fef0f0;
   border-radius: 6px;
   border-left: 2px solid #f56c6c;
+}
+
+/* 块详情弹窗 */
+.chunk-detail-section {
+  margin-bottom: 20px;
+}
+.chunk-detail-section-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #303133;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chunk-detail-content {
+  background: #fafafa;
+  padding: 14px 16px;
+  border-radius: 6px;
+  border: 1px solid #ebeef5;
+  max-height: 240px;
+  overflow-y: auto;
+  line-height: 1.8;
+  font-size: 14px;
+}
+.chunk-doc-content {
+  background: #fafafa;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.doc-text {
+  padding: 14px 16px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.8;
+  font-size: 14px;
+  color: #606266;
+  font-family: inherit;
+}
+.doc-text :deep(mark.chunk-highlight) {
+  background: #fff3cd;
+  color: #856404;
+  padding: 2px 4px;
+  border-radius: 2px;
+  scroll-margin-top: 120px;
+}
+.chunk-doc-empty {
+  color: #909399;
+  font-size: 13px;
+  text-align: center;
+  padding: 24px;
 }
 </style>
