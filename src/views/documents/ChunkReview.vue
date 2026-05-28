@@ -60,6 +60,7 @@
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
         <el-button v-if="mode !== 'read-only'" type="primary" @click="openCreateDialog">新增块</el-button>
+        <el-button v-if="mode === 'chunk-edit'" type="warning" @click="openRechunkDialog">重新分块</el-button>
       </div>
     </div>
 
@@ -149,6 +150,49 @@
       <el-button type="primary" :loading="creating" @click="doCreateChunk">确认新增</el-button>
     </template>
   </el-dialog>
+
+  <!-- 重新分块弹窗 -->
+  <el-dialog v-model="rechunkVisible" title="重新分块" width="560px" destroy-on-close>
+    <el-form label-width="90px">
+      <el-form-item label="当前文档">
+        <span>{{ docName }}</span>
+      </el-form-item>
+      <el-form-item label="分块策略" required>
+        <el-select v-model="rechunkForm.chunkStrategy" style="width: 100%" @change="onRechunkStrategyChange">
+          <el-option v-for="(cfg, key) in CHUNK_STRATEGY_CONFIGS" :key="key" :label="cfg.label" :value="key" />
+        </el-select>
+      </el-form-item>
+      <template v-if="rechunkFields.length > 0">
+        <el-divider content-position="left">{{ currentRechunkStrategyLabel }} — 参数配置</el-divider>
+        <el-form-item
+          v-for="field in rechunkFields"
+          :key="field.key"
+          :label="field.label"
+        >
+          <el-input-number
+            v-if="field.type === 'number'"
+            v-model="rechunkParams[field.key]"
+            :min="field.min"
+            :max="field.max"
+            :step="field.step || 1"
+            controls-position="right"
+            style="width: 280px"
+          />
+          <el-input
+            v-else
+            v-model="rechunkParams[field.key]"
+            style="width: 360px"
+            :placeholder="String(field.default)"
+          />
+        </el-form-item>
+      </template>
+    </el-form>
+    <template #footer>
+      <el-button @click="rechunkVisible = false">取消</el-button>
+      <el-button @click="resetRechunkParams" text type="primary" style="float: left">恢复默认值</el-button>
+      <el-button type="primary" :loading="rechunking" @click="handleRechunk">确认重新分块</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -160,6 +204,8 @@ import { fileApi } from '@/api/modules/files'
 import { reviewApi } from '@/api/modules/review'
 import { usePagination } from '@/composables/usePagination'
 import { DOCUMENT_STATUS_MAP } from '@/utils/constants'
+import { CHUNK_STRATEGY_CONFIGS } from '@/api/types/file'
+import type { StrategyField } from '@/api/types/file'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
@@ -179,6 +225,19 @@ const newChunkContent = ref('')
 const creating = ref(false)
 const submittingReview = ref(false)
 const reviewing = ref(false)
+
+// 重新分块
+const rechunkVisible = ref(false)
+const rechunkForm = reactive({ chunkStrategy: 'semantic' })
+const rechunkParams = reactive<Record<string, any>>({})
+const rechunking = ref(false)
+
+const rechunkFields = computed<StrategyField[]>(() =>
+  CHUNK_STRATEGY_CONFIGS[rechunkForm.chunkStrategy]?.fields || []
+)
+const currentRechunkStrategyLabel = computed(() =>
+  CHUNK_STRATEGY_CONFIGS[rechunkForm.chunkStrategy]?.label || ''
+)
 
 const pagination = usePagination()
 
@@ -361,6 +420,46 @@ async function doReject() {
     fetchDocInfo()
   } catch { /* cancelled */ }
   finally { reviewing.value = false }
+}
+
+// --- 重新分块 ---
+function openRechunkDialog() {
+  rechunkForm.chunkStrategy = 'semantic'
+  initRechunkParams('semantic')
+  rechunkVisible.value = true
+}
+
+function initRechunkParams(strategy: string) {
+  const fields = CHUNK_STRATEGY_CONFIGS[strategy]?.fields || []
+  const defaults: Record<string, any> = {}
+  for (const f of fields) {
+    defaults[f.key] = f.default
+  }
+  Object.keys(rechunkParams).forEach(k => delete rechunkParams[k])
+  Object.assign(rechunkParams, defaults)
+}
+
+function onRechunkStrategyChange(strategy: string) {
+  initRechunkParams(strategy)
+}
+
+function resetRechunkParams() {
+  initRechunkParams(rechunkForm.chunkStrategy)
+}
+
+async function handleRechunk() {
+  rechunking.value = true
+  try {
+    const configJson = JSON.stringify({ ...rechunkParams })
+    await fileApi.rechunk(docId, rechunkForm.chunkStrategy, configJson)
+    ElMessage.success('重新分块任务已发起，请等待分块完成后刷新页面')
+    rechunkVisible.value = false
+    fetchDocInfo()
+  } catch {
+    ElMessage.error('重新分块失败')
+  } finally {
+    rechunking.value = false
+  }
 }
 
 watch(pagination.params, () => fetchChunks(), { immediate: true })
