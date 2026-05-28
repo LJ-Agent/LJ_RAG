@@ -454,6 +454,10 @@ async function handleRechunk() {
     await fileApi.rechunk(docId, rechunkForm.chunkStrategy, configJson)
     ElMessage.success('重新分块任务已发起，请等待分块完成后刷新页面')
     rechunkVisible.value = false
+    // 清空旧分块列表，刷新文档状态为"分块中"
+    chunkList.value = []
+    stats.value = null
+    selectedChunk.value = null
     fetchDocInfo()
   } catch {
     ElMessage.error('重新分块失败')
