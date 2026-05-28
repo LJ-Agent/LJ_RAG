@@ -357,6 +357,44 @@ services:
     networks:
       - rag-network
 
+  # ==================== 11. RAG-CLEANING 文档清洗服务 (gRPC :50056 + Kafka) ====================
+  rag-cleaning:
+    build:
+      context: ../RAG-CLEANING
+      dockerfile: docker/Dockerfile
+    image: rag-cleaning:latest
+    container_name: rag-cleaning
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${GRPC_CLEANING_PORT:-50056}:50056"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ../RAG-CLEANING/config:/app/config:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('localhost:50056'); grpc.channel_ready_future(ch).result(timeout=3)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - rag-network
+
 # ==================== 卷 ====================
 volumes:
   mysql_data:
