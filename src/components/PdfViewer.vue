@@ -60,7 +60,7 @@ async function render() {
       console.warn('[PdfViewer] matchPage:', matchPage)
     }
 
-    console.warn('[PdfViewer] Before canvas loop - pdf-page-1 exists:', !!document.getElementById('pdf-page-1'))
+    console.warn('[PdfViewer] Before canvas loop - id check:', !!document.getElementById('pdf-page-1'), 'page-wrap count:', document.querySelectorAll('.pdf-page-wrap').length)
 
     // 第二遍：渲染所有页 canvas
     for (let i = 1; i <= doc.numPages; i++) {
