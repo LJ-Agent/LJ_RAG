@@ -88,26 +88,36 @@ async function render() {
       pageEl.style.position = 'relative'
       pageEl.appendChild(hlLayer)
 
-      const headNeedle = searchText.substring(0, Math.min(60, searchText.length))
-      const shortWords = headNeedle.replace(/(.{2,8})/g, '$1|').split('|').filter((s: string) => s.length >= 2)
-      const matchedIndices: number[] = []
+      // 在页面全文（拼接标准化）中定位块文本的起止位置
+      const itemsWithText = tc.items.map((item: any, idx: number) => ({ item, idx, norm: fn(item.str) })).filter((x: any) => x.norm)
+      const pageFullText = itemsWithText.map((x: any) => x.norm).join('')
 
-      tc.items.forEach((item: any, idx: number) => {
-        const spanNorm = fn(item.str)
-        if (!spanNorm) return
-        if (headNeedle.includes(spanNorm) || shortWords.some((w: string) => w.length >= 3 && spanNorm.includes(w))) {
-          matchedIndices.push(idx)
+      // 用块文本的前后各 80 字符在页面全文中定位
+      const chunkHead = searchText.substring(0, Math.min(80, searchText.length))
+      const chunkTail = searchText.substring(Math.max(0, searchText.length - 80))
+      const headPos = pageFullText.indexOf(chunkHead)
+      const tailPos = pageFullText.lastIndexOf(chunkTail)
+
+      if (headPos !== -1) {
+        // 找到起始和结束的文本项索引
+        let startIdx = 0, endIdx = itemsWithText.length - 1
+        let charCount = 0
+        for (let i = 0; i < itemsWithText.length; i++) {
+          charCount += itemsWithText[i].norm.length
+          if (charCount > headPos) { startIdx = i; break }
         }
-      })
+        if (tailPos !== -1) {
+          charCount = 0
+          for (let i = 0; i < itemsWithText.length; i++) {
+            charCount += itemsWithText[i].norm.length
+            if (charCount > tailPos + chunkTail.length) { endIdx = i; break }
+          }
+        }
 
-      if (matchedIndices.length > 0) {
-        // 将首尾匹配项之间的所有文本项都纳入标黄范围，确保连续覆盖
-        const firstIdx = matchedIndices[0]
-        const lastIdx = matchedIndices[matchedIndices.length - 1]
-        const allInRange = tc.items.slice(firstIdx, lastIdx + 1).filter((item: any) => fn(item.str))
+        const highlightItems = itemsWithText.slice(startIdx, endIdx + 1)
 
         let ml = Infinity, mt = Infinity, mr = -Infinity, mb = -Infinity
-        allInRange.forEach((item: any) => {
+        highlightItems.forEach(({ item }: any) => {
           const tx = item.transform
           const x = tx[4]
           const y = tx[5] - item.height * 0.8
