@@ -97,9 +97,9 @@ async function render() {
       const headPos = pageFullText.indexOf(chunkHead)
 
       if (headPos !== -1) {
-        // 使用更大段头部（200字符）确保覆盖范围足够
-        const bigHead = searchText.substring(0, Math.min(200, searchText.length))
-        const bigHeadEnd = headPos + bigHead.length
+        // 用整个块文本长度作为覆盖范围（块起于页首，最多覆盖整个页面）
+        const coverLen = Math.min(searchText.length, pageFullText.length - headPos)
+        const coverEnd = headPos + coverLen
 
         // 将字符位置映射回文本项索引
         let startIdx = 0, endIdx = itemsWithText.length - 1
@@ -109,7 +109,7 @@ async function render() {
           const prevCount = charCount
           charCount += itemsWithText[i].norm.length
           if (!foundStart && charCount > headPos) { startIdx = i; foundStart = true }
-          if (charCount >= bigHeadEnd) { endIdx = i; break }
+          if (charCount >= coverEnd) { endIdx = i; break }
         }
 
         console.warn('[PdfViewer] startIdx:', startIdx, 'endIdx:', endIdx, 'totalItems:', itemsWithText.length)
