@@ -30,33 +30,39 @@ function buildHighlight(html: string, chunk: string): string {
   const normText = fn(textOnly)
   const normChunk = fn(trimmed)
 
-  // 标准全文匹配
-  let textIdx = normText.indexOf(normChunk)
-  let matchLen = normChunk.length
-  if (textIdx === -1) {
-    // 首80字符匹配
-    const head = normChunk.substring(0, Math.min(80, normChunk.length))
-    textIdx = normText.indexOf(head)
-    matchLen = head.length
-  }
-  if (textIdx === -1) {
-    // 原始文本匹配
-    const raw = trimmed.substring(0, Math.min(200, trimmed.length))
-    textIdx = textOnly.indexOf(raw)
-    matchLen = raw.length
-  }
-  if (textIdx === -1) return html
+  let normStart = normText.indexOf(normChunk)
+  let normEnd = normStart !== -1 ? normStart + normChunk.length : -1
 
-  // 将纯文本位置映射回 HTML（跨越 HTML 标签）
-  let realStart = 0, normCount = 0
-  for (let i = 0; i < textOnly.length && normCount < textIdx; i++) {
-    if (fn(textOnly[i])) normCount++
-    realStart = i + 1
+  if (normStart === -1) {
+    const head = normChunk.substring(0, Math.min(80, normChunk.length))
+    normStart = normText.indexOf(head)
+    if (normStart !== -1) {
+      let bestEnd = normStart + head.length
+      const remaining = normChunk.substring(head.length)
+      let pi = normStart + head.length, ci = 0
+      while (pi < normText.length && ci < remaining.length) {
+        if (normText[pi] === remaining[ci]) { ci++; pi++; bestEnd = pi }
+        else if (ci > 10) break
+        else { pi++; ci = 0; bestEnd = pi - ci }
+      }
+      normEnd = bestEnd
+    } else {
+      const raw = trimmed.substring(0, Math.min(200, trimmed.length))
+      const ri = textOnly.indexOf(raw)
+      if (ri !== -1) { normStart = ri; normEnd = ri + raw.length }
+    }
   }
-  let realEnd = realStart; normCount = 0
-  for (let i = realStart; i < textOnly.length && normCount < matchLen; i++) {
-    if (fn(textOnly[i])) normCount++
-    realEnd = i + 1
+  if (normStart === -1) return html
+
+  let realStart = 0, nc = 0
+  for (let i = 0; i < textOnly.length; i++) {
+    if (fn(textOnly[i])) nc++
+    if (nc > normStart) { realStart = i; break }
+  }
+  let realEnd = textOnly.length; nc = 0
+  for (let i = realStart; i < textOnly.length; i++) {
+    if (fn(textOnly[i])) nc++
+    if (nc >= normEnd - normStart) { realEnd = i + 1; break }
   }
 
   let plainPos = 0, htmlPos = 0, inTag = false

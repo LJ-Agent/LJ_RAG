@@ -27,51 +27,58 @@ function buildHighlight(html: string, chunk: string): string {
   const trimmed = chunk.trim()
   if (!trimmed) return html
 
-  // 提取纯文本并标准化
+  // 提取纯文本
   const textOnly = html.replace(/<[^>]+>/g, '')
   const normText = fn(textOnly)
   const normChunk = fn(trimmed)
 
-  // 多级匹配策略
-  let textIdx = -1, matchLen = 0
+  // 在标准化文本中定位：全文匹配 → 头80字 → 头200字原文本
+  let normStart = normText.indexOf(normChunk)
+  let normEnd = normStart !== -1 ? normStart + normChunk.length : -1
 
-  // 1) 标准化全文匹配
-  const ni = normText.indexOf(normChunk)
-  if (ni !== -1) { textIdx = ni; matchLen = normChunk.length }
-  else {
-    // 2) 首 80 字符标准化匹配
+  if (normStart === -1) {
     const head = normChunk.substring(0, Math.min(80, normChunk.length))
-    const hi = normText.indexOf(head)
-    if (hi !== -1) { textIdx = hi; matchLen = head.length }
-    else {
-      // 3) 首 200 字符原始文本匹配
+    normStart = normText.indexOf(head)
+    if (normStart !== -1) {
+      // 从头匹配位置向后尽可能延伸
+      let bestEnd = normStart + head.length
+      const remaining = normChunk.substring(head.length)
+      let pi = normStart + head.length
+      let ci = 0
+      while (pi < normText.length && ci < remaining.length) {
+        if (normText[pi] === remaining[ci]) { ci++; pi++; bestEnd = pi }
+        else if (ci > 10) break  // 连续匹配超过10字后断开
+        else { pi++; ci = 0; bestEnd = pi - ci }
+      }
+      normEnd = bestEnd
+    } else {
       const raw = trimmed.substring(0, Math.min(200, trimmed.length))
       const ri = textOnly.indexOf(raw)
-      if (ri !== -1) { textIdx = ri; matchLen = raw.length }
+      if (ri !== -1) {
+        normStart = ri
+        normEnd = ri + raw.length
+      }
     }
   }
 
-  if (textIdx === -1) return html
+  if (normStart === -1) return html
 
-  // 将纯文本位置映射回 HTML（跨越 HTML 标签）
+  // 将标准化位置映射回纯文本位置
+  let realStart = 0, nc = 0
+  for (let i = 0; i < textOnly.length; i++) {
+    if (fn(textOnly[i])) nc++
+    if (nc > normStart) { realStart = i; break }
+  }
+  let realEnd = textOnly.length
+  nc = 0
+  for (let i = realStart; i < textOnly.length; i++) {
+    if (fn(textOnly[i])) nc++
+    if (nc >= normEnd - normStart) { realEnd = i + 1; break }
+  }
+
+  // 在 HTML 中定位 realStart 和 realEnd（跨标签）
   let plainPos = 0, htmlPos = 0, inTag = false
   let startHtml = -1, endHtml = -1
-
-  // 跳过标准化空白，找到匹配在纯文本中的实际起始位置
-  let realStart = 0, normCount = 0
-  for (let i = 0; i < textOnly.length && normCount < textIdx; i++) {
-    if (fn(textOnly[i])) normCount++
-    realStart = i + 1
-  }
-  // 匹配长度在纯文本中的实际结束位置
-  let realEnd = realStart
-  normCount = 0
-  for (let i = realStart; i < textOnly.length && normCount < matchLen; i++) {
-    if (fn(textOnly[i])) normCount++
-    realEnd = i + 1
-  }
-
-  // 在 HTML 中定位 realStart 和 realEnd 对应的字符位置
   while (htmlPos < html.length) {
     if (html[htmlPos] === '<') inTag = true
     else if (html[htmlPos] === '>') inTag = false
