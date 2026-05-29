@@ -110,29 +110,12 @@ function buildHighlight(html: string, chunk: string): string {
 
 onMounted(async () => {
   try {
-    const [cleaned, buf] = await Promise.all([
-      fileApi.getContent(props.docId).catch(() => ''),
-      fileApi.getRawArrayBuffer(props.docId).catch(() => null),
-    ])
-
-    let parts: string[] = []
-
-    // Word 原文件渲染（mammoth）
-    if (buf) {
-      const mammoth = await import('mammoth')
-      const result = await mammoth.convertToHtml({ arrayBuffer: buf })
-      parts.push('<div style="border-bottom:2px solid #409eff;padding-bottom:8px;margin-bottom:16px;font-weight:600;color:#303133;">Word 原文件</div>')
-      parts.push('<div style="margin-bottom:24px;">' + result.value + '</div>')
-    }
-
-    // 清洗后文本 + 精确标黄（块由此提取，100%匹配）
-    if (cleaned) {
-      parts.push('<div style="border-bottom:2px solid #e6a23c;padding-bottom:8px;margin-bottom:16px;font-weight:600;color:#303133;">文本对照 · 标黄处为本块对应内容</div>')
-      const pre = '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.9;font-size:15px;color:#303133;font-family:inherit;">'
-      parts.push(pre + buildHighlight(escapeHtml(cleaned), props.highlightText) + '</pre>')
-    }
-
-    highlightedHtml.value = parts.join('')
+    const buf = await fileApi.getRawArrayBuffer(props.docId)
+    const mammoth = await import('mammoth')
+    const result = await mammoth.convertToHtml({ arrayBuffer: buf })
+    // 在原文件 HTML 中尝试标黄，失败则仅展示原文件
+    const withHighlight = buildHighlight(result.value, props.highlightText)
+    highlightedHtml.value = withHighlight
     await nextTick()
     setTimeout(() => {
       const el = document.getElementById('raw-anchor')
