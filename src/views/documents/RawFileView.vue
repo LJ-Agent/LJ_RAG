@@ -8,9 +8,6 @@
         <el-icon><Document /></el-icon>
         {{ docName }}
       </span>
-      <el-button size="small" @click="openInNewTab" style="margin-left:auto">
-        <el-icon><CopyDocument /></el-icon> 在新标签页中查看（含标黄定位）
-      </el-button>
     </div>
 
     <div v-loading="loading" class="raw-file-body">
@@ -61,7 +58,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Document, Download, Collection, WarningFilled, CopyDocument } from '@element-plus/icons-vue'
+import { ArrowLeft, Document, Download, Collection, WarningFilled } from '@element-plus/icons-vue'
 import { fileApi } from '@/api/modules/files'
 import { getAccessToken } from '@/utils/token'
 import PdfViewer from '@/components/PdfViewer.vue'
@@ -159,15 +156,6 @@ function buildHighlight(docText: string): string {
 function goBack() {
   if (window.history.length > 1) router.back()
   else window.close()
-}
-
-function openInNewTab() {
-  // 在新标签页中打开 RawFileView（含标黄定位），而非直接打开原始文件
-  const resolved = router.resolve({
-    path: `/documents/${docId}/raw-view`,
-    query: { chunkText: chunkText },
-  })
-  window.open(resolved.href, '_blank')
 }
 
 function openRawFile() {
