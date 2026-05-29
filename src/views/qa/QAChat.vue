@@ -165,42 +165,53 @@
   </div>
 
   <!-- 块详情弹窗（含原文对照） -->
-  <el-dialog v-model="chunkDetailVisible" title="块详情" width="900px" destroy-on-close top="5vh" @opened="scrollToHighlight">
+  <el-dialog v-model="chunkDetailVisible" :title="'块详情 — ' + chunkDocName" width="960px" destroy-on-close top="3vh" @opened="scrollToHighlight">
     <template v-if="chunkDetailLoading">
       <el-skeleton :rows="10" animated />
     </template>
     <template v-else-if="chunkDetail">
-      <!-- 块信息 -->
-      <el-descriptions :column="3" border size="small" style="margin-bottom: 16px">
+      <!-- 块元数据 -->
+      <el-descriptions :column="4" border size="small" style="margin-bottom: 16px">
         <el-descriptions-item label="文档">{{ chunkDocName }}</el-descriptions-item>
         <el-descriptions-item label="块序号">#{{ chunkDetail.chunkIndex }}</el-descriptions-item>
         <el-descriptions-item label="字符数">{{ chunkDetail.charCount }}</el-descriptions-item>
+        <el-descriptions-item label="层级">{{ chunkDetail.level }}</el-descriptions-item>
+        <el-descriptions-item label="数据库ID">{{ chunkDetail.id }}</el-descriptions-item>
+        <el-descriptions-item label="业务ID">{{ chunkDetail.chunkId }}</el-descriptions-item>
+        <el-descriptions-item label="父块ID">{{ chunkDetail.parentId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="chunkDetail.status === 'ACTIVE' ? 'success' : 'danger'" size="small">
+            {{ chunkDetail.status === 'ACTIVE' ? '活跃' : '已删除' }}
+          </el-tag>
+        </el-descriptions-item>
       </el-descriptions>
 
       <!-- 块内容 -->
       <div class="chunk-detail-section">
         <div class="chunk-detail-section-title">
-          <el-icon><Collection /></el-icon> 块内容
+          <el-icon><Collection /></el-icon> 块内容（Markdown）
         </div>
         <div class="chunk-detail-content markdown-body" v-html="renderMarkdown(chunkDetail.content || '')"></div>
       </div>
 
       <!-- 原文对照 -->
-      <div class="chunk-detail-section" v-if="docContent">
+      <div class="chunk-detail-section" v-if="rawContent">
         <div class="chunk-detail-section-title">
-          <el-icon><Document /></el-icon> 原文对照（标黄处为对应块内容）
+          <el-icon><Document /></el-icon> 原文对照 · 标黄处为块对应内容
         </div>
         <div ref="docContentRef" class="chunk-doc-content">
           <pre class="doc-text" v-html="highlightedDocContent"></pre>
         </div>
       </div>
-      <div v-else-if="!chunkDetailLoading && docContentError" class="chunk-doc-empty">
-        {{ docContentError }}
+      <div v-else-if="!chunkDetailLoading && rawContentError" class="chunk-doc-empty">
+        {{ rawContentError }}
       </div>
     </template>
     <template #footer>
       <el-button @click="chunkDetailVisible = false">关闭</el-button>
-      <el-button type="primary" @click="goToChunkDetailPage">在新页面打开完整详情</el-button>
+      <el-button type="primary" @click="openRawFileById(currentDocId)">
+        <el-icon><Document /></el-icon> 查看原文件
+      </el-button>
     </template>
   </el-dialog>
 </template>
@@ -249,8 +260,9 @@ const chunkDetailVisible = ref(false)
 const chunkDetailLoading = ref(false)
 const chunkDetail = ref<ChunkVO | null>(null)
 const chunkDocName = ref('')
-const docContent = ref('')
-const docContentError = ref('')
+const currentDocId = ref(0)
+const rawContent = ref('')
+const rawContentError = ref('')
 const docContentRef = ref<HTMLElement>()
 const highlightedDocContent = ref('')
 
@@ -385,23 +397,17 @@ function goToChunkDetail(chunkId: string) {
   router.push(`/chunks/${encodeURIComponent(chunkId)}/detail`)
 }
 
-function goToChunkDetailPage() {
-  if (chunkDetail.value) {
-    router.push(`/chunks/${encodeURIComponent(chunkDetail.value.chunkId)}/detail`)
-  }
-}
-
 async function openChunkDetail(chunkId: string, documentId: number, chunkContent: string) {
   chunkDetailVisible.value = true
   chunkDetailLoading.value = true
   chunkDetail.value = null
   chunkDocName.value = ''
-  docContent.value = ''
-  docContentError.value = ''
+  currentDocId.value = documentId
+  rawContent.value = ''
+  rawContentError.value = ''
   highlightedDocContent.value = ''
 
   try {
-    // 并行加载块详情和文档内容
     const [chunk, docInfo] = await Promise.all([
       chunkApi.getByChunkId(chunkId),
       fileApi.detail(documentId).catch(() => null),
@@ -409,49 +415,52 @@ async function openChunkDetail(chunkId: string, documentId: number, chunkContent
     chunkDetail.value = chunk
     chunkDocName.value = docInfo?.fileName || `文档#${documentId}`
 
-    // 加载原文内容
+    // 加载原文件内容
     try {
-      const text = await fileApi.getContent(documentId)
-      docContent.value = text
-      // 高亮块内容在原文中的位置
-      highlightedDocContent.value = buildHighlightedDoc(text, chunkContent)
+      const text = await fileApi.getRawContent(documentId)
+      // 检测是否为可读文本（排除明显的二进制内容）
+      const printable = text.replace(/[\x20-\x7E一-鿿　-〿＀-￯\n\r\t]/g, '')
+      if (printable.length > text.length * 0.3) {
+        // 二进制文件，无法直接展示文本
+        rawContentError.value = '原文件为二进制格式（PDF/Word/PPT等），无法在此直接展示文本对照。请点击"查看原文件"按钮打开原文件，或前往分块详情页查看。'
+      } else {
+        rawContent.value = text
+        highlightedDocContent.value = buildHighlightedDoc(text, chunkContent)
+      }
     } catch {
-      docContentError.value = '无法加载原文内容'
+      rawContentError.value = '无法加载原文件内容'
     }
   } catch {
-    docContentError.value = '加载块详情失败'
+    rawContentError.value = '加载块详情失败'
   } finally {
     chunkDetailLoading.value = false
   }
 }
 
 function buildHighlightedDoc(docText: string, chunkText: string): string {
-  const escaped = escapeHtml(docText)
   const trimmed = chunkText.trim()
-  if (!trimmed) return escaped
+  if (!trimmed) return escapeHtml(docText)
 
-  // 在原文中查找块内容（忽略前后空白差异）
-  const idx = docText.indexOf(trimmed)
-  if (idx === -1) {
-    // 尝试查找前100字符的匹配
-    const shortChunk = trimmed.substring(0, Math.min(100, trimmed.length))
-    const shortIdx = docText.indexOf(shortChunk)
-    if (shortIdx === -1) {
-      // 完全匹配不上，返回转义后的原文并在顶部提示
-      return '<p style="color:#909399;">（未找到块内容在原文中的精确位置）</p>' + escaped
+  // 多级匹配策略：完整匹配 → 首200字符 → 首100字符 → 首句
+  const strategies = [
+    trimmed,
+    trimmed.substring(0, Math.min(200, trimmed.length)),
+    trimmed.substring(0, Math.min(100, trimmed.length)),
+    trimmed.split(/[。！？\n]/)[0]?.trim(),
+  ].filter(s => s && s.length >= 10)
+
+  for (const search of strategies) {
+    const idx = docText.indexOf(search!)
+    if (idx !== -1) {
+      const endIdx = idx + trimmed.length
+      const before = escapeHtml(docText.substring(0, idx))
+      const match = escapeHtml(docText.substring(idx, Math.min(endIdx, docText.length)))
+      const after = escapeHtml(docText.substring(Math.min(endIdx, docText.length)))
+      return before + '<mark class="chunk-highlight" id="chunk-highlight-anchor">' + match + '</mark>' + after
     }
-    // 标记短匹配的结束位置为 chunk 末尾
-    const endIdx = shortIdx + trimmed.length
-    const before = escapeHtml(docText.substring(0, shortIdx))
-    const match = escapeHtml(docText.substring(shortIdx, Math.min(endIdx, docText.length)))
-    const after = escapeHtml(docText.substring(Math.min(endIdx, docText.length)))
-    return before + '<mark class="chunk-highlight">' + match + '</mark>' + after
   }
 
-  const before = escapeHtml(docText.substring(0, idx))
-  const match = escapeHtml(docText.substring(idx, idx + trimmed.length))
-  const after = escapeHtml(docText.substring(idx + trimmed.length))
-  return before + '<mark class="chunk-highlight" id="chunk-highlight-anchor">' + match + '</mark>' + after
+  return '<p style="color:#909399;margin-bottom:8px;">（原文件与清洗后文本差异较大，无法精确定位块内容）</p>' + escapeHtml(docText)
 }
 
 function scrollToHighlight() {

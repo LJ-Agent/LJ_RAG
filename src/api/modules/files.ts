@@ -1,6 +1,7 @@
 import request from '@/api/request'
 import type { FileVO, FileQueryDTO } from '@/api/types/file'
 import type { Page } from '@/api/types/common'
+import { getAccessToken } from '@/utils/token'
 
 const BASE = '/files'
 
@@ -53,6 +54,16 @@ export const fileApi = {
 
   getContent: (id: number): Promise<string> =>
     request.get(`${BASE}/${id}/content`, { responseType: 'text' }),
+
+  getRawContent: async (id: number): Promise<string> => {
+    // 获取原始文件文本（仅对文本文件有效，二进制文件会返回乱码）
+    const token = getAccessToken()
+    const resp = await fetch(`${import.meta.env.VITE_API_BASE_URL}/files/${id}/raw`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!resp.ok) throw new Error('Failed to fetch raw content')
+    return resp.text()
+  },
 
   getRawBlobUrl: async (id: number): Promise<string> => {
     const response = await request.get(`${BASE}/${id}/raw`, {
