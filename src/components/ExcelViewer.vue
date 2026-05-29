@@ -21,17 +21,53 @@ const error = ref('')
 const highlightedHtml = ref('')
 const contentRef = ref<HTMLElement>()
 
+function fn(s: string): string { return s.replace(/\s+/g, '').replace(/[\f]/g, '') }
+
 function buildHighlight(html: string, chunk: string): string {
   const trimmed = chunk.trim()
   if (!trimmed) return html
-  const idx = html.indexOf(trimmed)
-  if (idx === -1) return html
+  const textOnly = html.replace(/<[^>]+>/g, '')
+  const normText = fn(textOnly)
+  const normChunk = fn(trimmed)
+
+  // 标准全文匹配
+  let textIdx = normText.indexOf(normChunk)
+  let matchLen = normChunk.length
+  if (textIdx === -1) {
+    // 首80字符匹配
+    const head = normChunk.substring(0, Math.min(80, normChunk.length))
+    textIdx = normText.indexOf(head)
+    matchLen = head.length
+  }
+  if (textIdx === -1) {
+    // 原始文本匹配
+    const raw = trimmed.substring(0, Math.min(200, trimmed.length))
+    textIdx = textOnly.indexOf(raw)
+    matchLen = raw.length
+  }
+  if (textIdx === -1) return html
+
+  // 映射回原始文本位置
+  let origStart = 0, np = 0
+  for (let i = 0; i < textOnly.length && np < textIdx; i++) {
+    if (fn(textOnly[i])) { np++; origStart = i + 1 }
+    else { origStart = i + 1 }
+  }
+  let origEnd = origStart; np = 0
+  for (let i = origStart; i < textOnly.length && np < matchLen; i++) {
+    if (fn(textOnly[i])) np++
+    origEnd = i + 1
+  }
+  const matched = textOnly.substring(origStart, origEnd)
+  const htmlIdx = html.indexOf(matched)
+  if (htmlIdx === -1) return html
+
   return (
-    html.substring(0, idx) +
+    html.substring(0, htmlIdx) +
     '<mark class="raw-chunk-highlight" id="raw-anchor">' +
-    html.substring(idx, idx + trimmed.length) +
+    html.substring(htmlIdx, htmlIdx + matched.length) +
     '</mark>' +
-    html.substring(idx + trimmed.length)
+    html.substring(htmlIdx + matched.length)
   )
 }
 
@@ -68,4 +104,14 @@ onMounted(async () => {
 .excel-content :deep(table) { border-collapse:collapse; font-size:13px; }
 .excel-content :deep(td) { border:1px solid #d0d0d0; padding:4px 8px; min-width:60px; }
 .excel-content :deep(th) { border:1px solid #d0d0d0; padding:4px 8px; background:#f5f5f5; }
+</style>
+
+<style>
+mark.raw-chunk-highlight {
+  background: #fef08a;
+  color: #92400e;
+  padding: 2px 4px;
+  border-radius: 2px;
+  scroll-margin-top: 80px;
+}
 </style>
