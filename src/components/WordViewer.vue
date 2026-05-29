@@ -27,54 +27,60 @@ function buildHighlight(html: string, chunk: string): string {
   const trimmed = chunk.trim()
   if (!trimmed) return html
 
-  // 提取纯文本
   const textOnly = html.replace(/<[^>]+>/g, '')
   const normText = fn(textOnly)
   const normChunk = fn(trimmed)
 
-  // 在标准化文本中定位：全文匹配 → 头80字 → 头200字原文本
-  let normStart = normText.indexOf(normChunk)
-  let normEnd = normStart !== -1 ? normStart + normChunk.length : -1
+  // 纯文本起止位置（原始坐标），-1 表示未找到
+  let realStart = -1, realEnd = -1
 
-  if (normStart === -1) {
+  // 策略 1：标准化全文匹配 → 映射回原始坐标
+  const nFull = normText.indexOf(normChunk)
+  if (nFull !== -1) {
+    let nc = 0
+    for (let i = 0; i < textOnly.length; i++) {
+      if (fn(textOnly[i])) nc++
+      if (nc > nFull && realStart === -1) realStart = i
+      if (nc >= nFull + normChunk.length) { realEnd = i + 1; break }
+    }
+  }
+
+  // 策略 2：标准化头部 80 字匹配 + 向后延伸
+  if (realStart === -1) {
     const head = normChunk.substring(0, Math.min(80, normChunk.length))
-    normStart = normText.indexOf(head)
-    if (normStart !== -1) {
-      // 从头匹配位置向后尽可能延伸
-      let bestEnd = normStart + head.length
+    const nHead = normText.indexOf(head)
+    if (nHead !== -1) {
+      // 在标准化空间中延伸
+      let bestNEnd = nHead + head.length
       const remaining = normChunk.substring(head.length)
-      let pi = normStart + head.length
-      let ci = 0
+      let pi = nHead + head.length, ci = 0
       while (pi < normText.length && ci < remaining.length) {
-        if (normText[pi] === remaining[ci]) { ci++; pi++; bestEnd = pi }
-        else if (ci > 10) break  // 连续匹配超过10字后断开
-        else { pi++; ci = 0; bestEnd = pi - ci }
+        if (normText[pi] === remaining[ci]) { ci++; pi++; bestNEnd = pi }
+        else if (ci > 8) break
+        else { pi++; ci = 0; bestNEnd = pi - ci }
       }
-      normEnd = bestEnd
-    } else {
-      const raw = trimmed.substring(0, Math.min(200, trimmed.length))
-      const ri = textOnly.indexOf(raw)
-      if (ri !== -1) {
-        normStart = ri
-        normEnd = ri + raw.length
+      // 映射回原始坐标
+      let nc = 0
+      for (let i = 0; i < textOnly.length; i++) {
+        if (fn(textOnly[i])) nc++
+        if (nc > nHead && realStart === -1) realStart = i
+        if (nc >= bestNEnd) { realEnd = i + 1; break }
       }
     }
   }
 
-  if (normStart === -1) return html
+  // 策略 3：原始文本首 200 字符直接匹配（使用原始坐标）
+  if (realStart === -1) {
+    const raw = trimmed.substring(0, Math.min(200, trimmed.length))
+    const ri = textOnly.indexOf(raw)
+    if (ri !== -1) {
+      realStart = ri
+      realEnd = ri + raw.length
+    }
+  }
 
-  // 将标准化位置映射回纯文本位置
-  let realStart = 0, nc = 0
-  for (let i = 0; i < textOnly.length; i++) {
-    if (fn(textOnly[i])) nc++
-    if (nc > normStart) { realStart = i; break }
-  }
-  let realEnd = textOnly.length
-  nc = 0
-  for (let i = realStart; i < textOnly.length; i++) {
-    if (fn(textOnly[i])) nc++
-    if (nc >= normEnd - normStart) { realEnd = i + 1; break }
-  }
+  if (realStart === -1) return html
+  if (realEnd === -1) realEnd = textOnly.length
 
   // 在 HTML 中定位 realStart 和 realEnd（跨标签）
   let plainPos = 0, htmlPos = 0, inTag = false
