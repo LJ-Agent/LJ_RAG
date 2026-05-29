@@ -115,40 +115,37 @@ async function render() {
         }
 
         const highlightItems = itemsWithText.slice(startIdx, endIdx + 1)
+        let firstBar: HTMLElement | null = null
 
-        let ml = Infinity, mt = Infinity, mr = -Infinity, mb = -Infinity
-        highlightItems.forEach(({ item }: any) => {
+        // 逐项精确标黄，每个文本项独立高亮条
+        highlightItems.forEach(({ item }: any, hi: number) => {
           const tx = item.transform
           const x = tx[4]
           const y = tx[5] - item.height * 0.8
           const w = item.width || (item.str.length * Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]) * 0.6)
           const h = item.height || Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])
-          if (x < ml) ml = x
-          if (y < mt) mt = y
-          if (x + w > mr) mr = x + w
-          if (y + h > mb) mb = y + h
+          const bar = document.createElement('div')
+          bar.style.cssText = [
+            'position:absolute',
+            `left:${x - 1}px`,
+            `top:${y - 1}px`,
+            `width:${Math.max(w + 4, 20)}px`,
+            `height:${h + 2}px`,
+            'background:rgba(254,240,138,0.7)',
+            'border-radius:1px',
+            'pointer-events:none',
+            'z-index:11',
+          ].join(';')
+          if (hi === 0) {
+            bar.id = 'pdf-highlight-anchor'
+            bar.style.scrollMarginTop = '80px'
+            firstBar = bar
+          }
+          hlLayer.appendChild(bar)
         })
 
-        const highlight = document.createElement('div')
-        highlight.style.cssText = [
-          'position:absolute',
-          `left:${ml - 6}px`,
-          `top:${mt - 4}px`,
-          `width:${Math.max(mr - ml + 12, 300)}px`,
-          `height:${Math.max(mb - mt + 8, 24)}px`,
-          'background:rgba(254,240,138,0.55)',
-          'border:1px solid rgba(230,180,30,0.6)',
-          'border-radius:3px',
-          'pointer-events:none',
-          'z-index:11',
-        ].join(';')
-        highlight.id = 'pdf-highlight-anchor'
-        highlight.style.scrollMarginTop = '80px'
-
-        hlLayer.appendChild(highlight)
-
         setTimeout(() => {
-          highlight.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          if (firstBar) firstBar.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }, 500)
       }
     } else if (matchPage > 0) {
