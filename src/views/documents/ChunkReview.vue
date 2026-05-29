@@ -19,24 +19,6 @@
         >
           发起审核 ({{ stats.activeCount }} 个块)
         </el-button>
-        <!-- content-review 模式：审核通过/驳回 -->
-        <template v-if="mode === 'content-review'">
-          <el-button
-            type="danger"
-            :loading="reviewing"
-            @click="doReject"
-          >
-            驳回
-          </el-button>
-          <el-button
-            type="success"
-            :loading="reviewing"
-            :disabled="(stats?.activeCount || 0) === 0"
-            @click="doApprove"
-          >
-            审核通过
-          </el-button>
-        </template>
       </div>
     </div>
 
@@ -201,7 +183,6 @@ import { useRoute } from 'vue-router'
 import { ArrowLeft, Search } from '@element-plus/icons-vue'
 import { chunkApi, type ChunkVO, type ChunkStats } from '@/api/modules/chunks'
 import { fileApi } from '@/api/modules/files'
-import { reviewApi } from '@/api/modules/review'
 import { usePagination } from '@/composables/usePagination'
 import { DOCUMENT_STATUS_MAP } from '@/utils/constants'
 import { CHUNK_STRATEGY_CONFIGS } from '@/api/types/file'
@@ -224,7 +205,6 @@ const createVisible = ref(false)
 const newChunkContent = ref('')
 const creating = ref(false)
 const submittingReview = ref(false)
-const reviewing = ref(false)
 
 // 重新分块
 const rechunkVisible = ref(false)
@@ -389,37 +369,6 @@ async function doStartEmbedding() {
     ElMessage.success('向量化任务已发起')
     fetchDocInfo()
   } catch { /* cancelled */ }
-}
-
-async function doApprove() {
-  try {
-    await ElMessageBox.confirm(
-      '确认审核通过？通过后将发起向量化入库。',
-      '审核通过',
-      { type: 'success', confirmButtonText: '确认通过', cancelButtonText: '取消' }
-    )
-    reviewing.value = true
-    await reviewApi.submit({ documentId: docId, result: 'APPROVED' })
-    ElMessage.success('审核已通过')
-    fetchDocInfo()
-  } catch { /* cancelled */ }
-  finally { reviewing.value = false }
-}
-
-async function doReject() {
-  try {
-    const { value: comment } = await ElMessageBox.prompt('请输入驳回原因', '驳回', {
-      type: 'warning',
-      confirmButtonText: '确认驳回',
-      cancelButtonText: '取消',
-      inputValidator: (v: string) => v?.trim() ? true : '请输入驳回原因',
-    })
-    reviewing.value = true
-    await reviewApi.submit({ documentId: docId, result: 'REJECTED', comment: comment || '' })
-    ElMessage.success('已驳回')
-    fetchDocInfo()
-  } catch { /* cancelled */ }
-  finally { reviewing.value = false }
 }
 
 // --- 重新分块 ---
