@@ -88,30 +88,33 @@ async function render() {
       pageEl.style.position = 'relative'
       pageEl.appendChild(hlLayer)
 
-      // 在页面全文（拼接标准化）中定位块文本的起止位置
+      // 精确匹配：在页面全文中定位块文本的起止字符位置
       const itemsWithText = tc.items.map((item: any, idx: number) => ({ item, idx, norm: fn(item.str) })).filter((x: any) => x.norm)
       const pageFullText = itemsWithText.map((x: any) => x.norm).join('')
 
-      // 用块文本的前后各 80 字符在页面全文中定位
+      // 用块文本头部在页面定位起始位置
       const chunkHead = searchText.substring(0, Math.min(80, searchText.length))
-      const chunkTail = searchText.substring(Math.max(0, searchText.length - 80))
       const headPos = pageFullText.indexOf(chunkHead)
-      const tailPos = pageFullText.lastIndexOf(chunkTail)
 
       if (headPos !== -1) {
-        // 找到起始和结束的文本项索引
+        // 从 headPos 开始，计算块文本与页面文本的最长连续匹配长度
+        let matchLen = chunkHead.length
+        const remainingPage = pageFullText.substring(headPos)
+        const remainingChunk = searchText.substring(chunkHead.length)
+        // 逐字符比较，找到分叉点
+        for (let i = 0; i < Math.min(remainingPage.length, remainingChunk.length); i++) {
+          if (remainingPage[i] === remainingChunk[i]) matchLen++
+          else break
+        }
+        const endPos = headPos + matchLen
+
+        // 将精确字符位置映射回文本项索引
         let startIdx = 0, endIdx = itemsWithText.length - 1
         let charCount = 0
         for (let i = 0; i < itemsWithText.length; i++) {
           charCount += itemsWithText[i].norm.length
-          if (charCount > headPos) { startIdx = i; break }
-        }
-        if (tailPos !== -1) {
-          charCount = 0
-          for (let i = 0; i < itemsWithText.length; i++) {
-            charCount += itemsWithText[i].norm.length
-            if (charCount > tailPos + chunkTail.length) { endIdx = i; break }
-          }
+          if (charCount > headPos && startIdx === 0) startIdx = i
+          if (charCount >= endPos) { endIdx = i; break }
         }
 
         const highlightItems = itemsWithText.slice(startIdx, endIdx + 1)
