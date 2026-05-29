@@ -197,7 +197,7 @@
       <!-- 原文对照 -->
       <div class="chunk-detail-section" v-if="rawContent">
         <div class="chunk-detail-section-title">
-          <el-icon><Document /></el-icon> 文档内容对照 · 标黄处为对应块内容
+          <el-icon><Document /></el-icon> 原文对照 · 标黄处为对应块内容
         </div>
         <div ref="docContentRef" class="chunk-doc-content">
           <pre class="doc-text" v-html="highlightedDocContent"></pre>
@@ -397,6 +397,11 @@ function goToChunkDetail(chunkId: string) {
   router.push(`/chunks/${encodeURIComponent(chunkId)}/detail`)
 }
 
+/** 标准化文本：合并连续空白，用于模糊匹配 */
+function normalizeText(s: string): string {
+  return s.replace(/\s+/g, ' ').trim()
+}
+
 async function openChunkDetail(chunkId: string, documentId: number, chunkContent: string) {
   chunkDetailVisible.value = true
   chunkDetailLoading.value = true
@@ -415,11 +420,21 @@ async function openChunkDetail(chunkId: string, documentId: number, chunkContent
     chunkDetail.value = chunk
     chunkDocName.value = docInfo?.fileName || `文档#${documentId}`
 
-    // 加载清洗后的文档内容做文本对照（块内容由此提取，确保匹配）
+    // 加载原文内容做对照
     try {
-      const text = await fileApi.getContent(documentId)
-      rawContent.value = text
-      highlightedDocContent.value = buildHighlightedDoc(text, chunkContent)
+      const rawText = await fileApi.getRawContent(documentId)
+      // 检测是否为可读文本（排除二进制文件）
+      const sample = rawText.substring(0, 2000)
+      const nonPrintable = sample.replace(/[\x20-\x7E一-鿿　-〿＀-￯\n\r\t]/g, '')
+      if (sample.length > 0 && nonPrintable.length > sample.length * 0.25) {
+        // 二进制文件：用清洗后文本做对照
+        const cleaned = await fileApi.getContent(documentId)
+        rawContent.value = cleaned
+        highlightedDocContent.value = buildHighlightedDoc(cleaned, chunkContent)
+      } else {
+        rawContent.value = rawText
+        highlightedDocContent.value = buildHighlightedDoc(rawText, chunkContent)
+      }
     } catch {
       rawContentError.value = '无法加载文档内容'
     }
@@ -434,9 +449,31 @@ function buildHighlightedDoc(docText: string, chunkText: string): string {
   const trimmed = chunkText.trim()
   if (!trimmed) return escapeHtml(docText)
 
-  // 多级匹配策略：完整匹配 → 首200字符 → 首100字符 → 首句
+  // 策略1：精确匹配
+  const exactIdx = docText.indexOf(trimmed)
+  if (exactIdx !== -1) {
+    const before = escapeHtml(docText.substring(0, exactIdx))
+    const match = escapeHtml(docText.substring(exactIdx, exactIdx + trimmed.length))
+    const after = escapeHtml(docText.substring(exactIdx + trimmed.length))
+    return before + '<mark class="chunk-highlight" id="chunk-highlight-anchor">' + match + '</mark>' + after
+  }
+
+  // 策略2：标准化空白后匹配
+  const normDoc = normalizeText(docText)
+  const normChunk = normalizeText(trimmed)
+  const normIdx = normDoc.indexOf(normChunk)
+  if (normIdx !== -1) {
+    // 将标准化后的位置映射回原文位置（近似）
+    const origPos = mapNormalizedPos(docText, normDoc, normIdx)
+    const origEnd = mapNormalizedPos(docText, normDoc, normIdx + normChunk.length)
+    const before = escapeHtml(docText.substring(0, origPos))
+    const match = escapeHtml(docText.substring(origPos, origEnd))
+    const after = escapeHtml(docText.substring(origEnd))
+    return before + '<mark class="chunk-highlight" id="chunk-highlight-anchor">' + match + '</mark>' + after
+  }
+
+  // 策略3：首200字符 → 首100字符 → 首句
   const strategies = [
-    trimmed,
     trimmed.substring(0, Math.min(200, trimmed.length)),
     trimmed.substring(0, Math.min(100, trimmed.length)),
     trimmed.split(/[。！？\n]/)[0]?.trim(),
@@ -451,19 +488,44 @@ function buildHighlightedDoc(docText: string, chunkText: string): string {
       const after = escapeHtml(docText.substring(Math.min(endIdx, docText.length)))
       return before + '<mark class="chunk-highlight" id="chunk-highlight-anchor">' + match + '</mark>' + after
     }
+    // 也尝试标准化后再匹配
+    const nIdx = normDoc.indexOf(normalizeText(search!))
+    if (nIdx !== -1) {
+      const origPos = mapNormalizedPos(docText, normDoc, nIdx)
+      const origEnd = mapNormalizedPos(docText, normDoc, nIdx + trimmed.length)
+      const before = escapeHtml(docText.substring(0, origPos))
+      const match = escapeHtml(docText.substring(origPos, Math.min(origEnd, docText.length)))
+      const after = escapeHtml(docText.substring(Math.min(origEnd, docText.length)))
+      return before + '<mark class="chunk-highlight" id="chunk-highlight-anchor">' + match + '</mark>' + after
+    }
   }
 
-  return '<p style="color:#909399;margin-bottom:8px;">（原文件与清洗后文本差异较大，无法精确定位块内容）</p>' + escapeHtml(docText)
+  return '<p style="color:#f56c6c;margin-bottom:8px;">（未找到块内容在原文中的对应位置，请点击"查看原文件"查看原始文件）</p>' + escapeHtml(docText)
+}
+
+/** 将标准化文本中的位置映射回原始文本位置 */
+function mapNormalizedPos(original: string, normalized: string, normPos: number): number {
+  let origIdx = 0, normIdx = 0
+  while (normIdx < normPos && origIdx < original.length) {
+    if (/\s/.test(original[origIdx])) {
+      // 跳过原文中的空白，对应标准化文本中的一个空格
+      while (origIdx < original.length && /\s/.test(original[origIdx])) origIdx++
+      if (normIdx < normPos && normalized[normIdx] === ' ') normIdx++
+    } else {
+      origIdx++
+      normIdx++
+    }
+  }
+  return origIdx
 }
 
 function scrollToHighlight() {
-  // 等待 DOM 更新后滚动到高亮位置
   setTimeout(() => {
     const el = document.getElementById('chunk-highlight-anchor')
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
-  }, 100)
+  }, 200)
 }
 
 function scrollToBottom() {
