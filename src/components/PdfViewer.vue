@@ -47,7 +47,20 @@ async function render() {
     const searchText = fn(props.highlightText.trim())
     let matchPage = 0
 
-    // 渲染所有页 canvas
+    // 第一遍：快速扫描所有页文本找到匹配页
+    if (searchText) {
+      const needle = searchText.substring(0, Math.min(60, searchText.length))
+      for (let i = 1; i <= doc.numPages && matchPage === 0; i++) {
+        const page = await doc.getPage(i)
+        const tc = await page.getTextContent()
+        const fullText = fn(tc.items.map((it: any) => it.str).join(''))
+        if (i === 1) console.warn('[PdfViewer] Page 1 text sample:', fullText.substring(0, 200))
+        if (fullText.includes(needle)) matchPage = i
+      }
+      console.warn('[PdfViewer] matchPage:', matchPage)
+    }
+
+    // 第二遍：渲染所有页 canvas
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i)
       const viewport = page.getViewport({ scale })
@@ -63,19 +76,6 @@ async function render() {
 
       const ctx = canvas.getContext('2d')!
       await page.render({ canvasContext: ctx, viewport }).promise
-
-      if (searchText && matchPage === 0) {
-        const tc = await page.getTextContent()
-        const fullText = fn(tc.items.map((it: any) => it.str).join(''))
-        // 搜索块文本的前40字符（标准化后）
-        const needle = searchText.substring(0, Math.min(40, searchText.length))
-        if (i === 1) console.warn('[PdfViewer] Page 1 text sample:', fullText.substring(0, 200))
-        console.warn('[PdfViewer] Page', i, 'searching for:', needle.substring(0, 30))
-        if (fullText.includes(needle)) {
-          console.warn('[PdfViewer] MATCH found on page', i)
-          matchPage = i
-        }
-      }
     }
 
     // 在匹配页上覆盖黄色标记层
