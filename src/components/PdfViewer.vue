@@ -86,6 +86,7 @@ async function loadPdf() {
       // 手动构建文本层（PDF.js 5.x 不再导出 renderTextLayer）
       if (textLayerDiv) {
         const textContent = await page.getTextContent()
+        console.warn('[PdfViewer] Page', i, 'text items:', textContent.items.length, 'textLayerDiv:', !!textLayerDiv)
 
         textLayerDiv.style.height = viewport.height + 'px'
         textLayerDiv.style.width = viewport.width + 'px'
@@ -142,6 +143,9 @@ async function loadPdf() {
           firstMatch.id = 'pdf-highlight-anchor'
           firstMatch.style.scrollMarginTop = '80px'
         }
+        console.warn('[PdfViewer] Page', i, 'created', textLayerDiv.children.length, 'spans, highlighted:', firstMatch ? 'YES' : 'NO')
+      } else {
+        console.warn('[PdfViewer] Page', i, 'textLayerDiv is NULL')
       }
     }
 
