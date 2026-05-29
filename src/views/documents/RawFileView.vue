@@ -192,10 +192,19 @@ async function load() {
 
     highlightedContent.value = buildHighlight(content.value)
     await nextTick()
+    // 等待 DOM 渲染后滚动定位
     setTimeout(() => {
       const el = document.getElementById('raw-anchor')
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 500)
+      if (el) {
+        // 先滚动父容器使标黄元素可见
+        const scrollParent = el.closest('.text-scroll') || el.closest('.split-bottom')
+        if (scrollParent) {
+          const elTop = (el as HTMLElement).offsetTop
+          scrollParent.scrollTop = Math.max(0, elTop - scrollParent.clientHeight / 3)
+        }
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 600)
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
