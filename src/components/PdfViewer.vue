@@ -28,6 +28,8 @@ const props = defineProps<{
   highlightText: string
 }>()
 
+console.warn('[PdfViewer] COMPONENT LOADED', new Date().toISOString())
+
 const loading = ref(true)
 const containerRef = ref<HTMLElement>()
 const pageCount = ref(0)
@@ -36,6 +38,7 @@ const fn = (t: string) => t.replace(/\s+/g, '').replace(/[\f]/g, '')
 const scale = 1.5
 
 async function searchAndRender() {
+  console.warn('[PdfViewer] searchAndRender START')
   try {
     const doc = await pdfjsLib.getDocument({
       url: props.pdfUrl,
@@ -157,6 +160,7 @@ async function searchAndRender() {
 }
 
 onMounted(() => {
+  console.warn('[PdfViewer] onMounted')
   setTimeout(searchAndRender, 100)
 })
 </script>
