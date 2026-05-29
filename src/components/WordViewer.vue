@@ -21,6 +21,7 @@ const error = ref('')
 const highlightedHtml = ref('')
 const contentRef = ref<HTMLElement>()
 
+function escapeHtml(s: string): string { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 function fn(s: string): string { return s.replace(/\s+/g, '').replace(/[\f]/g, '') }
 
 function buildHighlight(html: string, chunk: string): string {
@@ -109,10 +110,22 @@ function buildHighlight(html: string, chunk: string): string {
 
 onMounted(async () => {
   try {
-    const buf = await fileApi.getRawArrayBuffer(props.docId)
-    const mammoth = await import('mammoth')
-    const result = await mammoth.convertToHtml({ arrayBuffer: buf })
-    highlightedHtml.value = buildHighlight(result.value, props.highlightText)
+    // 优先使用清洗后文本（块由此提取，匹配精准），同时渲染 Word HTML 作为参考
+    const [cleaned, buf] = await Promise.all([
+      fileApi.getContent(props.docId).catch(() => ''),
+      fileApi.getRawArrayBuffer(props.docId).catch(() => null),
+    ])
+
+    if (cleaned) {
+      // 在清洗后文本中标黄（100% 匹配）
+      const pre = '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.9;font-size:15px;color:#303133;font-family:inherit;">'
+      const post = '</pre>'
+      highlightedHtml.value = pre + buildHighlight(escapeHtml(cleaned), props.highlightText) + post
+    } else if (buf) {
+      const mammoth = await import('mammoth')
+      const result = await mammoth.convertToHtml({ arrayBuffer: buf })
+      highlightedHtml.value = buildHighlight(result.value, props.highlightText)
+    }
     await nextTick()
     setTimeout(() => {
       const el = document.getElementById('raw-anchor')
