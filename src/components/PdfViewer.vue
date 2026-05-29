@@ -50,6 +50,15 @@ async function searchAndRender() {
     const searchText = fn(props.highlightText.trim())
     let matchPage = 0
 
+    // 测试：在第一页文本层加一个可见 span 验证代码可达
+    const testDiv = document.getElementById('pdf-text-1')
+    if (testDiv) {
+      const ts = document.createElement('span')
+      ts.textContent = '✓ PDF文本层已激活'
+      ts.style.cssText = 'position:absolute;left:50px;top:50px;font-size:20px;color:red;background:yellow;z-index:999;padding:4px;'
+      testDiv.appendChild(ts)
+    }
+
     // 第一遍：搜索匹配页 + 渲染 canvas
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i)
