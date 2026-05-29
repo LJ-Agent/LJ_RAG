@@ -162,9 +162,9 @@ onMounted(() => setTimeout(render, 100))
 </script>
 
 <style scoped>
-.pdf-viewer { flex:1; display:flex; flex-direction:column; background:#525659; position:relative; min-height:0; height:0; }
+.pdf-viewer { flex:1; display:flex; flex-direction:column; background:#525659; position:relative; min-height:0; }
 .pdf-loading-overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#fff; font-size:14px; background:rgba(82,86,89,0.85); z-index:50; }
-.pdf-container { flex:1; overflow-y:auto; overflow-x:hidden; padding:16px 0; min-height:0; height:0; }
+.pdf-container { flex:1; overflow-y:auto; overflow-x:hidden; padding:16px 0; min-height:0; }
 .pdf-page-wrap { display:flex; justify-content:center; margin-bottom:16px; }
 .pdf-page-inner { position:relative; transform-origin:top center; }
 .pdf-canvas-inner { display:block; }

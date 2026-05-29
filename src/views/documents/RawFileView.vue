@@ -245,7 +245,7 @@ onMounted(load)
 .raw-file-page { display:flex; flex-direction:column; height:calc(100vh - 96px); background:#fff; }
 .raw-file-header { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #e4e7ed; }
 .raw-file-title { font-size:16px; font-weight:600; display:flex; align-items:center; gap:6px; }
-.raw-file-body { flex:1; overflow:hidden; }
+.raw-file-body { flex:1; overflow:hidden; display:flex; flex-direction:column; min-height:0; }
 .text-scroll { height:100%; overflow-y:auto; }
 .raw-text { margin:0; padding:20px 24px; white-space:pre-wrap; word-break:break-word; line-height:1.9; font-size:15px; color:#303133; font-family:inherit; }
 .raw-error { display:flex; justify-content:center; padding-top:80px; }
