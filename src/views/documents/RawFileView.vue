@@ -21,17 +21,28 @@
       </div>
 
       <!-- 文本文件：直接展示原文+标黄 -->
-      <template v-else-if="!isBinary && content">
+      <template v-else-if="!isBinary && !isPdf && content">
         <div ref="contentRef" class="text-scroll">
           <pre class="raw-text" v-html="highlightedContent"></pre>
         </div>
       </template>
 
-      <!-- 二进制文件：展示文本对照和标黄，引导用户打开原文件 -->
+      <!-- PDF：PDF.js 渲染原文件 + 标黄定位 -->
+      <template v-else-if="isPdf">
+        <div class="section-label">
+          <el-icon><Document /></el-icon> 原文件（标黄处为块对应内容）
+          <el-button size="small" @click="openRawFile" style="margin-left:auto">
+            <el-icon><Download /></el-icon> 在新标签页打开原文件
+          </el-button>
+        </div>
+        <PdfViewer :pdfUrl="pdfUrl" :highlightText="chunkText" />
+      </template>
+
+      <!-- 其他二进制文件：展示文本对照和标黄 -->
       <template v-else-if="isBinary">
         <div class="binary-notice">
           <el-icon :size="20"><WarningFilled /></el-icon>
-          <span>此文档为二进制格式（PDF/Word等），无法在页面内直接展示。请打开原文件查看。</span>
+          <span>此文档为二进制格式（Word/Excel等），无法在页面内直接展示。请打开原文件查看。</span>
           <el-button type="primary" size="small" @click="openRawFile">
             <el-icon><Document /></el-icon> 打开原文件
           </el-button>
@@ -53,6 +64,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Document, Download, Collection, WarningFilled, CopyDocument } from '@element-plus/icons-vue'
 import { fileApi } from '@/api/modules/files'
 import { getAccessToken } from '@/utils/token'
+import PdfViewer from '@/components/PdfViewer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -62,8 +74,9 @@ const chunkText = (route.query.chunkText as string) || ''
 const loading = ref(false)
 const docName = ref('')
 const content = ref('')
+const isPdf = ref(false)
 const isBinary = ref(false)
-const rawFileUrl = ref('')
+const pdfUrl = ref('')
 const highlightedContent = ref('')
 const error = ref('')
 const contentRef = ref<HTMLElement>()
@@ -171,9 +184,9 @@ async function load() {
     const docInfo = await fileApi.detail(docId).catch(() => null)
     docName.value = docInfo?.fileName || `文档#${docId}`
 
-    // 构建原文件 URL（用于 iframe）
+    // 构建原文件 URL（含 JWT）
     const token = getAccessToken()
-    rawFileUrl.value = `${import.meta.env.VITE_API_BASE_URL}/files/${docId}/raw?token=${encodeURIComponent(token || '')}`
+    pdfUrl.value = `${import.meta.env.VITE_API_BASE_URL}/files/${docId}/raw?token=${encodeURIComponent(token || '')}`
 
     try {
       const rawText = await fileApi.getRawContent(docId)
@@ -182,8 +195,11 @@ async function load() {
       const nonPrintable = sample.replace(/[\x20-\x7E一-鿿　-〿\n\r\t]/g, '')
       const isHighBin = sample.length > 0 && nonPrintable.length > sample.length * 0.15
 
-      if (rawText.startsWith('%PDF') || hasNull || isHighBin) {
-        // 二进制文件：iframe 展示原文件 + 清洗后文本对照
+      if (rawText.startsWith('%PDF')) {
+        // PDF：用 PDF.js 渲染
+        isPdf.value = true
+      } else if (hasNull || isHighBin) {
+        // 其他二进制文件
         isBinary.value = true
         const cleaned = await fileApi.getContent(docId)
         content.value = cleaned
