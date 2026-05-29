@@ -8,8 +8,8 @@
         <el-icon><Document /></el-icon>
         {{ docName }}
       </span>
-      <el-button size="small" @click="openRaw" style="margin-left:auto">
-        <el-icon><Download /></el-icon> 在新标签页打开原文件
+      <el-button size="small" @click="openInNewTab" style="margin-left:auto">
+        <el-icon><CopyDocument /></el-icon> 在新标签页中查看（含标黄定位）
       </el-button>
     </div>
 
@@ -32,7 +32,7 @@
         <div class="binary-notice">
           <el-icon :size="20"><WarningFilled /></el-icon>
           <span>此文档为二进制格式（PDF/Word等），无法在页面内直接展示。请打开原文件查看。</span>
-          <el-button type="primary" size="small" @click="openRaw">
+          <el-button type="primary" size="small" @click="openRawFile">
             <el-icon><Document /></el-icon> 打开原文件
           </el-button>
         </div>
@@ -50,7 +50,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Document, Download, Collection, WarningFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, Document, Download, Collection, WarningFilled, CopyDocument } from '@element-plus/icons-vue'
 import { fileApi } from '@/api/modules/files'
 import { getAccessToken } from '@/utils/token'
 
@@ -148,7 +148,17 @@ function goBack() {
   else window.close()
 }
 
-function openRaw() {
+function openInNewTab() {
+  // 在新标签页中打开 RawFileView（含标黄定位），而非直接打开原始文件
+  const resolved = router.resolve({
+    path: `/documents/${docId}/raw-view`,
+    query: { chunkText: chunkText },
+  })
+  window.open(resolved.href, '_blank')
+}
+
+function openRawFile() {
+  // 直接打开原始文件（用于 PDF 等二进制文件）
   const token = getAccessToken()
   const url = `${import.meta.env.VITE_API_BASE_URL}/files/${docId}/raw?token=${encodeURIComponent(token || '')}`
   window.open(url, '_blank')
