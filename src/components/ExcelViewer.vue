@@ -47,27 +47,39 @@ function buildHighlight(html: string, chunk: string): string {
   }
   if (textIdx === -1) return html
 
-  // 映射回原始文本位置
-  let origStart = 0, np = 0
-  for (let i = 0; i < textOnly.length && np < textIdx; i++) {
-    if (fn(textOnly[i])) { np++; origStart = i + 1 }
-    else { origStart = i + 1 }
+  // 将纯文本位置映射回 HTML（跨越 HTML 标签）
+  let realStart = 0, normCount = 0
+  for (let i = 0; i < textOnly.length && normCount < textIdx; i++) {
+    if (fn(textOnly[i])) normCount++
+    realStart = i + 1
   }
-  let origEnd = origStart; np = 0
-  for (let i = origStart; i < textOnly.length && np < matchLen; i++) {
-    if (fn(textOnly[i])) np++
-    origEnd = i + 1
+  let realEnd = realStart; normCount = 0
+  for (let i = realStart; i < textOnly.length && normCount < matchLen; i++) {
+    if (fn(textOnly[i])) normCount++
+    realEnd = i + 1
   }
-  const matched = textOnly.substring(origStart, origEnd)
-  const htmlIdx = html.indexOf(matched)
-  if (htmlIdx === -1) return html
+
+  let plainPos = 0, htmlPos = 0, inTag = false
+  let startHtml = -1, endHtml = -1
+  while (htmlPos < html.length) {
+    if (html[htmlPos] === '<') inTag = true
+    else if (html[htmlPos] === '>') inTag = false
+    else if (!inTag) {
+      if (plainPos === realStart) startHtml = htmlPos
+      if (plainPos === realEnd) { endHtml = htmlPos; break }
+      plainPos++
+    }
+    htmlPos++
+  }
+  if (startHtml === -1) return html
+  if (endHtml === -1) endHtml = html.length
 
   return (
-    html.substring(0, htmlIdx) +
+    html.substring(0, startHtml) +
     '<mark class="raw-chunk-highlight" id="raw-anchor">' +
-    html.substring(htmlIdx, htmlIdx + matched.length) +
+    html.substring(startHtml, endHtml) +
     '</mark>' +
-    html.substring(htmlIdx + matched.length)
+    html.substring(endHtml)
   )
 }
 
