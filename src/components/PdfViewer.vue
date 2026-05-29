@@ -101,31 +101,75 @@ async function render() {
       })
 
       if (matchedItems.length > 0) {
-        const first = matchedItems[0]
-        const tx = first.transform
-        const left = tx[4]
-        const top = tx[5] - first.height * 0.8
-        const fontSize = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])
+        // 计算所有匹配项的总包围盒
+        let ml = Infinity, mt = Infinity, mr = -Infinity, mb = -Infinity
+        matchedItems.forEach((item: any) => {
+          const tx = item.transform
+          const x = tx[4]
+          const y = tx[5] - item.height * 0.8
+          const w = item.width || (item.str.length * Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]) * 0.6)
+          const h = item.height || Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])
+          if (x < ml) ml = x
+          if (y < mt) mt = y
+          if (x + w > mr) mr = x + w
+          if (y + h > mb) mb = y + h
+        })
+        const padding = 4
+        const hw = mr - ml + padding * 2
+        const hh = mb - mt + padding * 2
 
-        const highlight = document.createElement('div')
-        highlight.style.cssText = [
-          'position:absolute',
-          `left:${left}px`,
-          `top:${top}px`,
-          `height:${Math.max(fontSize * 2, 24)}px`,
-          'width:80%',
-          'background:rgba(254,240,138,0.6)',
-          'border-radius:2px',
-          'pointer-events:none',
-          'z-index:11',
-        ].join(';')
-        highlight.id = 'pdf-highlight-anchor'
-        highlight.style.scrollMarginTop = '80px'
+        // 多个高亮条（按行分组，视觉上更准确）
+        const rows: any[][] = []
+        matchedItems.forEach((item: any) => {
+          const top = item.transform[5] - item.height * 0.8
+          const fontSize = Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1])
+          let placed = false
+          for (const row of rows) {
+            const rowTop = row[0].transform[5] - row[0].height * 0.8
+            if (Math.abs(top - rowTop) < fontSize * 1.2) {
+              row.push(item)
+              placed = true
+              break
+            }
+          }
+          if (!placed) rows.push([item])
+        })
 
-        hlLayer.appendChild(highlight)
+        rows.forEach((row, ri) => {
+          let rl = Infinity, rr = -Infinity, rt = Infinity, rb = -Infinity
+          row.forEach((item: any) => {
+            const tx = item.transform
+            const x = tx[4]
+            const y = tx[5] - item.height * 0.8
+            const w = item.width || (item.str.length * Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]) * 0.6)
+            const h = item.height || Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])
+            if (x < rl) rl = x
+            if (y < rt) rt = y
+            if (x + w > rr) rr = x + w
+            if (y + h > rb) rb = y + h
+          })
+          const bar = document.createElement('div')
+          bar.style.cssText = [
+            'position:absolute',
+            `left:${rl - 2}px`,
+            `top:${rt - 1}px`,
+            `width:${rr - rl + 8}px`,
+            `height:${rb - rt + 4}px`,
+            'background:rgba(254,240,138,0.5)',
+            'border-radius:2px',
+            'pointer-events:none',
+            'z-index:11',
+          ].join(';')
+          if (ri === 0) {
+            bar.id = 'pdf-highlight-anchor'
+            bar.style.scrollMarginTop = '80px'
+          }
+          hlLayer.appendChild(bar)
+        })
 
         setTimeout(() => {
-          highlight.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          const anchor = document.getElementById('pdf-highlight-anchor')
+          if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }, 500)
       }
     } else if (matchPage > 0) {
