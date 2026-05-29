@@ -101,6 +101,9 @@ async function render() {
       const headNeedle = searchText.substring(0, Math.min(60, searchText.length))
       const shortWords = headNeedle.replace(/(.{2,8})/g, '$1|').split('|').filter((s: string) => s.length >= 2)
       const matchedItems: any[] = []
+      if (tc.items.length > 0) {
+        console.warn('[PdfViewer] First 5 PDF items:', tc.items.slice(0, 5).map((it: any) => JSON.stringify({ str: it.str, h: it.height })))
+      }
 
       tc.items.forEach((item: any) => {
         const spanNorm = fn(item.str)
@@ -111,7 +114,7 @@ async function render() {
         }
       })
 
-      // 合并相邻匹配项并创建标黄矩形
+      console.warn('[PdfViewer] matchedItems count:', matchedItems.length)
       if (matchedItems.length > 0) {
         const highlightDiv = document.createElement('div')
         highlightDiv.style.cssText = [
