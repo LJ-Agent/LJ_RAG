@@ -87,7 +87,7 @@ async function loadPdf() {
       const ctx = canvas.getContext('2d')
       await page.render({ canvasContext: ctx, viewport }).promise
 
-      // 渲染文本层（需在渲染后搜索匹配并高亮）
+      // 手动构建文本层（PDF.js 5.x 不再导出 renderTextLayer）
       if (textLayerDiv) {
         const textContent = await page.getTextContent()
 
@@ -95,30 +95,38 @@ async function loadPdf() {
         textLayerDiv.style.width = viewport.width + 'px'
         textLayerDiv.innerHTML = ''
 
-        await pdfjsLib.renderTextLayer({
-          textContentSource: textContent,
-          container: textLayerDiv,
-          viewport,
-        })
+        // 文本层需要 CSS transform 来匹配 canvas 缩放
+        // canvas scale = 1.5, 所以 scale down 到 1/1.5 ≈ 0.6667
+        textLayerDiv.style.setProperty('--scale-factor', String(1.5))
 
-        // 在文本层中搜索并高亮块内容
-        const spans = Array.from(textLayerDiv.querySelectorAll('span')) as HTMLElement[]
         const fn = (t: string) => t.replace(/\s+/g, '').replace(/[]/g, '')
         const searchNorm = fn(props.highlightText.trim().substring(0, 200))
         const searchWords = searchNorm.replace(/(.{10})/g, '$1|').split('|').filter(s => s.length >= 5)
 
-        let firstMatch: HTMLElement | null = null
+        let firstMatch: HTMLSpanElement | null = null
         let consecutive = 0
 
-        spans.forEach((span) => {
-          const spanNorm = fn(span.textContent || '')
-          if (!spanNorm) return
+        textContent.items.forEach((item: any) => {
+          const span = document.createElement('span')
+          span.textContent = item.str
+          // 使用 item.transform 计算位置（PDF.js 内部坐标系）
+          const tx = item.transform
+          // transform 是 [scaleX, skewY, skewX, scaleY, translateX, translateY]
+          const left = tx[4]
+          const top = tx[5] - item.height * 0.8
+          const fontSize = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])
 
-          // 检查此 span 是否是搜索文本的一部分
-          const isMatch = searchWords.some(w => spanNorm.includes(w)) ||
-                          searchNorm.includes(spanNorm.substring(0, Math.min(20, spanNorm.length)))
+          span.style.position = 'absolute'
+          span.style.left = left + 'px'
+          span.style.top = top + 'px'
+          span.style.fontSize = fontSize + 'px'
+          span.style.fontFamily = 'sans-serif'
+          span.style.whiteSpace = 'pre'
+          span.style.transformOrigin = 'top left'
 
-          if (isMatch) {
+          // 高亮匹配
+          const spanNorm = fn(item.str)
+          if (spanNorm && searchWords.some(w => spanNorm.includes(w)) || searchNorm.includes(spanNorm.substring(0, Math.min(20, spanNorm.length)))) {
             span.style.backgroundColor = '#fef08a'
             span.style.color = '#92400e'
             span.style.padding = '1px 2px'
@@ -127,9 +135,11 @@ async function loadPdf() {
             if (!firstMatch && consecutive >= 3 && matchPage.value === i) {
               firstMatch = span
             }
-          } else {
+          } else if (spanNorm) {
             consecutive = 0
           }
+
+          textLayerDiv.appendChild(span)
         })
 
         if (firstMatch) {
