@@ -4,22 +4,20 @@
       <el-icon class="is-loading" :size="24"><Loading /></el-icon>
       <span>正在加载 PDF 并搜索定位...</span>
     </div>
-    <div v-else-if="error" class="pdf-error">{{ error }}</div>
     <div v-else ref="containerRef" class="pdf-container">
-      <div v-for="pageNum in pageCount" :key="pageNum" class="pdf-page-wrapper">
-        <canvas class="pdf-canvas" />
-        <div class="pdf-text-layer" />
+      <div v-for="n in pageCount" :key="n" :id="'pdf-page-' + n" class="pdf-page-wrap">
+        <canvas :id="'pdf-canvas-' + n" class="pdf-canvas" />
+        <div :id="'pdf-text-' + n" class="pdf-text-layer" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import * as pdfjsLib from 'pdfjs-dist'
 
-// Worker 配置
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url
@@ -31,164 +29,127 @@ const props = defineProps<{
 }>()
 
 const loading = ref(true)
-const error = ref('')
 const containerRef = ref<HTMLElement>()
 const pageCount = ref(0)
-const matchPage = ref(0)
 
-async function loadPdf() {
-  loading.value = true
-  error.value = ''
+const fn = (t: string) => t.replace(/\s+/g, '').replace(/[\f]/g, '')
+const scale = 1.5
 
+async function searchAndRender() {
   try {
-    const doc = await pdfjsLib.getDocument({ url: props.pdfUrl, cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/cmaps/', cMapPacked: true }).promise
+    const doc = await pdfjsLib.getDocument({
+      url: props.pdfUrl,
+      cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/cmaps/',
+      cMapPacked: true,
+    }).promise
+
     pageCount.value = doc.numPages
-    // 等待 Vue 渲染 canvas + text layer DOM
     await nextTick()
-    await new Promise(r => setTimeout(r, 100))
+    await new Promise(r => setTimeout(r, 150))
 
-    // 先搜索所有页找到匹配页
-    let foundPage = 0
-    if (props.highlightText.trim()) {
-      for (let i = 1; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i)
-        const textContent = await page.getTextContent()
-        const pageText = textContent.items.map((item: any) => item.str).join(' ')
-        const fn = (t: string) => t.replace(/\s+/g, '')
-        if (fn(pageText).includes(fn(props.highlightText.trim().substring(0, 50)))) {
-          foundPage = i
-          break
-        }
-      }
-      matchPage.value = foundPage
-    }
+    const searchText = fn(props.highlightText.trim())
+    let matchPage = 0
 
-    // 渲染所有页
-    const canvasEls = containerRef.value?.querySelectorAll('.pdf-canvas')
-    const textLayerEls = containerRef.value?.querySelectorAll('.pdf-text-layer')
-
+    // 第一遍：搜索匹配页 + 渲染 canvas
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i)
-      const viewport = page.getViewport({ scale: 1.5 })
-      const canvas = canvasEls?.[i - 1] as HTMLCanvasElement | undefined
-      const textLayerDiv = textLayerEls?.[i - 1] as HTMLElement | undefined
+      const viewport = page.getViewport({ scale })
+      const canvas = document.getElementById('pdf-canvas-' + i) as HTMLCanvasElement | null
 
-      if (!canvas) continue
-
-      canvas.height = viewport.height
-      canvas.width = viewport.width
-      canvas.style.width = '100%'
-      canvas.style.height = 'auto'
-
-      const ctx = canvas.getContext('2d')
-      await page.render({ canvasContext: ctx, viewport }).promise
-
-      // 手动构建文本层（PDF.js 5.x 不再导出 renderTextLayer）
-      if (!textLayerDiv) {
-        console.warn('[PdfViewer] Page', i, 'textLayerDiv is NULL')
-        continue
+      if (canvas) {
+        canvas.height = viewport.height
+        canvas.width = viewport.width
+        canvas.style.width = '100%'
+        canvas.style.height = 'auto'
+        canvas.style.display = 'block'
+        canvas.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)'
+        const ctx = canvas.getContext('2d')!
+        await page.render({ canvasContext: ctx, viewport }).promise
       }
-      try {
-        const textContent = await page.getTextContent()
-        console.warn('[PdfViewer] Page', i, 'text items:', textContent.items.length)
 
-        textLayerDiv.style.height = viewport.height + 'px'
-        textLayerDiv.style.width = viewport.width + 'px'
-        textLayerDiv.innerHTML = ''
+      // 搜索匹配文本
+      if (searchText && matchPage === 0) {
+        const tc = await page.getTextContent()
+        const pageText = fn(tc.items.map((it: any) => it.str).join(''))
+        if (pageText.includes(searchText.substring(0, Math.min(40, searchText.length)))) {
+          matchPage = i
+        }
+      }
+    }
 
-        // 文本层需要 CSS transform 来匹配 canvas 缩放
-        // canvas scale = 1.5, 所以 scale down 到 1/1.5 ≈ 0.6667
-        textLayerDiv.style.setProperty('--scale-factor', String(1.5))
+    // 第二遍：在匹配页构建文本层并标黄
+    if (matchPage > 0 && searchText) {
+      const page = await doc.getPage(matchPage)
+      const viewport = page.getViewport({ scale })
+      const tc = await page.getTextContent()
+      const textDiv = document.getElementById('pdf-text-' + matchPage)
 
-        const fn = (t: string) => t.replace(/\s+/g, '').replace(/[]/g, '')
-        const searchNorm = fn(props.highlightText.trim().substring(0, 200))
-        const searchWords = searchNorm.replace(/(.{10})/g, '$1|').split('|').filter(s => s.length >= 5)
+      if (textDiv && tc.items.length > 0) {
+        textDiv.style.height = viewport.height + 'px'
+        textDiv.style.width = viewport.width + 'px'
+        textDiv.style.position = 'absolute'
+        textDiv.style.top = '0'
 
-        let firstMatch: HTMLSpanElement | null = null
+        const searchWords = searchText.replace(/(.{10})/g, '$1|').split('|').filter((s: string) => s.length >= 5)
+        let firstSpan: HTMLSpanElement | null = null
         let consecutive = 0
 
-        textContent.items.forEach((item: any) => {
+        tc.items.forEach((item: any) => {
           const span = document.createElement('span')
           span.textContent = item.str
-          // 使用 item.transform 计算位置（PDF.js 内部坐标系）
           const tx = item.transform
-          // transform 是 [scaleX, skewY, skewX, scaleY, translateX, translateY]
-          const left = tx[4]
-          const top = tx[5] - item.height * 0.8
-          const fontSize = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])
+          span.style.cssText = [
+            'position:absolute',
+            'left:' + tx[4] + 'px',
+            'top:' + (tx[5] - item.height * 0.8) + 'px',
+            'font-size:' + Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]) + 'px',
+            'font-family:sans-serif',
+            'white-space:pre',
+            'color:transparent',
+          ].join(';')
 
-          span.style.position = 'absolute'
-          span.style.left = left + 'px'
-          span.style.top = top + 'px'
-          span.style.fontSize = fontSize + 'px'
-          span.style.fontFamily = 'sans-serif'
-          span.style.whiteSpace = 'pre'
-          span.style.transformOrigin = 'top left'
-
-          // 高亮匹配
           const spanNorm = fn(item.str)
-          if (spanNorm && searchWords.some(w => spanNorm.includes(w)) || searchNorm.includes(spanNorm.substring(0, Math.min(20, spanNorm.length)))) {
+          const matched = spanNorm && searchWords.some((w: string) => spanNorm.includes(w))
+          if (matched) {
             span.style.backgroundColor = '#fef08a'
             span.style.color = '#92400e'
             span.style.padding = '1px 2px'
             span.style.borderRadius = '2px'
             consecutive++
-            if (!firstMatch && consecutive >= 3 && matchPage.value === i) {
-              firstMatch = span
-            }
+            if (!firstSpan && consecutive >= 3) firstSpan = span
           } else if (spanNorm) {
             consecutive = 0
           }
-
-          textLayerDiv.appendChild(span)
+          textDiv.appendChild(span)
         })
 
-        if (firstMatch) {
-          firstMatch.id = 'pdf-highlight-anchor'
-          firstMatch.style.scrollMarginTop = '80px'
+        if (firstSpan) {
+          firstSpan.id = 'pdf-highlight-anchor'
+          firstSpan.style.scrollMarginTop = '80px'
+          setTimeout(() => {
+            firstSpan!.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }, 300)
         }
-        console.warn('[PdfViewer] Page', i, 'spans:', textLayerDiv.children.length, 'highlighted:', firstMatch ? 'YES' : 'NO')
-      } catch (e: any) {
-        console.warn('[PdfViewer] Page', i, 'ERROR:', e?.message || e)
       }
     }
 
-    // 滚动到匹配页
-    if (foundPage > 0) {
-      await nextTick()
-      setTimeout(() => {
-        const anchor = document.getElementById('pdf-highlight-anchor')
-        if (anchor) {
-          anchor.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        } else {
-          const pageEl = containerRef.value?.children[foundPage - 1]
-          if (pageEl) pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-      }, 500)
+    // 滚动到匹配页（如果没有标黄 anchor）
+    if (matchPage > 0 && !document.getElementById('pdf-highlight-anchor')) {
+      const pageEl = document.getElementById('pdf-page-' + matchPage)
+      if (pageEl) {
+        setTimeout(() => pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300)
+      }
     }
-  } catch (e: any) {
-    error.value = e?.message || 'PDF 加载失败'
+  } catch (e) {
+    console.error('[PdfViewer] Error:', e)
   } finally {
     loading.value = false
   }
 }
 
-/** 从块文本中提取搜索关键词 */
-function extractSearchTerms(text: string): string[] {
-  if (!text) return []
-  // 取前200字符，分段（按换行/句号），取长度>=5的片段
-  const short = text.trim().substring(0, 200)
-  const segments = short
-    .split(/[\n。！？]/)
-    .map(s => s.trim())
-    .filter(s => s.length >= 5)
-  // 也加入前80字符作为一个搜索词
-  const head = short.substring(0, Math.min(80, short.length))
-  return [...new Set([head, ...segments])]
-}
-
-onMounted(loadPdf)
-watch(() => props.pdfUrl, loadPdf)
+onMounted(() => {
+  setTimeout(searchAndRender, 100)
+})
 </script>
 
 <style scoped>
@@ -209,37 +170,22 @@ watch(() => props.pdfUrl, loadPdf)
   color: #fff;
   font-size: 14px;
 }
-.pdf-error {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #f56c6c;
-  font-size: 14px;
-  padding: 24px;
-}
 .pdf-container {
   flex: 1;
   overflow-y: auto;
   padding: 16px 0;
 }
-.pdf-page-wrapper {
+.pdf-page-wrap {
   position: relative;
-  margin-bottom: 16px;
   display: flex;
   justify-content: center;
+  margin-bottom: 16px;
 }
 .pdf-canvas {
   display: block;
   max-width: 95%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 .pdf-text-layer {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  overflow: hidden;
-  opacity: 0.2;
   pointer-events: none;
 }
 </style>
