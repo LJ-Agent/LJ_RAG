@@ -59,7 +59,7 @@
         >
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
-        <el-button v-if="mode !== 'read-only'" type="primary" @click="openCreateDialog">新增块</el-button>
+        <el-button v-if="mode === 'chunk-edit'" type="primary" @click="openCreateDialog">新增块</el-button>
         <el-button v-if="mode === 'chunk-edit'" type="warning" @click="openRechunkDialog">重新分块</el-button>
       </div>
     </div>
@@ -115,7 +115,7 @@
         <div v-else class="edit-area">
           <div class="edit-header">
             <span>块 #{{ selectedChunk.chunkIndex }} ({{ selectedChunk.charCount }} 字符)</span>
-            <div v-if="mode !== 'read-only'" style="display: flex; gap: 4px;">
+            <div v-if="mode === 'chunk-edit'" style="display: flex; gap: 4px;">
               <el-button size="small" type="primary" :loading="saving" @click="saveChunk">保存</el-button>
               <el-button
                 v-if="selectedChunk.status === 'ACTIVE'"
@@ -131,7 +131,7 @@
             :rows="20"
             resize="vertical"
             placeholder="块内容"
-            :disabled="mode === 'read-only'"
+            :disabled="mode !== 'chunk-edit'"
           />
         </div>
       </div>
