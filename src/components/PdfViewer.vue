@@ -96,6 +96,9 @@ async function render() {
       const chunkHead = searchText.substring(0, Math.min(80, searchText.length))
       const headPos = pageFullText.indexOf(chunkHead)
 
+      console.warn('[PdfViewer] headPos:', headPos, 'pageFullText len:', pageFullText.length, 'searchText len:', searchText.length)
+      console.warn('[PdfViewer] page head:', pageFullText.substring(0, 80))
+      console.warn('[PdfViewer] chunk head:', chunkHead.substring(0, 80))
       if (headPos !== -1) {
         // 从 headPos 开始，计算块文本与页面文本的最长连续匹配长度
         let matchLen = chunkHead.length
