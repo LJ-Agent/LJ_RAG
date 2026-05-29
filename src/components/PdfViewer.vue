@@ -78,7 +78,7 @@ async function render() {
       await page.render({ canvasContext: ctx, viewport }).promise
     }
 
-    // 在匹配页上覆盖黄色标记层
+    console.warn('[PdfViewer] Starting highlight overlay, matchPage:', matchPage, 'searchText:', !!searchText)
     if (matchPage > 0 && searchText) {
       const page = await doc.getPage(matchPage)
       const viewport = page.getViewport({ scale })
