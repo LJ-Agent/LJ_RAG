@@ -27,9 +27,14 @@ function fn(s: string): string { return s.replace(/\s+/g, '').replace(/[\f]/g, 
 function buildHighlight(html: string, chunk: string): string {
   const trimmed = chunk.trim()
   if (!trimmed) return html
+  const cleanChunk = trimmed
+    .replace(/^#{1,6}\s*/gm, '').replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[-*+>]\s/gm, '').replace(/\n{2,}/g, '\n').trim()
+
   const textOnly = html.replace(/<[^>]+>/g, '')
   const normText = fn(textOnly)
-  const normChunk = fn(trimmed)
+  const normChunk = fn(cleanChunk)
 
   let realStart = -1, realEnd = -1
 
@@ -69,7 +74,7 @@ function buildHighlight(html: string, chunk: string): string {
   }
   // 策略 4：拆句匹配
   if (realStart === -1) {
-    const sentences = trimmed.split(/[。！？\n]+/).filter((s: string) => s.trim().length >= 8)
+    const sentences = cleanChunk.split(/[。！？\n]+/).filter((s: string) => s.trim().length >= 8)
     let bestMatch = '', bestIdx = -1
     for (const sent of sentences.slice(0, 10)) {
       const idx = textOnly.indexOf(sent.trim())

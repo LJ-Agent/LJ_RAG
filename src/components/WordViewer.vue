@@ -28,9 +28,21 @@ function buildHighlight(html: string, chunk: string): string {
   const trimmed = chunk.trim()
   if (!trimmed) return html
 
+  // 剥离 Markdown 格式（块文本有格式，mammoth 输出纯 HTML 无格式）
+  const cleanChunk = trimmed
+    .replace(/^#{1,6}\s*/gm, '')     // 标题 #
+    .replace(/\*\*(.+?)\*\*/g, '$1')  // 加粗
+    .replace(/\*(.+?)\*/g, '$1')      // 斜体
+    .replace(/`{1,3}[^`]*`{1,3}/g, '') // 代码
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // 链接
+    .replace(/^[-*+]\s/gm, '')        // 列表
+    .replace(/^>\s/gm, '')            // 引用
+    .replace(/\n{2,}/g, '\n')         // 多换行合并
+    .trim()
+
   const textOnly = html.replace(/<[^>]+>/g, '')
   const normText = fn(textOnly)
-  const normChunk = fn(trimmed)
+  const normChunk = fn(cleanChunk)
 
   // 纯文本起止位置（原始坐标），-1 表示未找到
   let realStart = -1, realEnd = -1
@@ -82,7 +94,7 @@ function buildHighlight(html: string, chunk: string): string {
 
   // 策略 4：拆句匹配——至少高亮块中能在原文找到的句子
   if (realStart === -1) {
-    const sentences = trimmed.split(/[。！？\n]+/).filter((s: string) => s.trim().length >= 8)
+    const sentences = cleanChunk.split(/[。！？\n]+/).filter((s: string) => s.trim().length >= 8)
     let bestMatch = ''
     let bestIdx = -1
     for (const sent of sentences.slice(0, 10)) {
