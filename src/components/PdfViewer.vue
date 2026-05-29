@@ -112,6 +112,15 @@ async function render() {
           if (charCount >= bigHeadEnd) { endIdx = i; break }
         }
 
+        console.warn('[PdfViewer] startIdx:', startIdx, 'endIdx:', endIdx, 'totalItems:', itemsWithText.length)
+        if (startIdx < itemsWithText.length) {
+          const si = itemsWithText[startIdx].item
+          console.warn('[PdfViewer] first item:', si.str.substring(0, 30), 'top:', (si.transform[5] - si.height * 0.8).toFixed(0))
+        }
+        if (endIdx < itemsWithText.length) {
+          const ei = itemsWithText[endIdx].item
+          console.warn('[PdfViewer] last item:', ei.str.substring(0, 30), 'top:', (ei.transform[5] - ei.height * 0.8).toFixed(0))
+        }
         // 过滤掉极小文本碎片（页码、分隔符等），只保留宽度>=15px的项
         const highlightItems = itemsWithText.slice(startIdx, endIdx + 1).filter(({ item }: any) => {
           const w = item.width || (item.str.length * Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1]) * 0.6)
