@@ -209,8 +209,8 @@
     </template>
     <template #footer>
       <el-button @click="chunkDetailVisible = false">关闭</el-button>
-      <el-button type="primary" @click="openRawFileById(currentDocId)">
-        <el-icon><Document /></el-icon> 查看原文件
+      <el-button type="primary" @click="openRawFileView">
+        <el-icon><Document /></el-icon> 查看原文件（含定位标黄）
       </el-button>
     </template>
   </el-dialog>
@@ -261,6 +261,7 @@ const chunkDetailLoading = ref(false)
 const chunkDetail = ref<ChunkVO | null>(null)
 const chunkDocName = ref('')
 const currentDocId = ref(0)
+const currentChunkContent = ref('')
 const rawContent = ref('')
 const rawContentError = ref('')
 const docContentRef = ref<HTMLElement>()
@@ -385,6 +386,14 @@ function openRawFileById(documentId: number) {
   window.open(url, '_blank')
 }
 
+function openRawFileView() {
+  if (!currentDocId.value) return
+  router.push({
+    path: `/documents/${currentDocId.value}/raw-view`,
+    query: { chunkText: currentChunkContent.value },
+  })
+}
+
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -408,6 +417,7 @@ async function openChunkDetail(chunkId: string, documentId: number, chunkContent
   chunkDetail.value = null
   chunkDocName.value = ''
   currentDocId.value = documentId
+  currentChunkContent.value = chunkContent
   rawContent.value = ''
   rawContentError.value = ''
   highlightedDocContent.value = ''

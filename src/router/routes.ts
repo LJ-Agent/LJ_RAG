@@ -71,6 +71,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '块详情', permissions: ['DOCUMENT:VIEW'], icon: 'Reading' },
       },
       {
+        path: 'documents/:id/raw-view',
+        name: 'RawFileView',
+        component: () => import('@/views/documents/RawFileView.vue'),
+        meta: { title: '原文查看', permissions: ['DOCUMENT:VIEW'], icon: 'Reading' },
+      },
+      {
         path: 'review',
         name: 'Review',
         component: () => import('@/views/review/ReviewList.vue'),
