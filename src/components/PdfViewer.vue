@@ -7,8 +7,8 @@
     <div v-else-if="error" class="pdf-error">{{ error }}</div>
     <div v-else ref="containerRef" class="pdf-container">
       <div v-for="pageNum in pageCount" :key="pageNum" class="pdf-page-wrapper">
-        <canvas :ref="el => setCanvasRef(pageNum, el)" class="pdf-canvas" />
-        <div :ref="el => setTextLayerRef(pageNum, el)" class="pdf-text-layer" />
+        <canvas class="pdf-canvas" />
+        <div class="pdf-text-layer" />
       </div>
     </div>
   </div>
@@ -35,16 +35,6 @@ const error = ref('')
 const containerRef = ref<HTMLElement>()
 const pageCount = ref(0)
 const matchPage = ref(0)
-
-const canvasRefs = new Map<number, any>()
-const textLayerRefs = new Map<number, any>()
-
-function setCanvasRef(pageNum: number, el: any) {
-  if (el) canvasRefs.set(pageNum, el)
-}
-function setTextLayerRef(pageNum: number, el: any) {
-  if (el) textLayerRefs.set(pageNum, el)
-}
 
 async function loadPdf() {
   loading.value = true
@@ -74,11 +64,14 @@ async function loadPdf() {
     }
 
     // 渲染所有页
+    const canvasEls = containerRef.value?.querySelectorAll('.pdf-canvas')
+    const textLayerEls = containerRef.value?.querySelectorAll('.pdf-text-layer')
+
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i)
       const viewport = page.getViewport({ scale: 1.5 })
-      const canvas = canvasRefs.get(i)
-      const textLayerDiv = textLayerRefs.get(i)
+      const canvas = canvasEls?.[i - 1] as HTMLCanvasElement | undefined
+      const textLayerDiv = textLayerEls?.[i - 1] as HTMLElement | undefined
 
       if (!canvas) continue
 
