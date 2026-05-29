@@ -84,7 +84,11 @@ async function render() {
       const viewport = page.getViewport({ scale })
       const tc = await page.getTextContent()
       const pageEl = document.getElementById('pdf-page-' + matchPage)
-      if (!pageEl || tc.items.length === 0) return
+      console.warn('[PdfViewer] pageEl:', !!pageEl, 'items:', tc.items.length)
+      if (!pageEl || tc.items.length === 0) {
+        console.warn('[PdfViewer] Exiting early - no pageEl or empty items')
+        return
+      }
 
       // 创建高亮覆盖层
       const hlLayer = document.createElement('div')
