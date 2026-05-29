@@ -39,11 +39,13 @@ async function searchAndRender() {
   console.warn('[PdfViewer] searchAndRender START, pdfUrl:', props.pdfUrl?.substring(0, 80))
   try {
     console.warn('[PdfViewer] calling getDocument...')
-    const doc = await pdfjsLib.getDocument({
+    const loadingTask = pdfjsLib.getDocument({
       url: props.pdfUrl,
       cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/cmaps/',
       cMapPacked: true,
-    }).promise
+    })
+    const doc = await loadingTask.promise
+    console.warn('[PdfViewer] getDocument DONE, pages:', doc.numPages)
 
     pageCount.value = doc.numPages
     await nextTick()
