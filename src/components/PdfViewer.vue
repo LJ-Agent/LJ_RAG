@@ -90,20 +90,24 @@ async function render() {
 
       const headNeedle = searchText.substring(0, Math.min(60, searchText.length))
       const shortWords = headNeedle.replace(/(.{2,8})/g, '$1|').split('|').filter((s: string) => s.length >= 2)
-      const matchedItems: any[] = []
+      const matchedIndices: number[] = []
 
-      tc.items.forEach((item: any) => {
+      tc.items.forEach((item: any, idx: number) => {
         const spanNorm = fn(item.str)
         if (!spanNorm) return
         if (headNeedle.includes(spanNorm) || shortWords.some((w: string) => w.length >= 3 && spanNorm.includes(w))) {
-          matchedItems.push(item)
+          matchedIndices.push(idx)
         }
       })
 
-      if (matchedItems.length > 0) {
-        // 计算所有匹配项的总包围盒
+      if (matchedIndices.length > 0) {
+        // 将首尾匹配项之间的所有文本项都纳入标黄范围，确保连续覆盖
+        const firstIdx = matchedIndices[0]
+        const lastIdx = matchedIndices[matchedIndices.length - 1]
+        const allInRange = tc.items.slice(firstIdx, lastIdx + 1).filter((item: any) => fn(item.str))
+
         let ml = Infinity, mt = Infinity, mr = -Infinity, mb = -Infinity
-        matchedItems.forEach((item: any) => {
+        allInRange.forEach((item: any) => {
           const tx = item.transform
           const x = tx[4]
           const y = tx[5] - item.height * 0.8
@@ -114,62 +118,27 @@ async function render() {
           if (x + w > mr) mr = x + w
           if (y + h > mb) mb = y + h
         })
-        const padding = 4
-        const hw = mr - ml + padding * 2
-        const hh = mb - mt + padding * 2
 
-        // 多个高亮条（按行分组，视觉上更准确）
-        const rows: any[][] = []
-        matchedItems.forEach((item: any) => {
-          const top = item.transform[5] - item.height * 0.8
-          const fontSize = Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1])
-          let placed = false
-          for (const row of rows) {
-            const rowTop = row[0].transform[5] - row[0].height * 0.8
-            if (Math.abs(top - rowTop) < fontSize * 1.2) {
-              row.push(item)
-              placed = true
-              break
-            }
-          }
-          if (!placed) rows.push([item])
-        })
+        const highlight = document.createElement('div')
+        highlight.style.cssText = [
+          'position:absolute',
+          `left:${ml - 6}px`,
+          `top:${mt - 4}px`,
+          `width:${Math.max(mr - ml + 12, 300)}px`,
+          `height:${Math.max(mb - mt + 8, 24)}px`,
+          'background:rgba(254,240,138,0.55)',
+          'border:1px solid rgba(230,180,30,0.6)',
+          'border-radius:3px',
+          'pointer-events:none',
+          'z-index:11',
+        ].join(';')
+        highlight.id = 'pdf-highlight-anchor'
+        highlight.style.scrollMarginTop = '80px'
 
-        rows.forEach((row, ri) => {
-          let rl = Infinity, rr = -Infinity, rt = Infinity, rb = -Infinity
-          row.forEach((item: any) => {
-            const tx = item.transform
-            const x = tx[4]
-            const y = tx[5] - item.height * 0.8
-            const w = item.width || (item.str.length * Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]) * 0.6)
-            const h = item.height || Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])
-            if (x < rl) rl = x
-            if (y < rt) rt = y
-            if (x + w > rr) rr = x + w
-            if (y + h > rb) rb = y + h
-          })
-          const bar = document.createElement('div')
-          bar.style.cssText = [
-            'position:absolute',
-            `left:${rl - 2}px`,
-            `top:${rt - 1}px`,
-            `width:${rr - rl + 8}px`,
-            `height:${rb - rt + 4}px`,
-            'background:rgba(254,240,138,0.5)',
-            'border-radius:2px',
-            'pointer-events:none',
-            'z-index:11',
-          ].join(';')
-          if (ri === 0) {
-            bar.id = 'pdf-highlight-anchor'
-            bar.style.scrollMarginTop = '80px'
-          }
-          hlLayer.appendChild(bar)
-        })
+        hlLayer.appendChild(highlight)
 
         setTimeout(() => {
-          const anchor = document.getElementById('pdf-highlight-anchor')
-          if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          highlight.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }, 500)
       }
     } else if (matchPage > 0) {
