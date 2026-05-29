@@ -192,19 +192,23 @@ async function load() {
 
     highlightedContent.value = buildHighlight(content.value)
     await nextTick()
-    // 等待 DOM 渲染后滚动定位
-    setTimeout(() => {
-      const el = document.getElementById('raw-anchor')
-      if (el) {
-        // 先滚动父容器使标黄元素可见
-        const scrollParent = el.closest('.text-scroll') || el.closest('.split-bottom')
-        if (scrollParent) {
-          const elTop = (el as HTMLElement).offsetTop
-          scrollParent.scrollTop = Math.max(0, elTop - scrollParent.clientHeight / 3)
-        }
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-    }, 600)
+    // 多帧延迟确保 v-html 渲染和布局完成后再滚动
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const el = document.getElementById('raw-anchor')
+          if (el) {
+            // 先设置父容器滚动位置
+            const scrollParent = el.closest('.text-scroll') as HTMLElement | null
+            if (scrollParent) {
+              scrollParent.scrollTop = Math.max(0, el.offsetTop - scrollParent.clientHeight / 3)
+            }
+            // 再确保整个元素在视口内
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          }
+        }, 300)
+      })
+    })
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
