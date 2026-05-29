@@ -56,13 +56,21 @@ export const fileApi = {
     request.get(`${BASE}/${id}/content`, { responseType: 'text' }),
 
   getRawContent: async (id: number): Promise<string> => {
-    // 获取原始文件文本（仅对文本文件有效，二进制文件会返回乱码）
     const token = getAccessToken()
     const resp = await fetch(`${import.meta.env.VITE_API_BASE_URL}/files/${id}/raw`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!resp.ok) throw new Error('Failed to fetch raw content')
     return resp.text()
+  },
+
+  getRawArrayBuffer: async (id: number): Promise<ArrayBuffer> => {
+    const token = getAccessToken()
+    const resp = await fetch(`${import.meta.env.VITE_API_BASE_URL}/files/${id}/raw`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!resp.ok) throw new Error('Failed to fetch raw file')
+    return resp.arrayBuffer()
   },
 
   getRawBlobUrl: async (id: number): Promise<string> => {

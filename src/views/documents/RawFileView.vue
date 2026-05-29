@@ -18,7 +18,7 @@
       </div>
 
       <!-- 文本文件：直接展示原文+标黄 -->
-      <template v-else-if="!isBinary && !isPdf && content">
+      <template v-else-if="!isBinary && !isPdf && !isDocx && !isXlsx && content">
         <div ref="contentRef" class="text-scroll">
           <pre class="raw-text" v-html="highlightedContent"></pre>
         </div>
@@ -32,11 +32,27 @@
         <PdfViewer :pdfUrl="pdfUrl" :highlightText="chunkText" />
       </template>
 
+      <!-- Word：mammoth.js 渲染 -->
+      <template v-else-if="isDocx">
+        <div class="section-label">
+          <el-icon><Document /></el-icon> Word 原文件（标黄处为块对应内容）
+        </div>
+        <WordViewer :docId="docId" :highlightText="chunkText" />
+      </template>
+
+      <!-- Excel：xlsx 渲染为表格 -->
+      <template v-else-if="isXlsx">
+        <div class="section-label">
+          <el-icon><Document /></el-icon> Excel 原文件（标黄处为块对应内容）
+        </div>
+        <ExcelViewer :docId="docId" :highlightText="chunkText" />
+      </template>
+
       <!-- 其他二进制文件：展示文本对照和标黄 -->
       <template v-else-if="isBinary">
         <div class="binary-notice">
           <el-icon :size="20"><WarningFilled /></el-icon>
-          <span>此文档为二进制格式（Word/Excel等），无法在页面内直接展示。</span>
+          <span>此文档为不支持的二进制格式，仅展示清洗后文本。</span>
         </div>
         <div class="section-label">
           <el-icon><Collection /></el-icon> 文本对照 · 标黄处为对应块内容
@@ -56,6 +72,8 @@ import { ArrowLeft, Document, Collection, WarningFilled } from '@element-plus/ic
 import { fileApi } from '@/api/modules/files'
 import { getAccessToken } from '@/utils/token'
 import PdfViewer from '@/components/PdfViewer.vue'
+import WordViewer from '@/components/WordViewer.vue'
+import ExcelViewer from '@/components/ExcelViewer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -66,6 +84,8 @@ const loading = ref(false)
 const docName = ref('')
 const content = ref('')
 const isPdf = ref(false)
+const isDocx = ref(false)
+const isXlsx = ref(false)
 const isBinary = ref(false)
 const pdfUrl = ref('')
 const highlightedContent = ref('')
@@ -158,12 +178,17 @@ async function load() {
   try {
     const docInfo = await fileApi.detail(docId).catch(() => null)
     docName.value = docInfo?.fileName || `文档#${docId}`
+    const ext = docInfo?.fileName?.split('.').pop()?.toLowerCase() || ''
 
     // 构建原文件 URL（含 JWT）
     const token = getAccessToken()
     pdfUrl.value = `${import.meta.env.VITE_API_BASE_URL}/files/${docId}/raw?token=${encodeURIComponent(token || '')}`
 
-    try {
+    // 根据文件扩展名确定查看器
+    if (ext === 'docx' || ext === 'doc') { isDocx.value = true }
+    else if (ext === 'xlsx' || ext === 'xls') { isXlsx.value = true }
+    else if (ext === 'pdf') { isPdf.value = true }
+    else { try {
       const rawText = await fileApi.getRawContent(docId)
       const hasNull = rawText.indexOf(String.fromCharCode(0)) !== -1
       const sample = rawText.substring(0, 2000)
@@ -185,8 +210,9 @@ async function load() {
     } catch {
       const cleaned = await fileApi.getContent(docId)
       content.value = cleaned
-    }
+    } }
 
+    if (content.value) {
     highlightedContent.value = buildHighlight(content.value)
     await nextTick()
     // 多帧延迟确保 v-html 渲染和布局完成后再滚动
@@ -206,6 +232,7 @@ async function load() {
         }, 300)
       })
     })
+  }
   } catch (e: any) {
     error.value = e?.message || '加载失败'
   } finally {
