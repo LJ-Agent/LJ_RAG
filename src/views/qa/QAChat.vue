@@ -197,7 +197,7 @@
       <!-- 原文对照 -->
       <div class="chunk-detail-section" v-if="rawContent">
         <div class="chunk-detail-section-title">
-          <el-icon><Document /></el-icon> 原文对照 · 标黄处为块对应内容
+          <el-icon><Document /></el-icon> 文档内容对照 · 标黄处为对应块内容
         </div>
         <div ref="docContentRef" class="chunk-doc-content">
           <pre class="doc-text" v-html="highlightedDocContent"></pre>
@@ -415,20 +415,13 @@ async function openChunkDetail(chunkId: string, documentId: number, chunkContent
     chunkDetail.value = chunk
     chunkDocName.value = docInfo?.fileName || `文档#${documentId}`
 
-    // 加载原文件内容
+    // 加载清洗后的文档内容做文本对照（块内容由此提取，确保匹配）
     try {
-      const text = await fileApi.getRawContent(documentId)
-      // 检测是否为可读文本（排除明显的二进制内容）
-      const printable = text.replace(/[\x20-\x7E一-鿿　-〿＀-￯\n\r\t]/g, '')
-      if (printable.length > text.length * 0.3) {
-        // 二进制文件，无法直接展示文本
-        rawContentError.value = '原文件为二进制格式（PDF/Word/PPT等），无法在此直接展示文本对照。请点击"查看原文件"按钮打开原文件，或前往分块详情页查看。'
-      } else {
-        rawContent.value = text
-        highlightedDocContent.value = buildHighlightedDoc(text, chunkContent)
-      }
+      const text = await fileApi.getContent(documentId)
+      rawContent.value = text
+      highlightedDocContent.value = buildHighlightedDoc(text, chunkContent)
     } catch {
-      rawContentError.value = '无法加载原文件内容'
+      rawContentError.value = '无法加载文档内容'
     }
   } catch {
     rawContentError.value = '加载块详情失败'
