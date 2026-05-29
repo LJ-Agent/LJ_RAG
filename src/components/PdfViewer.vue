@@ -93,10 +93,8 @@ async function render() {
       if (i === matchPage && searchText) {
         console.warn('[PdfViewer] Creating highlights for page', i)
         const tc = await page.getTextContent()
-        const itemsWithText = tc.items
-          .map((item: any, idx: number) => ({ item, idx, norm: fn(item.str) }))
-          .filter((x: any) => x.norm && x.norm.length >= 2)
-
+        const allItems = tc.items.map((item: any, idx: number) => ({ item, idx, norm: fn(item.str) }))
+        const itemsWithText = allItems.filter((x: any) => x.norm)  // 所有非空项用于文本匹配
         const pageFullText = itemsWithText.map((x: any) => x.norm).join('')
         const chunkHead = searchText.substring(0, Math.min(80, searchText.length))
         const headPos = pageFullText.indexOf(chunkHead)
@@ -121,8 +119,8 @@ async function render() {
 
           const highlightItems = itemsWithText.slice(startIdx, endIdx + 1)
             .filter(({ item }: any) => {
-              const w = item.width || (item.str.length * Math.sqrt(item.transform[0] ** 2 + item.transform[1] ** 2) * 0.7)
-              return w >= 12
+              const str = (item.str || '').trim()
+              return str.length >= 2  // 只过滤空字符和单字碎片
             })
 
           console.warn('[PdfViewer] highlightItems:', highlightItems.length)
