@@ -67,6 +67,19 @@ function buildHighlight(html: string, chunk: string): string {
     const ri = textOnly.indexOf(raw)
     if (ri !== -1) { realStart = ri; realEnd = ri + raw.length }
   }
+  // 策略 4：拆句匹配
+  if (realStart === -1) {
+    const sentences = trimmed.split(/[。！？\n]+/).filter((s: string) => s.trim().length >= 8)
+    let bestMatch = '', bestIdx = -1
+    for (const sent of sentences.slice(0, 10)) {
+      const idx = textOnly.indexOf(sent.trim())
+      if (idx !== -1 && sent.length > bestMatch.length) {
+        bestMatch = sent.trim(); bestIdx = idx
+      }
+    }
+    if (bestIdx !== -1) { realStart = bestIdx; realEnd = bestIdx + bestMatch.length }
+  }
+
   if (realStart === -1) return html
   if (realEnd === -1) realEnd = textOnly.length
 
@@ -96,29 +109,16 @@ function buildHighlight(html: string, chunk: string): string {
 
 onMounted(async () => {
   try {
-    const [cleaned, buf] = await Promise.all([
-      fileApi.getContent(props.docId).catch(() => ''),
-      fileApi.getRawArrayBuffer(props.docId).catch(() => null),
-    ])
-    let parts: string[] = []
-
-    if (buf) {
-      const XLSX = await import('xlsx')
-      const wb = XLSX.read(buf, { type: 'array' })
-      parts.push('<div style="border-bottom:2px solid #409eff;padding-bottom:8px;margin-bottom:16px;font-weight:600;color:#303133;">Excel 原文件</div>')
-      wb.SheetNames.forEach((name: string, i: number) => {
-        if (i > 0) parts.push('<hr style="margin:16px 0">')
-        parts.push('<h4 style="margin:4px 0">' + name + '</h4>')
-        parts.push(XLSX.utils.sheet_to_html(wb.Sheets[name]))
-      })
-    }
-
-    if (cleaned) {
-      parts.push('<div style="border-bottom:2px solid #e6a23c;padding-bottom:8px;margin:24px 0 16px;font-weight:600;color:#303133;">文本对照 · 标黄处为本块对应内容</div>')
-      parts.push('<pre style="margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.9;font-size:15px;color:#303133;font-family:inherit;">' + buildHighlight(escapeHtml(cleaned), props.highlightText) + '</pre>')
-    }
-
-    highlightedHtml.value = parts.join('')
+    const buf = await fileApi.getRawArrayBuffer(props.docId)
+    const XLSX = await import('xlsx')
+    const wb = XLSX.read(buf, { type: 'array' })
+    let html = ''
+    wb.SheetNames.forEach((name: string, i: number) => {
+      if (i > 0) html += '<hr style="margin:16px 0">'
+      html += '<h4 style="margin:4px 0">' + name + '</h4>'
+      html += XLSX.utils.sheet_to_html(wb.Sheets[name])
+    })
+    highlightedHtml.value = buildHighlight(html, props.highlightText)
     await nextTick()
     setTimeout(() => {
       const el = document.getElementById('raw-anchor')

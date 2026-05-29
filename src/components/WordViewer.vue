@@ -80,6 +80,24 @@ function buildHighlight(html: string, chunk: string): string {
     }
   }
 
+  // 策略 4：拆句匹配——至少高亮块中能在原文找到的句子
+  if (realStart === -1) {
+    const sentences = trimmed.split(/[。！？\n]+/).filter((s: string) => s.trim().length >= 8)
+    let bestMatch = ''
+    let bestIdx = -1
+    for (const sent of sentences.slice(0, 10)) {
+      const idx = textOnly.indexOf(sent.trim())
+      if (idx !== -1 && sent.length > bestMatch.length) {
+        bestMatch = sent.trim()
+        bestIdx = idx
+      }
+    }
+    if (bestIdx !== -1) {
+      realStart = bestIdx
+      realEnd = bestIdx + bestMatch.length
+    }
+  }
+
   if (realStart === -1) return html
   if (realEnd === -1) realEnd = textOnly.length
 
