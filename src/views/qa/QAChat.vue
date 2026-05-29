@@ -420,21 +420,13 @@ async function openChunkDetail(chunkId: string, documentId: number, chunkContent
     chunkDetail.value = chunk
     chunkDocName.value = docInfo?.fileName || `文档#${documentId}`
 
-    // 加载原文内容做对照
+    // 加载文档清洗后内容做文本对照（块内容由此提取，确保精准匹配和高亮）
+    // 对于PDF/Word等二进制文件，清洗后的Markdown是唯一可展示的文本版本
+    // "查看原文件"按钮可打开原始文件（PDF/Word等）
     try {
-      const rawText = await fileApi.getRawContent(documentId)
-      // 检测是否为可读文本（排除二进制文件）
-      const sample = rawText.substring(0, 2000)
-      const nonPrintable = sample.replace(/[\x20-\x7E一-鿿　-〿＀-￯\n\r\t]/g, '')
-      if (sample.length > 0 && nonPrintable.length > sample.length * 0.25) {
-        // 二进制文件：用清洗后文本做对照
-        const cleaned = await fileApi.getContent(documentId)
-        rawContent.value = cleaned
-        highlightedDocContent.value = buildHighlightedDoc(cleaned, chunkContent)
-      } else {
-        rawContent.value = rawText
-        highlightedDocContent.value = buildHighlightedDoc(rawText, chunkContent)
-      }
+      const text = await fileApi.getContent(documentId)
+      rawContent.value = text
+      highlightedDocContent.value = buildHighlightedDoc(text, chunkContent)
     } catch {
       rawContentError.value = '无法加载文档内容'
     }
