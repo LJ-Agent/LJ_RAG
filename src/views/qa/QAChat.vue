@@ -112,7 +112,7 @@
                     <a class="source-doc-link" @click.stop="openRawFileById(doc.documentId)" :title="'打开原文件: ' + (doc.documentName || '')">{{ doc.documentName || '文档#' + doc.documentId }}</a>
                     <span class="source-doc-chunk">Chunk #{{ doc.chunkIndex }}</span>
                   </span>
-                  <el-tag size="small" :type="doc.score > 0.7 ? 'success' : doc.score > 0.4 ? 'warning' : 'info'">
+                  <el-tag size="small" :type="doc.score > 0.5 ? 'success' : doc.score > 0.35 ? 'warning' : 'info'">
                     相似度: {{ (doc.score * 100).toFixed(1) }}%
                   </el-tag>
                 </div>
