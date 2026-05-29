@@ -21,6 +21,7 @@ const error = ref('')
 const highlightedHtml = ref('')
 const contentRef = ref<HTMLElement>()
 
+function escapeHtml(s: string): string { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 function fn(s: string): string { return s.replace(/\s+/g, '').replace(/[\f]/g, '') }
 
 function buildHighlight(html: string, chunk: string): string {
@@ -95,16 +96,29 @@ function buildHighlight(html: string, chunk: string): string {
 
 onMounted(async () => {
   try {
-    const buf = await fileApi.getRawArrayBuffer(props.docId)
-    const XLSX = await import('xlsx')
-    const wb = XLSX.read(buf, { type: 'array' })
-    // 收集所有 sheet 的 HTML
-    let html = ''
-    wb.SheetNames.forEach((name: string, i: number) => {
-      if (i > 0) html += '<hr style="margin:20px 0"><h3 style="margin:8px 0">' + name + '</h3>'
-      html += XLSX.utils.sheet_to_html(wb.Sheets[name], { id: 'sheet-' + i })
-    })
-    highlightedHtml.value = buildHighlight(html, props.highlightText)
+    const [cleaned, buf] = await Promise.all([
+      fileApi.getContent(props.docId).catch(() => ''),
+      fileApi.getRawArrayBuffer(props.docId).catch(() => null),
+    ])
+    let parts: string[] = []
+
+    if (buf) {
+      const XLSX = await import('xlsx')
+      const wb = XLSX.read(buf, { type: 'array' })
+      parts.push('<div style="border-bottom:2px solid #409eff;padding-bottom:8px;margin-bottom:16px;font-weight:600;color:#303133;">Excel 原文件</div>')
+      wb.SheetNames.forEach((name: string, i: number) => {
+        if (i > 0) parts.push('<hr style="margin:16px 0">')
+        parts.push('<h4 style="margin:4px 0">' + name + '</h4>')
+        parts.push(XLSX.utils.sheet_to_html(wb.Sheets[name]))
+      })
+    }
+
+    if (cleaned) {
+      parts.push('<div style="border-bottom:2px solid #e6a23c;padding-bottom:8px;margin:24px 0 16px;font-weight:600;color:#303133;">文本对照 · 标黄处为本块对应内容</div>')
+      parts.push('<pre style="margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.9;font-size:15px;color:#303133;font-family:inherit;">' + buildHighlight(escapeHtml(cleaned), props.highlightText) + '</pre>')
+    }
+
+    highlightedHtml.value = parts.join('')
     await nextTick()
     setTimeout(() => {
       const el = document.getElementById('raw-anchor')

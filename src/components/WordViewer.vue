@@ -110,22 +110,29 @@ function buildHighlight(html: string, chunk: string): string {
 
 onMounted(async () => {
   try {
-    // 优先使用清洗后文本（块由此提取，匹配精准），同时渲染 Word HTML 作为参考
     const [cleaned, buf] = await Promise.all([
       fileApi.getContent(props.docId).catch(() => ''),
       fileApi.getRawArrayBuffer(props.docId).catch(() => null),
     ])
 
-    if (cleaned) {
-      // 在清洗后文本中标黄（100% 匹配）
-      const pre = '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.9;font-size:15px;color:#303133;font-family:inherit;">'
-      const post = '</pre>'
-      highlightedHtml.value = pre + buildHighlight(escapeHtml(cleaned), props.highlightText) + post
-    } else if (buf) {
+    let parts: string[] = []
+
+    // Word 原文件渲染（mammoth）
+    if (buf) {
       const mammoth = await import('mammoth')
       const result = await mammoth.convertToHtml({ arrayBuffer: buf })
-      highlightedHtml.value = buildHighlight(result.value, props.highlightText)
+      parts.push('<div style="border-bottom:2px solid #409eff;padding-bottom:8px;margin-bottom:16px;font-weight:600;color:#303133;">Word 原文件</div>')
+      parts.push('<div style="margin-bottom:24px;">' + result.value + '</div>')
     }
+
+    // 清洗后文本 + 精确标黄（块由此提取，100%匹配）
+    if (cleaned) {
+      parts.push('<div style="border-bottom:2px solid #e6a23c;padding-bottom:8px;margin-bottom:16px;font-weight:600;color:#303133;">文本对照 · 标黄处为本块对应内容</div>')
+      const pre = '<pre style="margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.9;font-size:15px;color:#303133;font-family:inherit;">'
+      parts.push(pre + buildHighlight(escapeHtml(cleaned), props.highlightText) + '</pre>')
+    }
+
+    highlightedHtml.value = parts.join('')
     await nextTick()
     setTimeout(() => {
       const el = document.getElementById('raw-anchor')
