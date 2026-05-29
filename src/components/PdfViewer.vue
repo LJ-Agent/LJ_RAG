@@ -96,31 +96,27 @@ async function render() {
       const chunkHead = searchText.substring(0, Math.min(80, searchText.length))
       const headPos = pageFullText.indexOf(chunkHead)
 
-      console.warn('[PdfViewer] headPos:', headPos, 'pageFullText len:', pageFullText.length, 'searchText len:', searchText.length)
-      console.warn('[PdfViewer] page head:', pageFullText.substring(0, 80))
-      console.warn('[PdfViewer] chunk head:', chunkHead.substring(0, 80))
       if (headPos !== -1) {
-        // 从 headPos 开始，计算块文本与页面文本的最长连续匹配长度
-        let matchLen = chunkHead.length
-        const remainingPage = pageFullText.substring(headPos)
-        const remainingChunk = searchText.substring(chunkHead.length)
-        // 逐字符比较，找到分叉点
-        for (let i = 0; i < Math.min(remainingPage.length, remainingChunk.length); i++) {
-          if (remainingPage[i] === remainingChunk[i]) matchLen++
-          else break
-        }
-        const endPos = headPos + matchLen
+        // 使用更大段头部（200字符）确保覆盖范围足够
+        const bigHead = searchText.substring(0, Math.min(200, searchText.length))
+        const bigHeadEnd = headPos + bigHead.length
 
-        // 将精确字符位置映射回文本项索引
+        // 将字符位置映射回文本项索引
         let startIdx = 0, endIdx = itemsWithText.length - 1
         let charCount = 0
+        let foundStart = false
         for (let i = 0; i < itemsWithText.length; i++) {
+          const prevCount = charCount
           charCount += itemsWithText[i].norm.length
-          if (charCount > headPos && startIdx === 0) startIdx = i
-          if (charCount >= endPos) { endIdx = i; break }
+          if (!foundStart && charCount > headPos) { startIdx = i; foundStart = true }
+          if (charCount >= bigHeadEnd) { endIdx = i; break }
         }
 
-        const highlightItems = itemsWithText.slice(startIdx, endIdx + 1)
+        // 过滤掉极小文本碎片（页码、分隔符等），只保留宽度>=15px的项
+        const highlightItems = itemsWithText.slice(startIdx, endIdx + 1).filter(({ item }: any) => {
+          const w = item.width || (item.str.length * Math.sqrt(item.transform[0] * item.transform[0] + item.transform[1] * item.transform[1]) * 0.6)
+          return w >= 15
+        })
         let firstBar: HTMLElement | null = null
 
         // 逐项精确标黄，每个文本项独立高亮条
