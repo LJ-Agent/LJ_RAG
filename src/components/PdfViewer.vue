@@ -1,13 +1,13 @@
 <template>
   <div class="pdf-viewer">
-    <div v-if="loading" class="pdf-loading">
-      <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-      <span>正在加载 PDF 并搜索定位...</span>
-    </div>
-    <div v-else ref="containerRef" class="pdf-container">
+    <div ref="containerRef" class="pdf-container">
       <div v-for="n in pageCount" :key="n" :id="'pdf-page-' + n" class="pdf-page-wrap">
         <canvas :id="'pdf-canvas-' + n" class="pdf-canvas" />
       </div>
+    </div>
+    <div v-if="loading" class="pdf-loading-overlay">
+      <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+      <span>正在加载 PDF 并搜索定位...</span>
     </div>
   </div>
 </template>
@@ -171,8 +171,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.pdf-viewer { flex:1; overflow:hidden; display:flex; flex-direction:column; background:#525659; }
-.pdf-loading { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#fff; font-size:14px; }
+.pdf-viewer { flex:1; overflow:hidden; display:flex; flex-direction:column; background:#525659; position:relative; }
+.pdf-loading-overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; color:#fff; font-size:14px; background:rgba(82,86,89,0.85); z-index:50; }
 .pdf-container { flex:1; overflow-y:auto; padding:16px 0; }
 .pdf-page-wrap { display:flex; justify-content:center; margin-bottom:16px; }
 .pdf-canvas { display:block; max-width:95%; }
