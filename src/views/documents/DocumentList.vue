@@ -173,7 +173,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Upload, Delete } from '@element-plus/icons-vue'
 import { fileApi } from '@/api/modules/files'
 import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
@@ -187,6 +187,7 @@ import { getAccessToken } from '@/utils/token'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
+const router = useRouter()
 const pagination = usePagination()
 const query = reactive({ kbId: undefined as number | undefined, fileName: '', status: undefined as string | undefined })
 const list = ref<FileVO[]>([])
@@ -269,6 +270,12 @@ function showDetail(row: FileVO) {
 }
 
 function openRawFile(row: FileVO) {
+  const ext = row.fileName?.split('.').pop()?.toLowerCase() || ''
+  // Word/Excel 浏览器无法原生渲染，跳转到 RawFileView 用组件渲染
+  if (['docx', 'doc', 'xlsx', 'xls'].includes(ext)) {
+    router.push(`/documents/${row.id}/raw-view`)
+    return
+  }
   const token = getAccessToken()
   const url = `${import.meta.env.VITE_API_BASE_URL}/files/${row.id}/raw?token=${encodeURIComponent(token || '')}`
   window.open(url, '_blank')
