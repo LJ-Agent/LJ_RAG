@@ -165,7 +165,7 @@
   </div>
 
   <!-- 块详情弹窗（含原文对照） -->
-  <el-dialog v-model="chunkDetailVisible" :title="'块详情 — ' + chunkDocName" width="960px" destroy-on-close top="3vh" @opened="scrollToHighlight">
+  <el-dialog v-model="chunkDetailVisible" :title="'块详情 — ' + chunkDocName" width="960px" destroy-on-close top="3vh">
     <template v-if="chunkDetailLoading">
       <el-skeleton :rows="10" animated />
     </template>
@@ -442,6 +442,14 @@ async function openChunkDetail(chunkId: string, documentId: number, chunkContent
     rawContentError.value = '加载块详情失败'
   } finally {
     chunkDetailLoading.value = false
+    // 等待 DOM 更新后滚动到高亮位置
+    await nextTick()
+    setTimeout(() => {
+      const el = document.getElementById('chunk-highlight-anchor')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 300)
   }
 }
 
@@ -517,15 +525,6 @@ function mapNormalizedPos(original: string, normalized: string, normPos: number)
     }
   }
   return origIdx
-}
-
-function scrollToHighlight() {
-  setTimeout(() => {
-    const el = document.getElementById('chunk-highlight-anchor')
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }, 200)
 }
 
 function scrollToBottom() {
@@ -1062,7 +1061,7 @@ onMounted(async () => {
   scroll-margin-top: 120px;
 }
 .chunk-highlight-box {
-  background: #fef9e7;
-  border: 1px solid #fde68a;
+  background: #fef9e7 !important;
+  border: 1px solid #fde68a !important;
 }
 </style>
