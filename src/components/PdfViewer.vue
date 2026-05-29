@@ -101,6 +101,7 @@ async function render() {
         const chunkHead = searchText.substring(0, Math.min(80, searchText.length))
         const headPos = pageFullText.indexOf(chunkHead)
 
+        console.warn('[PdfViewer] headPos:', headPos, 'pageFullText:', pageFullText.length, 'searchText:', searchText.length)
         if (headPos !== -1) {
           const coverLen = Math.min(searchText.length, pageFullText.length - headPos)
           const coverEnd = headPos + coverLen
@@ -124,6 +125,7 @@ async function render() {
               return w >= 12
             })
 
+          console.warn('[PdfViewer] highlightItems:', highlightItems.length)
           let firstBar: HTMLElement | null = null
           highlightItems.forEach(({ item }: any, hi: number) => {
             const tx = item.transform
