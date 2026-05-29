@@ -67,9 +67,12 @@ async function render() {
       if (searchText && matchPage === 0) {
         const tc = await page.getTextContent()
         const fullText = fn(tc.items.map((it: any) => it.str).join(''))
-        // 搜索块文本的前40字符
+        // 搜索块文本的前40字符（标准化后）
         const needle = searchText.substring(0, Math.min(40, searchText.length))
+        if (i === 1) console.warn('[PdfViewer] Page 1 text sample:', fullText.substring(0, 200))
+        console.warn('[PdfViewer] Page', i, 'searching for:', needle.substring(0, 30))
         if (fullText.includes(needle)) {
+          console.warn('[PdfViewer] MATCH found on page', i)
           matchPage = i
         }
       }
