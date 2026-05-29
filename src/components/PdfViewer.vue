@@ -90,47 +90,32 @@ async function loadPdf() {
       // 渲染文本层
       if (textLayerDiv) {
         const textContent = await page.getTextContent()
-        // 标记需要高亮的文本项
-        const searchTerms = extractSearchTerms(props.highlightText)
-        textContent.items.forEach((item: any) => {
-          if (searchTerms.some(t => item.str.includes(t))) {
-            ;(item as any).highlighted = true
-          }
-        })
 
         textLayerDiv.style.height = viewport.height + 'px'
         textLayerDiv.style.width = viewport.width + 'px'
-        textLayerDiv.style.transform = 'scale(0.6667)'
-        textLayerDiv.style.transformOrigin = 'top left'
         textLayerDiv.innerHTML = ''
 
         await pdfjsLib.renderTextLayer({
           textContentSource: textContent,
           container: textLayerDiv,
           viewport,
-          textDivs: textContent.items.map((item: any) => {
-            const div = document.createElement('span')
-            div.textContent = item.str
-            div.style.position = 'absolute'
-            div.style.whiteSpace = 'pre'
-            div.style.cursor = 'default'
-            const tx = pdfjsLib.Util.transform(viewport.transform, item.transform)
-            div.style.left = tx[4] + 'px'
-            div.style.top = (tx[5] - item.height * 0.8) + 'px'
-            div.style.fontSize = Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3]) + 'px'
-            div.style.fontFamily = 'sans-serif'
-            if (item.highlighted) {
-              div.style.backgroundColor = '#fef08a'
-              div.style.color = '#92400e'
-              div.style.padding = '1px 2px'
-              div.style.borderRadius = '2px'
-              if (matchPage.value === i) {
-                div.id = 'pdf-highlight-anchor'
-                div.style.scrollMarginTop = '80px'
-              }
+        })
+
+        // 渲染完成后搜索并高亮匹配项
+        const searchTerms = extractSearchTerms(props.highlightText)
+        const spans = textLayerDiv.querySelectorAll('span')
+        spans.forEach((span) => {
+          const text = (span as HTMLElement).textContent || ''
+          if (searchTerms.some(t => t.length >= 5 && text.includes(t))) {
+            (span as HTMLElement).style.backgroundColor = '#fef08a'
+            ;(span as HTMLElement).style.color = '#92400e'
+            ;(span as HTMLElement).style.padding = '1px 2px'
+            ;(span as HTMLElement).style.borderRadius = '2px'
+            if (matchPage.value === i && !document.getElementById('pdf-highlight-anchor')) {
+              span.id = 'pdf-highlight-anchor'
+              ;(span as HTMLElement).style.scrollMarginTop = '80px'
             }
-            return div
-          }),
+          }
         })
       }
     }
