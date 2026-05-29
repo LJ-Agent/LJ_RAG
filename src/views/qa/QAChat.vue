@@ -989,17 +989,21 @@ onMounted(async () => {
   color: #606266;
   font-family: inherit;
 }
-.doc-text :deep(mark.chunk-highlight) {
-  background: #fff3cd;
-  color: #856404;
-  padding: 2px 4px;
-  border-radius: 2px;
-  scroll-margin-top: 120px;
-}
 .chunk-doc-empty {
   color: #909399;
   font-size: 13px;
   text-align: center;
   padding: 24px;
+}
+</style>
+
+<!-- 全局样式：v-html 渲染的 mark 标签标黄，scoped 无法穿透 v-html -->
+<style>
+.chunk-highlight {
+  background: #fef08a;
+  color: #92400e;
+  padding: 2px 4px;
+  border-radius: 2px;
+  scroll-margin-top: 120px;
 }
 </style>
