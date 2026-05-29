@@ -27,24 +27,20 @@
         </div>
       </template>
 
-      <!-- 二进制文件：iframe 内嵌原文件 + 下方文本对照标黄 -->
+      <!-- 二进制文件：展示文本对照和标黄，引导用户打开原文件 -->
       <template v-else-if="isBinary">
-        <div class="split-layout">
-          <div class="split-top">
-            <div class="section-label">
-              <el-icon><Document /></el-icon> 原文件预览
-              <el-tag type="warning" size="small" style="margin-left:8px">二进制文件</el-tag>
-            </div>
-            <iframe v-if="rawFileUrl" :src="rawFileUrl" class="raw-iframe" />
-          </div>
-          <div class="split-bottom">
-            <div class="section-label">
-              <el-icon><Collection /></el-icon> 文本对照 · 标黄处为对应块内容
-            </div>
-            <div ref="contentRef" class="text-scroll">
-              <pre v-if="highlightedContent" class="raw-text" v-html="highlightedContent"></pre>
-            </div>
-          </div>
+        <div class="binary-notice">
+          <el-icon :size="20"><WarningFilled /></el-icon>
+          <span>此文档为二进制格式（PDF/Word等），无法在页面内直接展示。请打开原文件查看。</span>
+          <el-button type="primary" size="small" @click="openRaw">
+            <el-icon><Document /></el-icon> 打开原文件
+          </el-button>
+        </div>
+        <div class="section-label">
+          <el-icon><Collection /></el-icon> 文本对照 · 标黄处为对应块内容
+        </div>
+        <div ref="contentRef" class="text-scroll">
+          <pre v-if="highlightedContent" class="raw-text" v-html="highlightedContent"></pre>
         </div>
       </template>
     </div>
@@ -54,7 +50,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Document, Download, Collection } from '@element-plus/icons-vue'
+import { ArrowLeft, Document, Download, Collection, WarningFilled } from '@element-plus/icons-vue'
 import { fileApi } from '@/api/modules/files'
 import { getAccessToken } from '@/utils/token'
 
@@ -228,11 +224,9 @@ onMounted(load)
 .raw-text { margin:0; padding:20px 24px; white-space:pre-wrap; word-break:break-word; line-height:1.9; font-size:15px; color:#303133; font-family:inherit; }
 .raw-error { display:flex; justify-content:center; padding-top:80px; }
 
-.split-layout { display:flex; flex-direction:column; height:100%; }
-.split-top { flex:1; display:flex; flex-direction:column; min-height:0; border-bottom:2px solid #409eff; }
-.split-bottom { flex:1; display:flex; flex-direction:column; min-height:0; }
 .section-label { font-weight:600; font-size:13px; color:#303133; padding:8px 16px; background:#f5f7fa; border-bottom:1px solid #ebeef5; display:flex; align-items:center; gap:6px; flex-shrink:0; }
-.raw-iframe { flex:1; border:none; width:100%; }
+.binary-notice { display:flex; align-items:center; gap:10px; padding:16px 20px; background:#fdf6ec; border-bottom:1px solid #faecd8; color:#e6a23c; font-size:14px; }
+.binary-notice .el-button { margin-left:auto; flex-shrink:0; }
 </style>
 
 <style>
