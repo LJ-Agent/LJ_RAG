@@ -53,6 +53,9 @@ async function loadPdf() {
   try {
     const doc = await pdfjsLib.getDocument({ url: props.pdfUrl, cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/cmaps/', cMapPacked: true }).promise
     pageCount.value = doc.numPages
+    // 等待 Vue 渲染 canvas + text layer DOM
+    await nextTick()
+    await new Promise(r => setTimeout(r, 100))
 
     // 先搜索所有页找到匹配页
     let foundPage = 0
