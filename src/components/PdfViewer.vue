@@ -16,7 +16,6 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import * as pdfjsLib from 'pdfjs-dist'
-import { getAccessToken } from '@/utils/token'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs-worker.mjs'
 
@@ -34,33 +33,29 @@ const fn = (t: string) => t.replace(/\s+/g, '').replace(/[\f]/g, '')
 
 async function render() {
   try {
-    const loadingTask = pdfjsLib.getDocument({
+    const doc = await pdfjsLib.getDocument({
       url: props.pdfUrl,
       cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.449/cmaps/',
       cMapPacked: true,
-    })
-    const doc = await loadingTask.promise
+    }).promise
+
     pageCount.value = doc.numPages
     await nextTick()
-    await new Promise(r => setTimeout(r, 200))
+    await new Promise(r => setTimeout(r, 300))
 
     const searchText = fn(props.highlightText.trim())
     let matchPage = 0
 
-    // 第一遍：快速扫描所有页文本找到匹配页
+    // 第一遍：扫描文本找到匹配页
     if (searchText) {
       const needle = searchText.substring(0, Math.min(60, searchText.length))
       for (let i = 1; i <= doc.numPages && matchPage === 0; i++) {
         const page = await doc.getPage(i)
         const tc = await page.getTextContent()
         const fullText = fn(tc.items.map((it: any) => it.str).join(''))
-        if (i === 1) console.warn('[PdfViewer] Page 1 text sample:', fullText.substring(0, 200))
         if (fullText.includes(needle)) matchPage = i
       }
-      console.warn('[PdfViewer] matchPage:', matchPage)
     }
-
-    console.warn('[PdfViewer] Before canvas loop - id check:', !!document.getElementById('pdf-page-1'), 'page-wrap count:', document.querySelectorAll('.pdf-page-wrap').length)
 
     // 第二遍：渲染所有页 canvas
     for (let i = 1; i <= doc.numPages; i++) {
@@ -80,79 +75,60 @@ async function render() {
       await page.render({ canvasContext: ctx, viewport }).promise
     }
 
-    console.warn('[PdfViewer] Starting highlight overlay, matchPage:', matchPage, 'searchText:', !!searchText)
+    // 在匹配页上覆盖黄色标记
     if (matchPage > 0 && searchText) {
       const page = await doc.getPage(matchPage)
       const viewport = page.getViewport({ scale })
       const tc = await page.getTextContent()
       const pageEl = document.getElementById('pdf-page-' + matchPage)
-      console.warn('[PdfViewer] pageEl:', !!pageEl, 'items:', tc.items.length)
-      if (!pageEl || tc.items.length === 0) {
-        console.warn('[PdfViewer] Exiting early - no pageEl or empty items')
-        return
-      }
+      if (!pageEl || tc.items.length === 0) return
 
-      // 创建高亮覆盖层
       const hlLayer = document.createElement('div')
-      hlLayer.style.cssText = [
-        'position:absolute', 'top:0', 'left:0',
-        'width:' + viewport.width + 'px',
-        'height:' + viewport.height + 'px',
-        'pointer-events:none', 'z-index:10',
-      ].join(';')
+      hlLayer.style.cssText = `position:absolute;top:0;left:0;width:${viewport.width}px;height:${viewport.height}px;pointer-events:none;z-index:10;`
       pageEl.style.position = 'relative'
       pageEl.appendChild(hlLayer)
 
-      // 使用块文本前60字符做精确匹配，同时分词做短词匹配
       const headNeedle = searchText.substring(0, Math.min(60, searchText.length))
       const shortWords = headNeedle.replace(/(.{2,8})/g, '$1|').split('|').filter((s: string) => s.length >= 2)
       const matchedItems: any[] = []
-      if (tc.items.length > 0) {
-        console.warn('[PdfViewer] First 5 PDF items:', tc.items.slice(0, 5).map((it: any) => JSON.stringify({ str: it.str, h: it.height })))
-      }
 
       tc.items.forEach((item: any) => {
         const spanNorm = fn(item.str)
         if (!spanNorm) return
-        // 精确匹配前60字符中的某一项，或短词匹配
         if (headNeedle.includes(spanNorm) || shortWords.some((w: string) => w.length >= 3 && spanNorm.includes(w))) {
           matchedItems.push(item)
         }
       })
 
-      console.warn('[PdfViewer] matchedItems count:', matchedItems.length)
       if (matchedItems.length > 0) {
-        const highlightDiv = document.createElement('div')
-        highlightDiv.style.cssText = [
-          'position:absolute',
-          'background:rgba(254,240,138,0.7)',
-          'border-radius:2px',
-          'pointer-events:none',
-          'z-index:11',
-        ].join(';')
-
-        // 用第一个匹配项的坐标
         const first = matchedItems[0]
         const tx = first.transform
         const left = tx[4]
         const top = tx[5] - first.height * 0.8
         const fontSize = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])
 
-        highlightDiv.style.left = left + 'px'
-        highlightDiv.style.top = top + 'px'
-        highlightDiv.style.height = Math.max(fontSize, 16) + 'px'
-        highlightDiv.style.width = '100%'
-        highlightDiv.id = 'pdf-highlight-anchor'
-        highlightDiv.style.scrollMarginTop = '80px'
+        const highlight = document.createElement('div')
+        highlight.style.cssText = [
+          'position:absolute',
+          `left:${left}px`,
+          `top:${top}px`,
+          `height:${Math.max(fontSize * 2, 24)}px`,
+          'width:80%',
+          'background:rgba(254,240,138,0.6)',
+          'border-radius:2px',
+          'pointer-events:none',
+          'z-index:11',
+        ].join(';')
+        highlight.id = 'pdf-highlight-anchor'
+        highlight.style.scrollMarginTop = '80px'
 
-        hlLayer.appendChild(highlightDiv)
+        hlLayer.appendChild(highlight)
 
         setTimeout(() => {
-          highlightDiv.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          highlight.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }, 500)
       }
     } else if (matchPage > 0) {
-      // 无搜索文本但有匹配页：直接滚动
       setTimeout(() => {
         const el = document.getElementById('pdf-page-' + matchPage)
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -165,9 +141,7 @@ async function render() {
   }
 }
 
-onMounted(() => {
-  setTimeout(render, 100)
-})
+onMounted(() => setTimeout(render, 100))
 </script>
 
 <style scoped>
