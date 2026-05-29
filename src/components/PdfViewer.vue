@@ -87,7 +87,7 @@ async function loadPdf() {
       const ctx = canvas.getContext('2d')
       await page.render({ canvasContext: ctx, viewport }).promise
 
-      // 渲染文本层
+      // 渲染文本层（需在渲染后搜索匹配并高亮）
       if (textLayerDiv) {
         const textContent = await page.getTextContent()
 
@@ -101,22 +101,41 @@ async function loadPdf() {
           viewport,
         })
 
-        // 渲染完成后搜索并高亮匹配项
-        const searchTerms = extractSearchTerms(props.highlightText)
-        const spans = textLayerDiv.querySelectorAll('span')
+        // 在文本层中搜索并高亮块内容
+        const spans = Array.from(textLayerDiv.querySelectorAll('span')) as HTMLElement[]
+        const fn = (t: string) => t.replace(/\s+/g, '').replace(/[]/g, '')
+        const searchNorm = fn(props.highlightText.trim().substring(0, 200))
+        const searchWords = searchNorm.replace(/(.{10})/g, '$1|').split('|').filter(s => s.length >= 5)
+
+        let firstMatch: HTMLElement | null = null
+        let consecutive = 0
+
         spans.forEach((span) => {
-          const text = (span as HTMLElement).textContent || ''
-          if (searchTerms.some(t => t.length >= 5 && text.includes(t))) {
-            (span as HTMLElement).style.backgroundColor = '#fef08a'
-            ;(span as HTMLElement).style.color = '#92400e'
-            ;(span as HTMLElement).style.padding = '1px 2px'
-            ;(span as HTMLElement).style.borderRadius = '2px'
-            if (matchPage.value === i && !document.getElementById('pdf-highlight-anchor')) {
-              span.id = 'pdf-highlight-anchor'
-              ;(span as HTMLElement).style.scrollMarginTop = '80px'
+          const spanNorm = fn(span.textContent || '')
+          if (!spanNorm) return
+
+          // 检查此 span 是否是搜索文本的一部分
+          const isMatch = searchWords.some(w => spanNorm.includes(w)) ||
+                          searchNorm.includes(spanNorm.substring(0, Math.min(20, spanNorm.length)))
+
+          if (isMatch) {
+            span.style.backgroundColor = '#fef08a'
+            span.style.color = '#92400e'
+            span.style.padding = '1px 2px'
+            span.style.borderRadius = '2px'
+            consecutive++
+            if (!firstMatch && consecutive >= 3 && matchPage.value === i) {
+              firstMatch = span
             }
+          } else {
+            consecutive = 0
           }
         })
+
+        if (firstMatch) {
+          firstMatch.id = 'pdf-highlight-anchor'
+          firstMatch.style.scrollMarginTop = '80px'
+        }
       }
     }
 
