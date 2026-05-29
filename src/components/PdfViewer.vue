@@ -122,20 +122,21 @@ async function render() {
 
           let firstBar: HTMLElement | null = null
           highlightItems.forEach(({ item }: any, hi: number) => {
+            // 文本项坐标基于 scale=1.0，统一乘 scale 转为 viewport 坐标
             const tx = item.transform
-            const x = tx[4]
-            // PDF 坐标系 Y=0 在底部，需翻转为 CSS top（从上往下）
-            const pdfY = tx[5]
-            const itemH = Math.abs(item.height) || Math.sqrt(tx[0] ** 2 + tx[1] ** 2)
-            const y = vp.height - pdfY - itemH * 0.85
-            const fz = Math.sqrt(tx[0] ** 2 + tx[1] ** 2)
-            const w = Math.max(item.width || (item.str.length * fz * 0.7), 24)
-            const h = Math.max(itemH, 14)
+            const sx = tx[4] * scale
+            const sy = tx[5] * scale
+            const sh = (Math.abs(item.height) || Math.sqrt(tx[0] ** 2 + tx[1] ** 2)) * scale
+            const sw = (item.width || (item.str.length * Math.sqrt(tx[0] ** 2 + tx[1] ** 2) * 0.7)) * scale
+            // PDF 坐标系 Y=0 在底部，翻转为 CSS top（从上往下）
+            const y = vp.height - sy - sh * 0.85
+            const w = Math.max(sw, 24)
+            const h = Math.max(sh, 14)
 
             const bar = document.createElement('div')
             bar.style.cssText = [
               'position:absolute',
-              `left:${x - 2}px`,
+              `left:${sx - 2}px`,
               `top:${y - 1}px`,
               `width:${w + 4}px`,
               `height:${h + 3}px`,
