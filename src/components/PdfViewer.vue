@@ -18,8 +18,8 @@ import { ref, onMounted, nextTick } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import * as pdfjsLib from 'pdfjs-dist'
 
-// 使用 CDN worker 避免 Vite 打包问题
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.7.284/pdf.worker.min.mjs'
+// Worker 文件放在 public/ 目录，直接通过 URL 访问
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdfjs-worker.mjs'
 
 const props = defineProps<{
   pdfUrl: string
