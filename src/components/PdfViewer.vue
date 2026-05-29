@@ -97,12 +97,16 @@ async function render() {
       pageEl.style.position = 'relative'
       pageEl.appendChild(hlLayer)
 
-      const searchWords = searchText.replace(/(.{10})/g, '$1|').split('|').filter((s: string) => s.length >= 5)
+      // 使用块文本前60字符做精确匹配，同时分词做短词匹配
+      const headNeedle = searchText.substring(0, Math.min(60, searchText.length))
+      const shortWords = headNeedle.replace(/(.{2,8})/g, '$1|').split('|').filter((s: string) => s.length >= 2)
       const matchedItems: any[] = []
 
       tc.items.forEach((item: any) => {
         const spanNorm = fn(item.str)
-        if (spanNorm && searchWords.some((w: string) => spanNorm.includes(w))) {
+        if (!spanNorm) return
+        // 精确匹配前60字符中的某一项，或短词匹配
+        if (headNeedle.includes(spanNorm) || shortWords.some((w: string) => w.length >= 3 && spanNorm.includes(w))) {
           matchedItems.push(item)
         }
       })
