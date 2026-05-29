@@ -89,9 +89,7 @@ async function render() {
       wrapper.style.marginBottom = `${vp.height * (fitScale - 1)}px`
 
       // 在匹配页创建高亮层
-      console.warn('[PdfViewer] Page', i, 'matchPage:', matchPage, 'searchText:', !!searchText)
       if (i === matchPage && searchText) {
-        console.warn('[PdfViewer] Creating highlights for page', i)
         const tc = await page.getTextContent()
         const allItems = tc.items.map((item: any, idx: number) => ({ item, idx, norm: fn(item.str) }))
         const itemsWithText = allItems.filter((x: any) => x.norm)  // 所有非空项用于文本匹配
@@ -99,7 +97,6 @@ async function render() {
         const chunkHead = searchText.substring(0, Math.min(80, searchText.length))
         const headPos = pageFullText.indexOf(chunkHead)
 
-        console.warn('[PdfViewer] headPos:', headPos, 'pageFullText:', pageFullText.length, 'searchText:', searchText.length)
         if (headPos !== -1) {
           const coverLen = Math.min(searchText.length, pageFullText.length - headPos)
           const coverEnd = headPos + coverLen
@@ -123,7 +120,6 @@ async function render() {
               return str.length >= 2  // 只过滤空字符和单字碎片
             })
 
-          console.warn('[PdfViewer] highlightItems:', highlightItems.length)
           let firstBar: HTMLElement | null = null
           highlightItems.forEach(({ item }: any, hi: number) => {
             const tx = item.transform
