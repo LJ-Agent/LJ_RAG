@@ -124,10 +124,13 @@ async function render() {
           highlightItems.forEach(({ item }: any, hi: number) => {
             const tx = item.transform
             const x = tx[4]
-            const y = tx[5] - item.height * 0.85
+            // PDF 坐标系 Y=0 在底部，需翻转为 CSS top（从上往下）
+            const pdfY = tx[5]
+            const itemH = Math.abs(item.height) || Math.sqrt(tx[0] ** 2 + tx[1] ** 2)
+            const y = vp.height - pdfY - itemH * 0.85
             const fz = Math.sqrt(tx[0] ** 2 + tx[1] ** 2)
             const w = Math.max(item.width || (item.str.length * fz * 0.7), 24)
-            const h = Math.max(item.height || fz, 14)
+            const h = Math.max(itemH, 14)
 
             const bar = document.createElement('div')
             bar.style.cssText = [
