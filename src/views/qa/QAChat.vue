@@ -189,15 +189,15 @@
       <!-- 块内容 -->
       <div class="chunk-detail-section">
         <div class="chunk-detail-section-title">
-          <el-icon><Collection /></el-icon> 块内容（Markdown）
+          <el-icon><Collection /></el-icon> 块内容
         </div>
-        <div class="chunk-detail-content markdown-body" v-html="renderMarkdown(chunkDetail.content || '')"></div>
+        <div class="chunk-detail-content markdown-body chunk-highlight-box" v-html="renderMarkdown(chunkDetail.content || '')"></div>
       </div>
 
       <!-- 原文对照 -->
       <div class="chunk-detail-section" v-if="rawContent">
         <div class="chunk-detail-section-title">
-          <el-icon><Document /></el-icon> 原文对照 · 标黄处为对应块内容
+          <el-icon><Document /></el-icon> 原文对照 · 以下原文中标黄处为本块对应内容
         </div>
         <div ref="docContentRef" class="chunk-doc-content">
           <pre class="doc-text" v-html="highlightedDocContent"></pre>
@@ -1060,5 +1060,9 @@ onMounted(async () => {
   padding: 2px 4px;
   border-radius: 2px;
   scroll-margin-top: 120px;
+}
+.chunk-highlight-box {
+  background: #fef9e7;
+  border: 1px solid #fde68a;
 }
 </style>
