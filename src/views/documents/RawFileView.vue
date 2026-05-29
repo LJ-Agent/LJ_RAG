@@ -28,9 +28,6 @@
       <template v-else-if="isPdf">
         <div class="section-label">
           <el-icon><Document /></el-icon> 原文件（标黄处为块对应内容）
-          <el-button size="small" @click="openRawFile" style="margin-left:auto">
-            <el-icon><Download /></el-icon> 在新标签页打开原文件
-          </el-button>
         </div>
         <PdfViewer :pdfUrl="pdfUrl" :highlightText="chunkText" />
       </template>
@@ -39,10 +36,7 @@
       <template v-else-if="isBinary">
         <div class="binary-notice">
           <el-icon :size="20"><WarningFilled /></el-icon>
-          <span>此文档为二进制格式（Word/Excel等），无法在页面内直接展示。请打开原文件查看。</span>
-          <el-button type="primary" size="small" @click="openRawFile">
-            <el-icon><Document /></el-icon> 打开原文件
-          </el-button>
+          <span>此文档为二进制格式（Word/Excel等），无法在页面内直接展示。</span>
         </div>
         <div class="section-label">
           <el-icon><Collection /></el-icon> 文本对照 · 标黄处为对应块内容
@@ -58,7 +52,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Document, Download, Collection, WarningFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, Document, Collection, WarningFilled } from '@element-plus/icons-vue'
 import { fileApi } from '@/api/modules/files'
 import { getAccessToken } from '@/utils/token'
 import PdfViewer from '@/components/PdfViewer.vue'
@@ -156,13 +150,6 @@ function buildHighlight(docText: string): string {
 function goBack() {
   if (window.history.length > 1) router.back()
   else window.close()
-}
-
-function openRawFile() {
-  // 直接打开原始文件（用于 PDF 等二进制文件）
-  const token = getAccessToken()
-  const url = `${import.meta.env.VITE_API_BASE_URL}/files/${docId}/raw?token=${encodeURIComponent(token || '')}`
-  window.open(url, '_blank')
 }
 
 async function load() {
