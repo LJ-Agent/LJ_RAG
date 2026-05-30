@@ -72,7 +72,10 @@ public class TaskCompleteConsumer {
             boolean isFileProcessComplete = (before == DocumentStatus.UPLOADED && after == DocumentStatus.CHUNKING)
                     || (before == DocumentStatus.CHUNKING && after == DocumentStatus.CHUNK_REVIEW);
             if (isFileProcessComplete && TaskType.FILE_PROCESS.name().equals(message.getTaskType())) {
-                String cleanedPath = message.getData() != null ? message.getData().getStr("cleanedPath") : null;
+                String cleanedPath = null;
+                if (message.getData() instanceof cn.hutool.json.JSONObject) {
+                    cleanedPath = ((cn.hutool.json.JSONObject) message.getData()).getStr("cleanedPath");
+                }
                 sendChunkProcessMessage(doc, cleanedPath);
             }
 
