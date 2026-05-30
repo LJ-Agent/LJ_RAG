@@ -68,9 +68,12 @@ public class TaskCompleteConsumer {
             stateMachine.transitToNext(doc);
             DocumentStatus after = DocumentStatus.valueOf(doc.getStatus());
 
-            // After FILE_PROCESS completes (UPLOADED → CHUNKING), auto-trigger CHUNK_PROCESS for pre-chunking
-            if (before == DocumentStatus.UPLOADED && after == DocumentStatus.CHUNKING) {
-                sendChunkProcessMessage(doc);
+            // After FILE_PROCESS completes, auto-trigger CHUNK_PROCESS
+            boolean isFileProcessComplete = (before == DocumentStatus.UPLOADED && after == DocumentStatus.CHUNKING)
+                    || (before == DocumentStatus.CHUNKING && after == DocumentStatus.CHUNK_REVIEW);
+            if (isFileProcessComplete && TaskType.FILE_PROCESS.name().equals(message.getTaskType())) {
+                String cleanedPath = message.getData() != null ? message.getData().getStr("cleanedPath") : null;
+                sendChunkProcessMessage(doc, cleanedPath);
             }
 
             acknowledgment.acknowledge();
@@ -82,11 +85,14 @@ public class TaskCompleteConsumer {
         }
     }
 
-    private void sendChunkProcessMessage(Document doc) {
+    private void sendChunkProcessMessage(Document doc, String pythonCleanedPath) {
         String taskId = "task-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + "-chunk-" + doc.getId();
-        String cleanedPath = doc.getMinioPath() != null
-                ? minioConfig.getBucketName() + "/" + buildCleanedPath(doc.getMinioPath())
-                : "";
+        // Prefer the cleaned path from Python (matches RAG-CLEANING output), fall back to computed
+        String cleanedPath = (pythonCleanedPath != null && !pythonCleanedPath.isEmpty())
+                ? pythonCleanedPath
+                : (doc.getMinioPath() != null
+                    ? minioConfig.getBucketName() + "/" + buildCleanedPath(doc.getMinioPath())
+                    : "");
         KafkaMessage message = new KafkaMessage();
         message.setTaskId(taskId);
         message.setTaskType(TaskType.CHUNK_PROCESS.name());
