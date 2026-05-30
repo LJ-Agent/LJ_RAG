@@ -39,11 +39,11 @@ public class TaskFailedConsumer {
             // 根据当前状态映射到对应的失败状态
             DocumentStatus current = DocumentStatus.valueOf(doc.getStatus());
             DocumentStatus failed = switch (current) {
-                case PARSING -> DocumentStatus.PARSING_FAILED;
+                case PARSING, UPLOADED -> DocumentStatus.PARSING_FAILED;
                 case CLEANING -> DocumentStatus.CLEANING_FAILED;
                 case CHUNKING -> DocumentStatus.CHUNKING_FAILED;
                 case EMBEDDING -> DocumentStatus.EMBEDDING_FAILED;
-                default -> current; // 不确定的失败，保持不变
+                default -> current;
             };
 
             String error = "Python任务失败: " + message.getTaskType();
