@@ -25,10 +25,6 @@
         <el-icon><Document /></el-icon>
         <span>文档列表</span>
       </el-menu-item>
-      <el-menu-item index="/documents/upload">
-        <el-icon><Upload /></el-icon>
-        <span>上传文档</span>
-      </el-menu-item>
       <el-menu-item index="/review">
         <el-icon><Checked /></el-icon>
         <span>审核管理</span>
@@ -64,7 +60,6 @@ const appStore = useAppStore()
 const activeMenu = computed(() => {
   const { path } = route
   if (path.startsWith('/qa')) return '/qa'
-  if (path.startsWith('/documents/upload')) return '/documents/upload'
   if (path.startsWith('/documents')) return '/documents'
   return path
 })

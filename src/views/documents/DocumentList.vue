@@ -81,7 +81,7 @@
             @click="$router.push(`/documents/${row.id}/chunks`)"
           >查看分块</el-button>
           <el-button
-            v-if="row.status === 'REJECTED' || row.status === 'CHUNKING_FAILED' || row.status === 'COMPLETED'"
+            v-if="row.status === 'REJECTED' || row.status === 'CHUNKING_FAILED' || row.status === 'PARSING_FAILED' || row.status === 'CLEANING_FAILED' || row.status === 'COMPLETED'"
             link type="warning" size="small"
             @click="openRechunk(row)"
           >重新分块</el-button>
