@@ -7,6 +7,7 @@
       <el-header class="app-header">
         <AppHeader />
       </el-header>
+      <TabBar />
       <el-main class="app-main">
         <router-view />
       </el-main>
@@ -15,14 +16,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
+import { useTabStore } from '@/stores/tabs'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
+import TabBar from './TabBar.vue'
 
 const appStore = useAppStore()
+const tabStore = useTabStore()
+const route = useRoute()
+
 const sidebarWidth = computed(() =>
   appStore.sidebarCollapsed ? '64px' : '220px'
+)
+
+// 监听路由变化自动添加标签
+watch(
+  () => route.fullPath,
+  () => tabStore.addTab(route),
+  { immediate: true }
 )
 </script>
 
