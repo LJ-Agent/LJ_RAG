@@ -136,10 +136,14 @@ public class FileServiceImpl implements FileService {
             throw new BusinessException(ResultCodeEnum.FILE_DUPLICATE);
         }
 
-        // 6. 发送Kafka消息
+        // 6. 发送Kafka消息并更新状态为分块中
         sendKafkaMessage(doc);
+        // 上传即分块：直接转入分块中状态
+        if (chunkStrategy != null && !chunkStrategy.isEmpty()) {
+            stateMachine.transit(doc, DocumentStatus.CHUNKING.name());
+        }
 
-        log.info("文件上传成功: id={}, name={}, md5={}", doc.getId(), originalName, md5);
+        log.info("文件上传成功: id={}, name={}, md5={}, status={}", doc.getId(), originalName, md5, doc.getStatus());
         return Result.success(toVO(doc));
     }
 
@@ -394,6 +398,9 @@ public class FileServiceImpl implements FileService {
 
         Document restored = documentMapper.selectById(deletedDoc.getId());
         sendKafkaMessage(restored);
+        if (chunkStrategy != null && !chunkStrategy.isEmpty()) {
+            stateMachine.transit(restored, DocumentStatus.CHUNKING.name());
+        }
         log.info("已删除文件恢复成功: id={}, name={}, md5={}", restored.getId(), restored.getFileName(),
                 restored.getFileMd5());
         return toVO(restored);
