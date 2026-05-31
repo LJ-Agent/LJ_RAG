@@ -80,7 +80,6 @@ const ALL_CATS: Record<string,{label:string; perm:string}> = {
   cleaning:  { label:'文档清洗', perm:'DOCUMENT:UPLOAD' },
   review:    { label:'审核策略', perm:'REVIEW:APPROVE' },
   qa:        { label:'问答设置', perm:'QA:ASK' },
-  personal:  { label:'个人默认', perm:'QA:ASK' },
 }
 const STRATEGY_KEY = 'chunk.strategy'; const COMMON_KEYS = ['chunk.default_size','chunk.overlap','chunk.min_chunk_size','chunk.max_chunk_size']
 
