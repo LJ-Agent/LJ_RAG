@@ -143,7 +143,7 @@
             </p>
             <el-button link type="primary" size="small" @click="handleRollback(h)">回滚到此版本</el-button>
           </div>
-        </el-timeline>
+        </el-timeline-item>
       </el-timeline>
       <el-empty v-else description="暂无变更记录" />
     </el-dialog>
