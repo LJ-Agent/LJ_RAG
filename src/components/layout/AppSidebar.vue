@@ -25,15 +25,15 @@
         <el-icon><Document /></el-icon>
         <span>文档列表</span>
       </el-menu-item>
-      <el-menu-item index="/review">
+      <el-menu-item index="/review" v-permission="'REVIEW:VIEW'">
         <el-icon><Checked /></el-icon>
         <span>审核管理</span>
       </el-menu-item>
-      <el-menu-item index="/qa">
+      <el-menu-item index="/qa" v-permission="'QA:ASK'">
         <el-icon><ChatDotRound /></el-icon>
         <span>知识问答</span>
       </el-menu-item>
-      <el-menu-item index="/users">
+      <el-menu-item index="/users" v-permission="'USER:VIEW'">
         <el-icon><User /></el-icon>
         <span>用户管理</span>
       </el-menu-item>
@@ -41,11 +41,11 @@
         <el-icon><UserFilled /></el-icon>
         <span>团队管理</span>
       </el-menu-item>
-      <el-menu-item index="/configs">
+      <el-menu-item index="/configs" v-permission="'CONFIG:MANAGE'">
         <el-icon><Setting /></el-icon>
         <span>系统配置</span>
       </el-menu-item>
-      <el-menu-item index="/feedback">
+      <el-menu-item index="/feedback" v-permission="'FEEDBACK:VIEW'">
         <el-icon><ChatLineSquare /></el-icon>
         <span>反馈管理</span>
       </el-menu-item>

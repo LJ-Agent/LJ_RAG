@@ -81,12 +81,12 @@
             @click="$router.push(`/documents/${row.id}/chunks`)"
           >查看分块</el-button>
           <el-button
-            v-if="row.status === 'REJECTED' || row.status === 'CHUNKING_FAILED' || row.status === 'PARSING_FAILED' || row.status === 'CLEANING_FAILED' || row.status === 'COMPLETED'"
+            v-if="(row.status === 'REJECTED' || row.status === 'CHUNKING_FAILED' || row.status === 'PARSING_FAILED' || row.status === 'CLEANING_FAILED' || row.status === 'COMPLETED') && hasPermission('DOCUMENT:UPLOAD')"
             link type="warning" size="small"
             @click="openRechunk(row)"
           >重新分块</el-button>
           <el-button link type="primary" size="small" @click="handleDownload(row)">下载</el-button>
-          <el-popconfirm title="确定要删除该文档吗？" @confirm="handleDelete(row.id)">
+          <el-popconfirm v-if="hasPermission('DOCUMENT:DELETE')" title="确定要删除该文档吗？" @confirm="handleDelete(row.id)">
             <template #reference>
               <el-button link type="danger" size="small">删除</el-button>
             </template>
@@ -184,7 +184,10 @@ import { CHUNK_STRATEGY_CONFIGS } from '@/api/types/file'
 import type { FileVO, StrategyField } from '@/api/types/file'
 import type { KnowledgeBaseVO } from '@/api/types/knowledgeBase'
 import { getAccessToken } from '@/utils/token'
+import { usePermissionStore } from '@/stores/permission'
 import { ElMessage, ElMessageBox } from 'element-plus'
+
+const { hasPermission } = usePermissionStore()
 
 const route = useRoute()
 const router = useRouter()
