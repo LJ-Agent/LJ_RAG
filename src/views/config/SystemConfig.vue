@@ -16,11 +16,9 @@
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 分块策略二级Tab -->
+    <!-- 分块策略二级Tab：每个策略展示其通用参数+专属参数 -->
     <div v-if="activeCategory === 'chunk'" class="strategy-tabs">
       <el-radio-group v-model="chunkSubFilter" size="small" @change="onSubFilterChange">
-        <el-radio-button value="all">全部 (18)</el-radio-button>
-        <el-radio-button value="common">通用参数</el-radio-button>
         <el-radio-button value="fixed">Fixed 固定大小</el-radio-button>
         <el-radio-button value="hierarchical">Hierarchical 标题层级</el-radio-button>
         <el-radio-button value="semantic">Semantic 语义段落</el-radio-button>
@@ -180,7 +178,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 const categories = ref<{ value: string; label: string; count: number }[]>([])
 const activeCategory = ref('chunk')
-const chunkSubFilter = ref('all')
+const chunkSubFilter = ref('semantic')  // 默认展示系统默认策略semantic
 
 async function loadCategories() {
   const cats: { value: string; label: string; count: number }[] = []
@@ -195,18 +193,20 @@ async function loadCategories() {
   if (cats.length > 0 && !activeCategory.value) activeCategory.value = cats[0].value
 }
 
-function onCategoryChange() { chunkSubFilter.value = 'all'; fetchList() }
+function onCategoryChange() { chunkSubFilter.value = 'semantic'; fetchList() }
 function onSubFilterChange() { /* computed triggers */ }
 
-// ─── 列表 + 子筛选 ───
+// ─── 列表 + 子筛选：分块策略 = 通用参数 + 策略专属参数 ───
 const list = ref<SystemConfigVO[]>([])
 const isLoading = ref(false)
+const COMMON_CHUNK_KEYS = ['chunk.strategy', 'chunk.default_size', 'chunk.overlap', 'chunk.min_chunk_size', 'chunk.max_chunk_size']
 
 const filteredList = computed(() => {
-  if (activeCategory.value !== 'chunk' || chunkSubFilter.value === 'all') return list.value
-  if (chunkSubFilter.value === 'common')
-    return list.value.filter(r => !r.configKey.includes('chunk.') || r.configKey.split('.').length === 2)
-  return list.value.filter(r => r.configKey.startsWith('chunk.' + chunkSubFilter.value + '.'))
+  if (activeCategory.value !== 'chunk') return list.value
+  return list.value.filter(r =>
+    COMMON_CHUNK_KEYS.includes(r.configKey) ||
+    r.configKey.startsWith('chunk.' + chunkSubFilter.value + '.')
+  )
 })
 
 async function fetchList() {
