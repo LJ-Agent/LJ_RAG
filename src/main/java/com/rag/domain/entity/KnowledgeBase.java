@@ -1,5 +1,6 @@
 package com.rag.domain.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -14,6 +15,7 @@ public class KnowledgeBase extends BaseEntity {
     private String coverUrl;
     private Integer status;
     private Long ownerId;
+    @TableField("team_id")
     private Long teamId;
     private String visibility;
 }
