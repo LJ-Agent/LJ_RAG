@@ -199,6 +199,8 @@ services:
       # LLM
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
+      # Cleaning service endpoint
+      CLEANING_GRPC_ENDPOINT: rag-cleaning:50056
       # HuggingFace Mirror (for downloading embedding model)
       HF_ENDPOINT: https://hf-mirror.com
       TZ: Asia/Shanghai
