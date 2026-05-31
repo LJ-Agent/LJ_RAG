@@ -3,7 +3,9 @@ package com.rag.controller.api;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rag.common.result.Result;
 import com.rag.controller.interceptor.JwtAuthInterceptor;
+import com.rag.infrastructure.security.TeamPermission;
 import com.rag.service.file.FileService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.rag.service.file.dto.FileQueryDTO;
 import com.rag.service.file.dto.FileVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,6 +34,8 @@ public class FileController {
 
     @Operation(summary = "上传文件")
     @PostMapping("/upload")
+    @PreAuthorize("hasAuthority('DOCUMENT:UPLOAD')")
+    @TeamPermission(value = "DOCUMENT:UPLOAD", resourceType = TeamPermission.ResourceType.KB)
     public Result<FileVO> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam("kbId") Long kbId,
@@ -49,12 +53,14 @@ public class FileController {
 
     @Operation(summary = "查询文档详情")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
     public Result<FileVO> detail(@PathVariable Long id) {
         return fileService.detail(id);
     }
 
     @Operation(summary = "删除文档")
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('DOCUMENT:DELETE')")
     public Result<Void> delete(@PathVariable Long id) {
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
         return fileService.delete(id, userId);
@@ -62,6 +68,7 @@ public class FileController {
 
     @Operation(summary = "批量删除文档")
     @PostMapping("/batch-delete")
+    @PreAuthorize("hasAuthority('DOCUMENT:DELETE')")
     public Result<Void> batchDelete(@RequestBody Long[] ids) {
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
         return fileService.batchDelete(ids, userId);
