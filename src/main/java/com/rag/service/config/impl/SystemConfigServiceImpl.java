@@ -38,7 +38,17 @@ public class SystemConfigServiceImpl implements SystemConfigService {
 
     @Override
     public String validateConfigValue(SystemConfig config) {
-        return validateValue(config.getConfigValue(), config.getConfigType(), config.getValidationRule());
+        String ruleJson = config.getValidationRule();
+        // 如果请求没带校验规则，从 DB 中查找
+        if ((ruleJson == null || ruleJson.isBlank()) && config.getConfigKey() != null) {
+            SystemConfig dbConfig = configMapper.selectOne(
+                    new LambdaQueryWrapper<SystemConfig>().eq(SystemConfig::getConfigKey, config.getConfigKey()));
+            if (dbConfig != null) {
+                ruleJson = dbConfig.getValidationRule();
+                config.setConfigType(dbConfig.getConfigType()); // Use DB type
+            }
+        }
+        return validateValue(config.getConfigValue(), config.getConfigType(), ruleJson);
     }
 
     private String validateValue(String value, String configType, String ruleJson) {
