@@ -38,6 +38,13 @@ export const CHUNK_STRATEGY_CONFIGS: Record<string, { label: string; fields: Str
       { key: 'chunk_overlap', label: '重叠长度(字符)', type: 'number', default: 50, min: 0, max: 5000 },
     ],
   },
+  hierarchical: {
+    label: '标题层级分块',
+    fields: [
+      { key: 'chunk_size', label: '块大小(字符)', type: 'number', default: 500, min: 100, max: 60000 },
+      { key: 'min_heading_level', label: '最小标题层级(1~6)', type: 'number', default: 1, min: 1, max: 6 },
+    ],
+  },
   recursive: {
     label: '递归字符分块',
     fields: [

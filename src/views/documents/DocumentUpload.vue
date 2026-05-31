@@ -137,6 +137,7 @@ const currentStrategyLabel = computed(() =>
 const currentStrategyHint = computed(() => {
   const hints: Record<string, string> = {
     fixed: '按固定字符数分割，适合结构一致的文档',
+    hierarchical: '按Markdown标题(# ##)层级分割，适合结构化文档',
     recursive: '递归按分隔符层级分割，适合通用文本',
     semantic: '按段落语义分割，合并短段落，适合文章/论文',
     topic: '按主题相似度自动检测话题切换，适合长文档/书籍',

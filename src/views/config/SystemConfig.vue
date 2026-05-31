@@ -75,6 +75,7 @@
               <el-radio-button value="default">⭐ 默认策略</el-radio-button>
               <el-radio-button value="common">通用参数</el-radio-button>
               <el-radio-button value="fixed">Fixed</el-radio-button>
+              <el-radio-button value="hierarchical">Hierarchical</el-radio-button>
               <el-radio-button value="recursive">Recursive</el-radio-button>
               <el-radio-button value="semantic">Semantic</el-radio-button>
               <el-radio-button value="topic">Topic</el-radio-button>
