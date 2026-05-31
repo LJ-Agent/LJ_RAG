@@ -35,6 +35,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
     private final PermissionMapper permissionMapper;
+    private final com.rag.domain.mapper.TeamMemberMapper teamMemberMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate stringRedisTemplate;
@@ -98,6 +99,17 @@ public class UserServiceImpl implements UserService {
         userRole.setUserId(user.getId());
         userRole.setRoleId(5L); // VIEWER角色ID
         userRoleMapper.insert(userRole);
+
+        // 默认加入默认团队(teamId=1)为访客
+        try {
+            com.rag.domain.entity.TeamMember tm = new com.rag.domain.entity.TeamMember();
+            tm.setTeamId(1L);
+            tm.setUserId(user.getId());
+            tm.setRoleCode("team_viewer");
+            teamMemberMapper.insert(tm);
+        } catch (Exception e) {
+            log.warn("新用户默认团队分配失败: {}", e.getMessage());
+        }
 
         return Result.success();
     }
