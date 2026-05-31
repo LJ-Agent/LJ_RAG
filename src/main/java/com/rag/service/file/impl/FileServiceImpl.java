@@ -5,6 +5,7 @@ import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.rag.common.constant.KafkaConstants;
+import com.rag.common.context.UserContext;
 import com.rag.common.enums.DocumentStatus;
 import com.rag.common.enums.TaskType;
 import com.rag.common.exception.BusinessException;
@@ -14,10 +15,14 @@ import com.rag.common.util.Md5Util;
 import com.rag.communication.kafka.dto.KafkaMessage;
 import com.rag.domain.entity.Document;
 import com.rag.domain.entity.DocumentChunk;
+import com.rag.domain.entity.KnowledgeBase;
 import com.rag.domain.entity.ReviewRecord;
+import com.rag.domain.entity.TeamMember;
 import com.rag.domain.mapper.DocumentChunkMapper;
 import com.rag.domain.mapper.DocumentMapper;
+import com.rag.domain.mapper.KnowledgeBaseMapper;
 import com.rag.domain.mapper.ReviewRecordMapper;
+import com.rag.domain.mapper.TeamMemberMapper;
 import com.rag.infrastructure.config.MinioConfig;
 import com.rag.service.file.FileService;
 import com.rag.service.file.dto.FileQueryDTO;
@@ -53,6 +58,7 @@ public class FileServiceImpl implements FileService {
     private final DocumentChunkMapper chunkMapper;
     private final ReviewRecordMapper reviewRecordMapper;
     private final DocumentStateMachine stateMachine;
+    private final TeamMemberMapper teamMemberMapper;
 
     @Override
     @Transactional
@@ -160,6 +166,27 @@ public class FileServiceImpl implements FileService {
         if (query.getFileName() != null && !query.getFileName().isEmpty()) {
             wrapper.like(Document::getFileName, query.getFileName());
         }
+        // 团队隔离: 用户仅可见所属团队KB下的文档
+        Long userId = UserContext.getUserId();
+        if (!UserContext.hasPermission("CONFIG:MANAGE")) {
+            List<TeamMember> memberships = teamMemberMapper.selectList(
+                    new LambdaQueryWrapper<TeamMember>().eq(TeamMember::getUserId, userId));
+            List<Long> teamIds = memberships.stream().map(TeamMember::getTeamId).toList();
+            if (teamIds.isEmpty()) {
+                wrapper.apply("1=0"); // 无团队 → 空结果
+            } else {
+                // 查询这些团队的KB IDs
+                List<KnowledgeBase> teamKbs = kbMapper.selectList(
+                        new LambdaQueryWrapper<KnowledgeBase>().in(KnowledgeBase::getTeamId, teamIds));
+                List<Long> kbIds = teamKbs.stream().map(KnowledgeBase::getId).toList();
+                if (kbIds.isEmpty()) {
+                    wrapper.apply("1=0");
+                } else {
+                    wrapper.in(Document::getKbId, kbIds);
+                }
+            }
+        }
+
         wrapper.orderByDesc(Document::getCreatedAt);
 
         Page<Document> result = documentMapper.selectPage(page, wrapper);
