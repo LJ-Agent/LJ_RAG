@@ -128,6 +128,9 @@
         </el-form-item>
         <el-form-item label="当前值" prop="configValue">
           <el-switch v-if="form.configType==='BOOLEAN'" v-model="boolValue" active-text="true" inactive-text="false" @change="onBoolChange" />
+          <el-select v-else-if="isEnumRule(form.validationRule)" v-model="form.configValue" style="width:100%">
+            <el-option v-for="v in enumValues(form.validationRule)" :key="v" :label="v" :value="v" />
+          </el-select>
           <el-input-number v-else-if="form.configType==='NUMBER'" v-model="numValue" :min="minFromRule()" :max="maxFromRule()" style="width:100%" @change="onNumChange" />
           <el-input v-else v-model="form.configValue" placeholder="值" @blur="validateField" />
           <div v-if="fieldError" class="field-error">{{ fieldError }}</div>
