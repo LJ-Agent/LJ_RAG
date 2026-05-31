@@ -3,7 +3,7 @@
     <div class="page-container__header">
       <h2>文档列表</h2>
       <div class="header-actions">
-        <el-button type="danger" :disabled="selectedIds.length === 0" @click="handleBatchDelete">
+        <el-button type="danger" :disabled="selectedIds.length === 0" @click="handleBatchDelete" v-permission="'DOCUMENT:DELETE'">
           <el-icon><Delete /></el-icon> 批量删除 ({{ selectedIds.length }})
         </el-button>
         <el-button type="primary" @click="$router.push('/documents/upload')" v-permission="'DOCUMENT:UPLOAD'">
