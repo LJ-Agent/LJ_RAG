@@ -24,8 +24,8 @@
       </el-tabs>
 
       <div v-if="activeCategory === 'chunk'" class="strategy-tabs">
-        <span style="font-size:13px;color:#606266;margin-right:8px">策略筛选:</span>
         <el-radio-group v-model="chunkSubFilter" size="small">
+          <el-radio-button value="default">⭐ 默认策略</el-radio-button>
           <el-radio-button value="fixed">Fixed</el-radio-button>
           <el-radio-button value="recursive">Recursive</el-radio-button>
           <el-radio-button value="semantic">Semantic</el-radio-button>
@@ -185,7 +185,7 @@ function onScopeChange() {
 const CATEGORY_LABELS: Record<string,string> = { chunk:'分块策略',retrieval:'检索参数',cleaning:'文档清洗',qa:'问答设置',rate_limit:'限流控制',review:'审核策略',upload:'文件上传',general:'通用' }
 const categories = ref<{value:string;label:string;count:number}[]>([])
 const activeCategory = ref('chunk')
-const chunkSubFilter = ref('semantic')
+const chunkSubFilter = ref('default')
 
 async function loadCategories() {
   const cats: {value:string;label:string;count:number}[] = []
@@ -195,13 +195,17 @@ async function loadCategories() {
   cats.sort((a,b)=>b.count-a.count); categories.value = cats
   if (cats.length>0 && !activeCategory.value) activeCategory.value = cats[0].value
 }
-function onCategoryChange() { chunkSubFilter.value='semantic'; fetchList() }
+function onCategoryChange() { chunkSubFilter.value='default'; fetchList() }
 
 // ─── 列表 + 分块子筛选 ───
 const list = ref<SystemConfigVO[]>([]), isLoading = ref(false)
+const COMMON_CHUNK = ['chunk.strategy','chunk.default_size','chunk.overlap','chunk.min_chunk_size','chunk.max_chunk_size']
 const filteredList = computed(() => {
   if (activeCategory.value !== 'chunk') return list.value
-  // 每个策略Tab只展示该策略的专属参数，与文件上传表单一一对应
+  // 默认策略Tab: 展示通用默认参数(chunk.strategy/default_size/overlap/min/max)
+  if (chunkSubFilter.value === 'default')
+    return list.value.filter(r => COMMON_CHUNK.includes(r.configKey))
+  // 其他策略Tab: 只展示该策略专属参数
   return list.value.filter(r => r.configKey.startsWith('chunk.' + chunkSubFilter.value + '.'))
 })
 
