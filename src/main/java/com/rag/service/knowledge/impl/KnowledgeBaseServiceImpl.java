@@ -150,6 +150,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         vo.setCoverUrl(kb.getCoverUrl());
         vo.setStatus(kb.getStatus());
         vo.setOwnerId(kb.getOwnerId());
+        vo.setTeamId(kb.getTeamId());
         vo.setCreatedAt(kb.getCreatedAt());
         vo.setUpdatedAt(kb.getUpdatedAt());
 

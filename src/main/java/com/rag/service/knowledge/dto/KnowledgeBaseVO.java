@@ -14,6 +14,8 @@ public class KnowledgeBaseVO {
     private Integer status;
     private Long ownerId;
     private String ownerName;
+    private Long teamId;
+    private String teamName;
     private Long documentCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
