@@ -44,6 +44,11 @@
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="所属团队" width="120" align="center">
+        <template #default="{ row }">
+          <el-tag size="small" type="warning">{{ getTeamName(row.id) }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="ownerName" label="创建者" width="120" align="center" />
       <el-table-column label="文档数" width="80" align="center">
         <template #default="{ row }">
@@ -95,6 +100,11 @@
         <el-form-item label="状态" prop="status">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
         </el-form-item>
+        <el-form-item label="所属团队" v-permission="'CONFIG:MANAGE'">
+          <el-select v-model="form.teamId" style="width:100%" placeholder="选择团队">
+            <el-option v-for="t in allTeams" :key="t.id" :label="t.name" :value="t.id" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -113,10 +123,38 @@ import { formatDate } from '@/utils/format'
 import type { KnowledgeBaseVO, KnowledgeBaseSaveDTO } from '@/api/types/knowledgeBase'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
+import request from '@/api/request'
 
 const pagination = usePagination()
 const query = reactive({ kbName: '', status: undefined as number | undefined })
 const list = ref<KnowledgeBaseVO[]>([])
+const allTeams = ref<any[]>([])
+const teamNames = ref<Record<number, string>>({})
+
+function getTeamName(kbId: number) { return teamNames.value[kbId] || '默认团队' }
+
+async function loadTeams() {
+  try {
+    const data = await request.get('/teams')
+    allTeams.value = (data as any[]).map((t: any) => t.team)
+    // Build kb→team mapping from team_kb associations
+    for (const t of allTeams.value) {
+      try {
+        const kbs = await request.get(`/teams/${t.id}/kbs`).catch(() => [])
+        for (const kb of (kbs as any[] || [])) {
+          teamNames.value[kb.kbId || kb.id] = t.name
+        }
+      } catch {}
+    }
+    // Fallback: existing KBs with team_id from backend
+    for (const kb of list.value) {
+      if (!teamNames.value[kb.id]) {
+        const t = allTeams.value.find((tt: any) => tt.id === (kb as any).teamId)
+        if (t) teamNames.value[kb.id] = t.name
+      }
+    }
+  } catch {}
+}
 const isLoading = ref(false)
 const submitting = ref(false)
 
@@ -125,17 +163,21 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editId = ref<number | null>(null)
 const formRef = ref<FormInstance>()
-const form = reactive<KnowledgeBaseSaveDTO>({
+const form = reactive<KnowledgeBaseSaveDTO & { teamId?: number }>({
   kbName: '',
   description: '',
   coverUrl: '',
   status: 1,
+  teamId: 1,
 })
 
 const rules: FormRules = {
   kbName: [{ required: true, message: '请输入知识库名称', trigger: 'blur' }],
   description: [{ required: true, message: '请输入描述', trigger: 'blur' }],
 }
+
+// Load teams on mount
+loadTeams()
 
 async function fetchList() {
   isLoading.value = true
@@ -171,6 +213,7 @@ function openCreate() {
   form.description = ''
   form.coverUrl = ''
   form.status = 1
+  form.teamId = allTeams.value[0]?.id || 1
   dialogVisible.value = true
 }
 
@@ -181,6 +224,7 @@ function openEdit(row: KnowledgeBaseVO) {
   form.description = row.description
   form.coverUrl = row.coverUrl || ''
   form.status = row.status
+  form.teamId = (row as any).teamId || 1
   dialogVisible.value = true
 }
 
@@ -192,6 +236,12 @@ async function handleSubmit() {
   try {
     if (isEdit.value && editId.value) {
       await knowledgeBaseApi.update(editId.value, { ...form })
+      // Update team association if admin changed it
+      if (form.teamId) {
+        try {
+          await request.post(`/teams/${form.teamId}/kbs/${editId.value}`, {})
+        } catch {}
+      }
       ElMessage.success('更新成功')
     } else {
       await knowledgeBaseApi.create({ ...form })
