@@ -20,6 +20,9 @@ public interface KafkaConstants {
     /** 任务失败通知主题（Python -> Java） */
     String TOPIC_TASK_FAILED = "rag-task-failed";
 
+    /** 配置变更通知主题（Java -> Python 微服务） */
+    String TOPIC_CONFIG_CHANGE = "rag-config-change";
+
     /** 消费者组ID */
     String CONSUMER_GROUP = "rag-server-group";
 }

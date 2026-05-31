@@ -13,4 +13,13 @@ public class SystemConfig extends BaseEntity {
     private String configValue;
     private String configType;
     private String description;
+    private String category;
+    private String label;
+    private String defaultVal;
+    private String validationRule;
+    private Integer sortOrder;
+    private Integer editable;
+    private String targetServices;
+    private String reloadStrategy;
+    private String status;
 }
