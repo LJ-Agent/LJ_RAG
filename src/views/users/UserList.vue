@@ -22,6 +22,17 @@
           <span v-if="!row.roles?.length" style="color:#c0c4cc">-</span>
         </template>
       </el-table-column>
+      <el-table-column label="所属团队" min-width="160">
+        <template #default="{ row }">
+          <template v-if="getUserTeam(row.id)">
+            <el-tag size="small" type="warning">{{ getUserTeam(row.id)?.teamName }}</el-tag>
+            <el-tag size="small" :type="roleTagType(getUserTeam(row.id)?.roleCode)" style="margin-left:4px">
+              {{ roleLabel(getUserTeam(row.id)?.roleCode) }}
+            </el-tag>
+          </template>
+          <span v-else style="color:#c0c4cc">未分配</span>
+        </template>
+      </el-table-column>
       <el-table-column label="最后登录" width="170" align="center">
         <template #default="{ row }">{{ formatDate(row.lastLoginAt) }}</template>
       </el-table-column>
@@ -74,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { userApi } from '@/api/modules/users'
 import { usePagination } from '@/composables/usePagination'
 import { formatDate } from '@/utils/format'
@@ -82,10 +93,52 @@ import { USER_STATUS_MAP } from '@/utils/constants'
 import type { UserVO } from '@/api/types/user'
 import type { RoleVO } from '@/api/types/user'
 import { ElMessage } from 'element-plus'
+import request from '@/api/request'
 
 const pagination = usePagination()
 const list = ref<UserVO[]>([])
 const isLoading = ref(false)
+
+// 团队-用户映射
+const userTeamMap = ref<Record<number, { teamName: string; roleCode: string }>>({})
+
+const ROLE_LABELS: Record<string, string> = {
+  team_owner: '所有者', team_admin: '管理员', team_editor: '编辑者',
+  team_reviewer: '审核者', team_viewer: '访客'
+}
+function roleLabel(code: string | undefined) { return ROLE_LABELS[code || ''] || code || '未知' }
+function roleTagType(code: string | undefined) {
+  if (code === 'team_owner') return 'danger'
+  if (code === 'team_admin') return 'warning'
+  if (code === 'team_editor') return 'success'
+  return 'info'
+}
+function getUserTeam(userId: number) { return userTeamMap.value[userId] || null }
+
+async function loadTeams() {
+  try {
+    // 拉取所有团队+成员
+    const myTeams = await request.get('/teams')
+    const allMembers: any[] = []
+    const teamNames: Record<number, string> = {}
+    for (const t of (myTeams as any[] || [])) {
+      teamNames[t.team.id] = t.team.name
+    }
+    // 需要单独拉每个团队的成员 — 简化: 仅显示自己的团队信息
+    // 更好的做法: 后端提供一个 /api/teams/all-members 接口
+    // 当前简化: admin 查看默认团队所有成员
+    for (const t of (myTeams as any[] || [])) {
+      try {
+        const members = await request.get(`/teams/${t.team.id}/members`)
+        for (const m of (members as any[] || [])) {
+          userTeamMap.value[m.userId] = { teamName: t.team.name, roleCode: m.roleCode }
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
+onMounted(async () => { await loadTeams() })
 
 const rolesVisible = ref(false)
 const currentUser = ref<UserVO | null>(null)
