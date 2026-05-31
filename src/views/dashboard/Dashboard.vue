@@ -64,7 +64,7 @@
     <el-card style="margin-top: 20px;">
       <template #header><span>快捷入口</span></template>
       <el-row :gutter="12">
-        <el-col :span="4" v-for="link in links" :key="link.path">
+        <el-col :span="4" v-for="link in visibleLinks" :key="link.path">
           <div class="quick-link" @click="$router.push(link.path)">
             <el-icon :size="24"><component :is="link.icon" /></el-icon>
             <span>{{ link.label }}</span>
@@ -78,42 +78,34 @@
 <script setup lang="ts">
 import { reactive, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { usePermissionStore } from '@/stores/permission'
 import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
 import { fileApi } from '@/api/modules/files'
-import { reviewApi } from '@/api/modules/review'
 import { qaApi } from '@/api/modules/qa'
 import { Collection, Document, Checked, ChatDotRound, Plus, Search, Setting, User } from '@element-plus/icons-vue'
 
 const authStore = useAuthStore()
+const { hasPermission } = usePermissionStore()
 
-const stats = reactive({
-  kbCount: 0,
-  docCount: 0,
-  pendingReview: 0,
-  qaCount: 0,
-})
+const stats = reactive({ kbCount: 0, docCount: 0, pendingReview: 0, qaCount: 0 })
 
 const links = [
-  { path: '/knowledge-bases', label: '知识库管理', icon: Collection },
-  { path: '/documents/upload', label: '上传文档', icon: Plus },
-  { path: '/qa', label: '知识问答', icon: Search },
-  { path: '/configs', label: '系统配置', icon: Setting },
-  { path: '/users', label: '用户管理', icon: User },
+  { path: '/knowledge-bases', label: '知识库管理', icon: Collection, perm: 'KB:VIEW' },
+  { path: '/documents/upload', label: '上传文档', icon: Plus, perm: 'DOCUMENT:UPLOAD' },
+  { path: '/qa', label: '知识问答', icon: Search, perm: 'QA:ASK' },
+  { path: '/configs', label: '系统配置', icon: Setting, perm: 'CONFIG:MANAGE' },
+  { path: '/users', label: '用户管理', icon: User, perm: 'USER:VIEW' },
 ]
+import { computed } from 'vue'
+const visibleLinks = computed(() => links.filter(l => hasPermission(l.perm)))
 
 onMounted(async () => {
-  try {
-    const [kb, doc, review, qa] = await Promise.allSettled([
-      knowledgeBaseApi.list({ page: 1, size: 1 }),
-      fileApi.list({ page: 1, size: 1 }),
-      reviewApi.pending({ page: 1, size: 1 }),
-      qaApi.getSessions({ page: 1, size: 1 }),
-    ])
-    if (kb.status === 'fulfilled') stats.kbCount = kb.value.total
-    if (doc.status === 'fulfilled') stats.docCount = doc.value.total
-    if (review.status === 'fulfilled') stats.pendingReview = review.value.total
-    if (qa.status === 'fulfilled') stats.qaCount = qa.value.total
-  } catch { /* ignore */ }
+  // 仅查询用户有权限的统计数据
+  const tasks: Promise<any>[] = []
+  tasks.push(knowledgeBaseApi.list({ page: 1, size: 1 }).then(r => stats.kbCount = r.total).catch(() => {}))
+  tasks.push(fileApi.list({ page: 1, size: 1 }).then(r => stats.docCount = r.total).catch(() => {}))
+  if (hasPermission('QA:HISTORY')) tasks.push(qaApi.getSessions({ page: 1, size: 1 }).then(r => stats.qaCount = r.total).catch(() => {}))
+  await Promise.allSettled(tasks)
 })
 </script>
 
