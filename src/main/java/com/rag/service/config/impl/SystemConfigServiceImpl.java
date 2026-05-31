@@ -171,7 +171,7 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         boolean isUpdate = exist != null;
 
         if (isUpdate) {
-            // 配置键名不可修改（代码中硬编码引用）
+            // 配置键名和类型不可修改（代码中硬编码引用）
             oldValue = exist.getConfigValue();
             exist.setConfigValue(config.getConfigValue());
             if (config.getDescription() != null) exist.setDescription(config.getDescription());
