@@ -159,9 +159,15 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         boolean isUpdate = exist != null;
 
         if (isUpdate) {
+            // 配置键名不可修改（代码中硬编码引用）
             oldValue = exist.getConfigValue();
             exist.setConfigValue(config.getConfigValue());
             if (config.getDescription() != null) exist.setDescription(config.getDescription());
+            // 以下字段允许管理员调整
+            if (config.getCategory() != null) exist.setCategory(config.getCategory());
+            if (config.getLabel() != null) exist.setLabel(config.getLabel());
+            if (config.getReloadStrategy() != null) exist.setReloadStrategy(config.getReloadStrategy());
+            if (config.getValidationRule() != null) exist.setValidationRule(config.getValidationRule());
             configMapper.updateById(exist);
             config.setId(exist.getId());
         } else {
@@ -226,9 +232,16 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     @Override
     public Result<Void> delete(Long id) {
         SystemConfig config = configMapper.selectById(id);
-        if (config != null) {
-            clearCache(config.getConfigKey());
+        if (config == null) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "配置不存在");
         }
+        // 关键配置不可删除 — 系统代码依赖此 key 运行
+        if (config.getRequired() != null && config.getRequired() == 1) {
+            throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(),
+                    "「" + (config.getLabel() != null ? config.getLabel() : config.getConfigKey())
+                    + "」是关键配置，不可删除。如需停用请将 status 设为 disabled。");
+        }
+        clearCache(config.getConfigKey());
         configMapper.deleteById(id);
         return Result.success();
     }
@@ -293,7 +306,10 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     public String getStringConfig(String key, String defaultValue) {
         SystemConfig config = configMapper.selectOne(
                 new LambdaQueryWrapper<SystemConfig>().eq(SystemConfig::getConfigKey, key));
-        return config != null ? config.getConfigValue() : defaultValue;
+        if (config != null && config.getConfigValue() != null) return config.getConfigValue();
+        // 硬编码兜底：DB 中不存在或值为空时，使用 defaultVal 或传入的 defaultValue
+        if (config != null && config.getDefaultVal() != null) return config.getDefaultVal();
+        return defaultValue;
     }
 
     @Override
