@@ -137,19 +137,11 @@ async function loadTeams() {
   try {
     const data = await request.get('/teams')
     allTeams.value = (data as any[]).map((t: any) => t.team)
-    // Build kb→team mapping from team_kb associations
-    for (const t of allTeams.value) {
-      try {
-        const kbs = await request.get(`/teams/${t.id}/kbs`).catch(() => [])
-        for (const kb of (kbs as any[] || [])) {
-          teamNames.value[kb.kbId || kb.id] = t.name
-        }
-      } catch {}
-    }
-    // Fallback: existing KBs with team_id from backend
+    // Map KB team_id to team name (use knowledge_bases.team_id from backend)
     for (const kb of list.value) {
-      if (!teamNames.value[kb.id]) {
-        const t = allTeams.value.find((tt: any) => tt.id === (kb as any).teamId)
+      const teamId = (kb as any).teamId
+      if (teamId) {
+        const t = allTeams.value.find((tt: any) => tt.id === teamId)
         if (t) teamNames.value[kb.id] = t.name
       }
     }
