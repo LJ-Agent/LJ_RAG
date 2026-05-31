@@ -9,9 +9,9 @@
       </el-header>
       <TabBar />
       <el-main class="app-main">
-        <router-view v-slot="{ Component }">
-          <keep-alive :include="cachedViews">
-            <component :is="Component" />
+        <router-view v-slot="{ Component, route: r }">
+          <keep-alive :max="10">
+            <component :is="Component" :key="r.path" />
           </keep-alive>
         </router-view>
       </el-main>
@@ -35,9 +35,6 @@ const route = useRoute()
 const sidebarWidth = computed(() =>
   appStore.sidebarCollapsed ? '64px' : '220px'
 )
-
-// keep-alive 缓存视图列表 — QA 页面需要保持对话状态
-const cachedViews = ['QAChat']
 
 // 监听路由变化自动添加标签
 watch(
