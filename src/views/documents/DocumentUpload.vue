@@ -17,7 +17,7 @@
       <div class="strategy-section">
         <span class="label">分块策略：</span>
         <el-select v-model="chunkStrategy" style="width: 220px" @change="onStrategyChange">
-          <el-option v-for="(cfg, key) in CHUNK_STRATEGY_CONFIGS" :key="key" :label="cfg.label" :value="key" />
+          <el-option v-for="[key, cfg] in availableStrategies" :key="key" :label="cfg.label" :value="key" />
         </el-select>
         <span class="strategy-hint">{{ currentStrategyHint }}</span>
       </div>
@@ -110,6 +110,7 @@ import { knowledgeBaseApi } from '@/api/modules/knowledgeBase'
 import type { KnowledgeBaseVO } from '@/api/types/knowledgeBase'
 import { CHUNK_STRATEGY_CONFIGS } from '@/api/types/file'
 import type { StrategyField } from '@/api/types/file'
+import request from '@/api/request'
 import type { UploadFile, UploadInstance } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -165,9 +166,24 @@ function resetParams() {
   initParams(chunkStrategy.value)
 }
 
+// 已启用的分块策略
+const enabledStrategies = ref<Set<string>>(new Set(Object.keys(CHUNK_STRATEGY_CONFIGS))) // 默认全部启用
+const availableStrategies = computed(() => {
+  const entries = Object.entries(CHUNK_STRATEGY_CONFIGS).filter(([k]) => enabledStrategies.value.has(k))
+  if (!entries.find(([k]) => k === chunkStrategy.value)) chunkStrategy.value = entries[0]?.[0] || 'semantic'
+  return entries
+})
+
 const canUpload = computed(() => selectedKbId.value && fileList.value.length > 0)
 
 onMounted(async () => {
+  // 读取启用的策略
+  try {
+    const res: any = await request.get('/user/configs/effective')
+    const enabled: string[] = (res || []).filter((r: any) => r.configKey?.startsWith('chunk.') && r.configKey?.endsWith('.enabled') && r.configValue === 'true').map((r: any) => r.configKey.split('.')[1])
+    if (enabled.length > 0) enabledStrategies.value = new Set(enabled)
+  } catch { /* keep all enabled by default */ }
+
   kbLoading.value = true
   try {
     const res = await knowledgeBaseApi.list({ page: 1, size: 100 })
