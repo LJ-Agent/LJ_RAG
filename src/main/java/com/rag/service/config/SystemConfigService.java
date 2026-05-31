@@ -14,9 +14,12 @@ public interface SystemConfigService {
     String validateConfigValue(SystemConfig config);
 
     // ─── CRUD ───
-    Result<Page<SystemConfig>> list(Integer page, Integer size, String category);
+    Result<Page<SystemConfig>> list(Integer page, Integer size, String category, String scope);
 
     Result<List<SystemConfig>> listByCategory(String category);
+
+    /** 获取个人可用的配置模板 (scope=personal) */
+    Result<List<SystemConfig>> listPersonalTemplates();
 
     Result<SystemConfig> getByKey(String key);
 

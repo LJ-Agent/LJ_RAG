@@ -116,11 +116,14 @@ public class SystemConfigServiceImpl implements SystemConfigService {
     // ─── CRUD + 校验 + 发布 ─────────────────────────────
 
     @Override
-    public Result<Page<SystemConfig>> list(Integer page, Integer size, String category) {
+    public Result<Page<SystemConfig>> list(Integer page, Integer size, String category, String scope) {
         Page<SystemConfig> pg = new Page<>(page, size);
         LambdaQueryWrapper<SystemConfig> qw = new LambdaQueryWrapper<>();
         if (category != null && !category.isBlank()) {
             qw.eq(SystemConfig::getCategory, category);
+        }
+        if (scope != null && !scope.isBlank()) {
+            qw.eq(SystemConfig::getScope, scope);
         }
         qw.orderByAsc(SystemConfig::getSortOrder, SystemConfig::getConfigKey);
         return Result.success(configMapper.selectPage(pg, qw));
@@ -131,6 +134,15 @@ public class SystemConfigServiceImpl implements SystemConfigService {
         return Result.success(configMapper.selectList(
                 new LambdaQueryWrapper<SystemConfig>()
                         .eq(SystemConfig::getCategory, category)
+                        .eq(SystemConfig::getScope, "system")  // 默认只展示系统级配置
+                        .orderByAsc(SystemConfig::getSortOrder)));
+    }
+
+    @Override
+    public Result<List<SystemConfig>> listPersonalTemplates() {
+        return Result.success(configMapper.selectList(
+                new LambdaQueryWrapper<SystemConfig>()
+                        .eq(SystemConfig::getScope, "personal")
                         .orderByAsc(SystemConfig::getSortOrder)));
     }
 

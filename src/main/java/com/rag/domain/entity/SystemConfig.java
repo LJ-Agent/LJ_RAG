@@ -25,4 +25,5 @@ public class SystemConfig extends BaseEntity {
     private String reloadStrategy;
     private String status;
     private Integer required;
+    private String scope;
 }

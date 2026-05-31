@@ -23,13 +23,14 @@ public class SystemConfigController {
 
     private final SystemConfigService configService;
 
-    @Operation(summary = "配置列表（支持按分类筛选）")
+    @Operation(summary = "系统配置列表（支持按分类/scope筛选）")
     @GetMapping
     @PreAuthorize("hasAuthority('CONFIG:MANAGE')")
     public Result<Page<SystemConfig>> list(@RequestParam(defaultValue = "1") Integer page,
                                             @RequestParam(defaultValue = "50") Integer size,
-                                            @RequestParam(required = false) String category) {
-        return configService.list(page, size, category);
+                                            @RequestParam(required = false) String category,
+                                            @RequestParam(required = false) String scope) {
+        return configService.list(page, size, category, scope);
     }
 
     @Operation(summary = "按分类获取配置列表")
