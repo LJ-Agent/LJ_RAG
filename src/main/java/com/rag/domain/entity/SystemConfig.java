@@ -1,5 +1,6 @@
 package com.rag.domain.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -15,6 +16,7 @@ public class SystemConfig extends BaseEntity {
     private String description;
     private String category;
     private String label;
+    @TableField("default_value")
     private String defaultVal;
     private String validationRule;
     private Integer sortOrder;
