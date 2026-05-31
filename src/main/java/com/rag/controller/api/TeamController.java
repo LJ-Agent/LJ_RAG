@@ -42,6 +42,7 @@ public class TeamController {
 
     @PostMapping
     @Transactional
+    @PreAuthorize("hasAuthority('CONFIG:MANAGE')")
     public Result<Team> create(@RequestBody Team team) {
         team.setOwnerId(UserContext.getUserId());
         teamMapper.insert(team);
