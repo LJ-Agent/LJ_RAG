@@ -32,7 +32,21 @@
 
       <!-- 右侧表格 -->
       <div class="config-main">
-        <el-table :data="list" v-loading="isLoading" stripe border style="width: 100%">
+        <!-- 分块策略子筛选 -->
+        <div v-if="activeCategory === 'chunk'" class="strategy-filter">
+          <span class="filter-label">策略筛选：</span>
+          <el-radio-group v-model="chunkSubFilter" size="small" @change="applyChunkFilter">
+            <el-radio-button value="all">全部(18)</el-radio-button>
+            <el-radio-button value="common">通用参数</el-radio-button>
+            <el-radio-button value="fixed">Fixed</el-radio-button>
+            <el-radio-button value="hierarchical">Hierarchical</el-radio-button>
+            <el-radio-button value="semantic">Semantic</el-radio-button>
+            <el-radio-button value="recursive">Recursive</el-radio-button>
+            <el-radio-button value="topic">Topic</el-radio-button>
+            <el-radio-button value="hybrid">Hybrid</el-radio-button>
+          </el-radio-group>
+        </div>
+        <el-table :data="filteredList" v-loading="isLoading" stripe border style="width: 100%">
           <el-table-column prop="label" label="参数名" min-width="160">
             <template #default="{ row }">
               <div>
@@ -210,6 +224,18 @@ function switchCategory(cat: string) {
 // ─── 列表 ───
 const list = ref<SystemConfigVO[]>([])
 const isLoading = ref(false)
+const chunkSubFilter = ref('all')
+
+// 分块子筛选：按策略前缀过滤
+const filteredList = computed(() => {
+  if (activeCategory.value !== 'chunk' || chunkSubFilter.value === 'all') return list.value
+  if (chunkSubFilter.value === 'common') {
+    return list.value.filter(r => !r.configKey.includes('.') || r.configKey.split('.').length === 2)
+  }
+  return list.value.filter(r => r.configKey.startsWith('chunk.' + chunkSubFilter.value + '.'))
+})
+
+function applyChunkFilter(_val: string) { /* computed 自动响应 */ }
 
 async function fetchList() {
   isLoading.value = true
@@ -221,7 +247,7 @@ async function fetchList() {
   }
 }
 
-watch(activeCategory, () => fetchList(), { immediate: false })
+watch(activeCategory, () => { chunkSubFilter.value = 'all'; fetchList() }, { immediate: false })
 
 // ─── 表单 ───
 const dialogVisible = ref(false)
