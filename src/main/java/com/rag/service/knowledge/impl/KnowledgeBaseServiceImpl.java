@@ -8,8 +8,11 @@ import com.rag.common.result.ResultCodeEnum;
 import com.rag.domain.entity.Document;
 import com.rag.domain.entity.KnowledgeBase;
 import com.rag.domain.entity.User;
+import com.rag.common.context.UserContext;
+import com.rag.domain.entity.TeamMember;
 import com.rag.domain.mapper.DocumentMapper;
 import com.rag.domain.mapper.KnowledgeBaseMapper;
+import com.rag.domain.mapper.TeamMemberMapper;
 import com.rag.domain.mapper.UserMapper;
 import com.rag.service.knowledge.KnowledgeBaseService;
 import com.rag.service.knowledge.dto.KnowledgeBaseQueryDTO;
@@ -28,6 +31,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private final KnowledgeBaseMapper kbMapper;
     private final DocumentMapper documentMapper;
     private final UserMapper userMapper;
+    private final TeamMemberMapper teamMemberMapper;
 
     @Override
     @Transactional
@@ -117,6 +121,23 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         if (query.getStatus() != null) {
             wrapper.eq(KnowledgeBase::getStatus, query.getStatus());
         }
+
+        // 团队隔离: 用户仅可见所属团队的KB + 公开KB
+        Long userId = UserContext.getUserId();
+        boolean isAdmin = UserContext.hasPermission("CONFIG:MANAGE");
+        if (!isAdmin) {
+            List<TeamMember> memberships = teamMemberMapper.selectList(
+                    new LambdaQueryWrapper<TeamMember>().eq(TeamMember::getUserId, userId));
+            List<Long> teamIds = memberships.stream().map(TeamMember::getTeamId).toList();
+            if (teamIds.isEmpty()) {
+                // 不属于任何团队 → 只能看公开KB
+                wrapper.eq(KnowledgeBase::getVisibility, "public");
+            } else {
+                wrapper.and(w -> w.in(KnowledgeBase::getTeamId, teamIds)
+                        .or().eq(KnowledgeBase::getVisibility, "public"));
+            }
+        }
+
         wrapper.orderByDesc(KnowledgeBase::getCreatedAt);
 
         Page<KnowledgeBase> result = kbMapper.selectPage(page, wrapper);
