@@ -539,17 +539,27 @@ public class FileServiceImpl implements FileService {
                     .object(cleanedObjectName)
                     .build());
         } catch (Exception e) {
-            String ext = getFileExtension(doc.getFileName());
-            if (!"txt".equals(ext) && !"md".equals(ext)) {
-                throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND.getCode(), "文档内容尚未生成，请等待处理完成");
-            }
+            // Fallback 1: gRPC cleaning convention — cleaned/{tenant}/{docId}.md
+            String grpcCleanedPath = "cleaned/default/" + doc.getId() + ".md";
             try {
                 return minioClient.getObject(GetObjectArgs.builder()
                         .bucket(minioConfig.getBucketName())
-                        .object(doc.getMinioPath())
+                        .object(grpcCleanedPath)
                         .build());
-            } catch (Exception ex) {
-                throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND);
+            } catch (Exception grpcEx) {
+                // Fallback 2: original file path (txt/md files)
+                String ext = getFileExtension(doc.getFileName());
+                if (!"txt".equals(ext) && !"md".equals(ext)) {
+                    throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND.getCode(), "文档内容尚未生成，请等待处理完成");
+                }
+                try {
+                    return minioClient.getObject(GetObjectArgs.builder()
+                            .bucket(minioConfig.getBucketName())
+                            .object(doc.getMinioPath())
+                            .build());
+                } catch (Exception ex) {
+                    throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND);
+                }
             }
         }
     }
