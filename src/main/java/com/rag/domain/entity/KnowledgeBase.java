@@ -14,4 +14,6 @@ public class KnowledgeBase extends BaseEntity {
     private String coverUrl;
     private Integer status;
     private Long ownerId;
+    private Long teamId;
+    private String visibility;
 }
