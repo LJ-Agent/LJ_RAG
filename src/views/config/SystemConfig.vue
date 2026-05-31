@@ -7,11 +7,6 @@
       </el-button>
     </div>
 
-    <!-- 系统/个人 维度 -->
-    <el-tabs v-model="activeScope" @tab-change="onScopeChange" type="border-card" style="margin-bottom:12px">
-      <el-tab-pane name="system"><template #label><span v-permission="'CONFIG:MANAGE'">🔧 系统配置（仅管理员）</span></template></el-tab-pane>
-      <el-tab-pane name="personal"><template #label>👤 个人偏好</template></el-tab-pane>
-    </el-tabs>
 
     <!-- ========== 系统配置 ========== -->
     <template v-if="activeScope==='system'">
@@ -156,7 +151,7 @@ import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 
 // ─── 维度 ───
-const activeScope = ref('personal')
+const activeScope = ref('system')
 const activeCat = ref('chunk')
 
 // ─── 系统配置 ───

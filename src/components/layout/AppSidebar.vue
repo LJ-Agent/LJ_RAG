@@ -29,6 +29,10 @@
         <el-icon><Checked /></el-icon>
         <span>审核管理</span>
       </el-menu-item>
+      <el-menu-item index="/personal-config">
+        <el-icon><Setting /></el-icon>
+        <span>个人配置</span>
+      </el-menu-item>
       <el-menu-item index="/qa" v-permission="'QA:ASK'">
         <el-icon><ChatDotRound /></el-icon>
         <span>知识问答</span>

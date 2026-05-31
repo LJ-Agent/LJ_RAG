@@ -83,6 +83,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '审核管理', permissions: ['REVIEW:VIEW'], icon: 'Checked' },
       },
       {
+        path: 'personal-config',
+        name: 'PersonalConfig',
+        component: () => import('@/views/config/PersonalConfig.vue'),
+        meta: { title: '个人配置', icon: 'Setting' },
+      },
+      {
         path: 'qa',
         name: 'QA',
         component: () => import('@/views/qa/QAChat.vue'),
