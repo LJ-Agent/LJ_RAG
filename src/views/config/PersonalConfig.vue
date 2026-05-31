@@ -68,9 +68,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { usePermissionStore } from '@/stores/permission'
 import request from '@/api/request'
 
-const PERSONAL_CATS: Record<string,string> = { chunk:'分块策略', retrieval:'检索参数', cleaning:'文档清洗', review:'审核策略', qa:'问答设置', personal:'个人默认' }
+const { hasPermission } = usePermissionStore()
+
+// 权限→分类映射: 只有拥有对应权限才展示该分类
+const ALL_CATS: Record<string,{label:string; perm:string}> = {
+  chunk:     { label:'分块策略', perm:'DOCUMENT:UPLOAD' },
+  retrieval: { label:'检索参数', perm:'QA:ASK' },
+  cleaning:  { label:'文档清洗', perm:'DOCUMENT:UPLOAD' },
+  review:    { label:'审核策略', perm:'REVIEW:APPROVE' },
+  qa:        { label:'问答设置', perm:'QA:ASK' },
+  personal:  { label:'个人默认', perm:'QA:ASK' },
+}
 const STRATEGY_KEY = 'chunk.strategy'; const COMMON_KEYS = ['chunk.default_size','chunk.overlap','chunk.min_chunk_size','chunk.max_chunk_size']
 
 const loading = ref(false); const allData = ref<any[]>([]); const activeCat = ref('chunk'); const chunkSub = ref('default')
@@ -88,9 +99,13 @@ async function load() {
   try {
     const res = await request.get('/user/configs/effective')
     allData.value = (res as any[]) || []
+    // 仅展示用户有权限的分类
     const cats: Record<string,number> = {}
     for (const r of allData.value) { const c = r.category||'general'; cats[c] = (cats[c]||0) + 1 }
-    personalCats.value = Object.entries(PERSONAL_CATS).filter(([k]) => cats[k]).map(([v,l]) => ({value:v,label:l,count:cats[v]||0}))
+    personalCats.value = Object.entries(ALL_CATS)
+      .filter(([k, v]) => cats[k] && hasPermission(v.perm))
+      .map(([k, v]) => ({ value: k, label: v.label, count: cats[k]||0 }))
+    if (personalCats.value.length > 0) activeCat.value = personalCats.value[0].value
   } finally { loading.value = false }
 }
 
