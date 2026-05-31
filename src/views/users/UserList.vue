@@ -36,9 +36,10 @@
       <el-table-column label="最后登录" width="170" align="center">
         <template #default="{ row }">{{ formatDate(row.lastLoginAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="120" align="center" fixed="right">
+      <el-table-column label="操作" width="200" align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" size="small" @click="openRoles(row)" v-permission="'USER:UPDATE'">管理角色</el-button>
+          <el-button link type="warning" size="small" @click="openTeam(row)" v-permission="'USER:UPDATE'">管理团队</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -78,6 +79,40 @@
             <el-option v-for="role in availableRoles" :key="role.id" :label="`${role.roleName} (${role.roleCode})`" :value="role.id" />
           </el-select>
           <el-button type="primary" style="margin-left: 12px" :loading="assigning" @click="assignRole">分配</el-button>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 团队管理弹窗 -->
+    <el-dialog v-model="teamVisible" title="管理用户团队" width="520px" destroy-on-close>
+      <div v-if="currentUser">
+        <div class="roles-section">
+          <h4>当前团队</h4>
+          <template v-if="getUserTeam(currentUser.id)">
+            <el-tag type="warning" size="small">{{ getUserTeam(currentUser.id)?.teamName }}</el-tag>
+            <el-tag size="small" style="margin-left:6px">{{ roleLabel(getUserTeam(currentUser.id)?.roleCode) }}</el-tag>
+          </template>
+          <span v-else style="color:#c0c4cc">未分配团队</span>
+        </div>
+        <el-divider />
+        <div class="roles-section">
+          <h4>分配团队</h4>
+          <el-select v-model="assignTeamId" placeholder="选择团队" style="width:200px" @change="onTeamChange">
+            <el-option v-for="t in allTeams" :key="t.id" :label="t.name" :value="t.id" />
+          </el-select>
+          <el-select v-model="assignRoleCode" placeholder="团队角色" style="width:150px;margin-left:8px" v-if="assignTeamId">
+            <el-option label="所有者" value="team_owner" />
+            <el-option label="管理员" value="team_admin" />
+            <el-option label="编辑者" value="team_editor" />
+            <el-option label="审核者" value="team_reviewer" />
+            <el-option label="访客" value="team_viewer" />
+          </el-select>
+          <el-button type="primary" style="margin-left:12px" :loading="teamAssigning" @click="assignTeam" :disabled="!assignTeamId || !assignRoleCode">分配</el-button>
+        </div>
+        <el-divider />
+        <div class="roles-section">
+          <h4>移除</h4>
+          <el-button v-if="getUserTeam(currentUser.id)" type="danger" plain size="small" @click="removeFromTeam">从团队移除</el-button>
         </div>
       </div>
     </el-dialog>
@@ -201,6 +236,75 @@ async function assignRole() {
   } finally {
     assigning.value = false
   }
+}
+
+// ─── 团队管理 ───
+const teamVisible = ref(false)
+const allTeams = ref<any[]>([])
+const assignTeamId = ref<number | null>(null)
+const assignRoleCode = ref('team_viewer')
+const teamAssigning = ref(false)
+
+async function fetchAllTeams() {
+  try {
+    const myTeams = await request.get('/teams')
+    // 管理员需要所有团队 — 简化: 遍历已知团队
+    allTeams.value = (myTeams as any[]).map((t: any) => t.team)
+  } catch { allTeams.value = [] }
+}
+
+async function openTeam(user: UserVO) {
+  currentUser.value = user
+  assignTeamId.value = null
+  assignRoleCode.value = 'team_viewer'
+  await fetchAllTeams()
+  teamVisible.value = true
+}
+
+function onTeamChange(_val: number) { /* role selection stays */ }
+
+async function assignTeam() {
+  if (!assignTeamId.value || !currentUser.value) return
+  teamAssigning.value = true
+  try {
+    // 先移除旧团队
+    const existing = getUserTeam(currentUser.value.id)
+    if (existing) {
+      for (const t of allTeams.value) {
+        if (t.name === existing.teamName) {
+          await request.delete(`/teams/${t.id}/members/${currentUser.value.id}`)
+          break
+        }
+      }
+    }
+    // 加入新团队
+    await request.post(`/teams/${assignTeamId.value}/members`, {
+      userId: currentUser.value.id,
+      roleCode: assignRoleCode.value,
+    })
+    ElMessage.success('团队分配成功')
+    teamVisible.value = false
+    await loadTeams()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || '分配失败')
+  } finally { teamAssigning.value = false }
+}
+
+async function removeFromTeam() {
+  if (!currentUser.value) return
+  const existing = getUserTeam(currentUser.value.id)
+  if (!existing) return
+  try {
+    for (const t of allTeams.value) {
+      if (t.name === existing.teamName) {
+        await request.delete(`/teams/${t.id}/members/${currentUser.value.id}`)
+        ElMessage.success('已从团队移除')
+        teamVisible.value = false
+        await loadTeams()
+        return
+      }
+    }
+  } catch { ElMessage.error('移除失败') }
 }
 
 async function removeRole(roleId: number) {
