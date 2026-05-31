@@ -26,6 +26,7 @@
       <div v-if="activeCategory === 'chunk'" class="strategy-tabs">
         <el-radio-group v-model="chunkSubFilter" size="small">
           <el-radio-button value="default">⭐ 默认策略</el-radio-button>
+          <el-radio-button value="common">通用参数</el-radio-button>
           <el-radio-button value="fixed">Fixed</el-radio-button>
           <el-radio-button value="recursive">Recursive</el-radio-button>
           <el-radio-button value="semantic">Semantic</el-radio-button>
@@ -55,6 +56,11 @@
         </el-table-column>
         <el-table-column label="校验" width="130" show-overflow-tooltip>
           <template #default="{ row }"><span class="rule-hint">{{ row.validationRule ? formatRule(row.validationRule) : '—' }}</span></template>
+        </el-table-column>
+        <el-table-column label="作用域" width="75" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.scope==='personal'?'success':''"> {{ row.scope==='personal'?'个人':'系统' }} </el-tag>
+          </template>
         </el-table-column>
         <el-table-column label="生效" width="70" align="center">
           <template #default="{ row }">
@@ -126,7 +132,7 @@
           <el-input v-else v-model="form.configValue" placeholder="值" @blur="validateField" />
           <div v-if="fieldError" class="field-error">{{ fieldError }}</div>
         </el-form-item>
-        <el-form-item label="类型"><el-select v-model="form.configType" style="width:100%" @change="onTypeChange"><el-option v-for="t in ['STRING','NUMBER','BOOLEAN','JSON']" :key="t" :label="t" :value="t" /></el-select></el-form-item>
+        <el-form-item label="类型"><el-select v-model="form.configType" style="width:100%" disabled><el-option v-for="t in ['STRING','NUMBER','BOOLEAN','JSON']" :key="t" :label="t" :value="t" /></el-select><div style="font-size:11px;color:#e6a23c;margin-top:2px">类型不可修改(创建时选定)</div></el-form-item>
         <el-form-item label="分类"><el-select v-model="form.category" style="width:100%"><el-option v-for="c in categories" :key="c.value" :label="c.label" :value="c.value" /></el-select></el-form-item>
         <el-form-item label="生效策略"><el-select v-model="form.reloadStrategy" style="width:100%"><el-option label="Kafka即时生效" value="kafka" /><el-option label="API热载(2~5s)" value="api" /><el-option label="需重启服务" value="restart" /></el-select></el-form-item>
         <el-form-item label="说明"><el-input v-model="form.description" type="textarea" :rows="2" /></el-form-item>
@@ -199,13 +205,15 @@ function onCategoryChange() { chunkSubFilter.value='default'; fetchList() }
 
 // ─── 列表 + 分块子筛选 ───
 const list = ref<SystemConfigVO[]>([]), isLoading = ref(false)
-const COMMON_CHUNK = ['chunk.strategy','chunk.default_size','chunk.overlap','chunk.min_chunk_size','chunk.max_chunk_size']
+const STRATEGY_KEY = 'chunk.strategy'
+const COMMON_KEYS = ['chunk.default_size','chunk.overlap','chunk.min_chunk_size','chunk.max_chunk_size']
 const filteredList = computed(() => {
   if (activeCategory.value !== 'chunk') return list.value
-  // 默认策略Tab: 展示通用默认参数(chunk.strategy/default_size/overlap/min/max)
-  if (chunkSubFilter.value === 'default')
-    return list.value.filter(r => COMMON_CHUNK.includes(r.configKey))
-  // 其他策略Tab: 只展示该策略专属参数
+  // ⭐默认策略Tab: 仅展示 chunk.strategy (选择哪种策略作为默认)
+  if (chunkSubFilter.value === 'default') return list.value.filter(r => r.configKey === STRATEGY_KEY)
+  // 通用参数Tab: default_size/overlap/min_chunk_size/max_chunk_size
+  if (chunkSubFilter.value === 'common') return list.value.filter(r => COMMON_KEYS.includes(r.configKey))
+  // 策略Tab: 只展示该策略专属参数, 与上传表单一一对应
   return list.value.filter(r => r.configKey.startsWith('chunk.' + chunkSubFilter.value + '.'))
 })
 
