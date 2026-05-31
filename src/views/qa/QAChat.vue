@@ -217,7 +217,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onActivated, onDeactivated } from 'vue'
+defineOptions({ name: 'QAChat' })
 import { useRouter } from 'vue-router'
 import { ChatDotRound, Plus, MoreFilled, Promotion, Document, Collection, Star, StarFilled, Delete } from '@element-plus/icons-vue'
 import { qaApi } from '@/api/modules/qa'
@@ -725,6 +726,13 @@ onMounted(async () => {
   try {
     const res = await knowledgeBaseApi.list({ page: 1, size: 100 })
     kbList.value = res.records.filter((kb) => kb.status === 1)
+    await loadSessions()
+  } catch { /* ignore */ }
+})
+
+// keep-alive 激活时刷新会话列表（不丢失当前选中会话和消息）
+onActivated(async () => {
+  try {
     await loadSessions()
   } catch { /* ignore */ }
 })
