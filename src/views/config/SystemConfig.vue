@@ -19,10 +19,9 @@
     <!-- 分块策略二级Tab：每个策略展示其通用参数+专属参数 -->
     <div v-if="activeCategory === 'chunk'" class="strategy-tabs">
       <el-radio-group v-model="chunkSubFilter" size="small" @change="onSubFilterChange">
-        <el-radio-button value="fixed">Fixed 固定大小</el-radio-button>
-        <el-radio-button value="hierarchical">Hierarchical 标题层级</el-radio-button>
-        <el-radio-button value="semantic">Semantic 语义段落</el-radio-button>
+        <el-radio-button value="fixed">Fixed 固定长度</el-radio-button>
         <el-radio-button value="recursive">Recursive 递归分割</el-radio-button>
+        <el-radio-button value="semantic">Semantic 语义段落</el-radio-button>
         <el-radio-button value="topic">Topic 主题检测</el-radio-button>
         <el-radio-button value="hybrid">Hybrid 混合策略</el-radio-button>
       </el-radio-group>
