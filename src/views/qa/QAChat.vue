@@ -217,7 +217,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onActivated, onDeactivated } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onActivated, onDeactivated } from 'vue'
 defineOptions({ name: 'QAChat' })
 import { useRouter } from 'vue-router'
 import { ChatDotRound, Plus, MoreFilled, Promotion, Document, Collection, Star, StarFilled, Delete } from '@element-plus/icons-vue'
@@ -307,6 +307,30 @@ function savePinnedId(id: number | null) {
   } else {
     localStorage.removeItem(STORAGE_KEY)
   }
+}
+
+// 持久化活跃会话 ID，跳转返回后可恢复
+function loadActiveSessionId(): number | null {
+  try {
+    const raw = localStorage.getItem('rag-active-session')
+    return raw ? Number(raw) : null
+  } catch { return null }
+}
+function saveActiveSessionId(id: number | null) {
+  if (id) localStorage.setItem('rag-active-session', String(id))
+  else localStorage.removeItem('rag-active-session')
+}
+
+// 持久化选中的知识库
+function loadActiveKbIds(): number[] {
+  try {
+    const raw = localStorage.getItem('rag-active-kb-ids')
+    return raw ? JSON.parse(raw) : []
+  } catch { return [] }
+}
+function saveActiveKbIds(ids: number[]) {
+  if (ids.length > 0) localStorage.setItem('rag-active-kb-ids', JSON.stringify(ids))
+  else localStorage.removeItem('rag-active-kb-ids')
 }
 
 function togglePin(id: number) {
@@ -558,6 +582,7 @@ async function createNewSession() {
 
 async function switchSession(sessionId: number) {
   activeSessionId.value = sessionId
+  saveActiveSessionId(sessionId)
   messages.value = []
   try {
     const res = await qaApi.getSessionRecords(sessionId, { page: 1, size: 100 })
@@ -612,6 +637,7 @@ async function handleSessionAction(cmd: string, session: ChatSessionVO) {
       ElMessage.success('会话已删除')
       if (activeSessionId.value === session.id) {
         activeSessionId.value = null
+        saveActiveSessionId(null)
         messages.value = []
       }
       if (pinnedId.value === session.id) {
@@ -636,6 +662,7 @@ async function handleBatchDeleteSessions() {
     ElMessage.success(`已删除 ${selectedSessionIds.value.length} 个会话`)
     if (activeSessionId.value && selectedSessionIds.value.includes(activeSessionId.value)) {
       activeSessionId.value = null
+      saveActiveSessionId(null)
       messages.value = []
     }
     if (pinnedId.value && selectedSessionIds.value.includes(pinnedId.value)) {
@@ -653,6 +680,7 @@ async function ensureSession(): Promise<number | null> {
   const s = await qaApi.createSession({ kbIds, title: '新会话' })
   await loadSessions()
   activeSessionId.value = s.id
+  saveActiveSessionId(s.id)
   return s.id
 }
 
@@ -727,8 +755,16 @@ onMounted(async () => {
     const res = await knowledgeBaseApi.list({ page: 1, size: 100 })
     kbList.value = res.records.filter((kb) => kb.status === 1)
     await loadSessions()
+    // 恢复上次活跃的会话
+    const lastSessionId = loadActiveSessionId()
+    if (lastSessionId && sessions.value.some(s => s.id === lastSessionId)) {
+      await switchSession(lastSessionId)
+    }
   } catch { /* ignore */ }
 })
+
+// 持久化选中的知识库
+watch(selectedKbIds, (val) => saveActiveKbIds(val), { deep: true })
 
 // keep-alive 激活时刷新会话列表（不丢失当前选中会话和消息）
 onActivated(async () => {
