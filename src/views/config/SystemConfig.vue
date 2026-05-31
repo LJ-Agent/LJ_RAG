@@ -9,6 +9,13 @@
       </div>
     </div>
 
+    <el-alert type="warning" :closable="false" show-icon style="margin-bottom: 12px;">
+      <template #title>
+        🔒 标记的配置项为系统关键参数，<b>不可删除</b>，配置键名<b>不可修改</b>（代码中硬编码引用）。
+        修改值后通过 Kafka 即时生效，若删除关键配置系统将使用出厂默认值运行。
+      </template>
+    </el-alert>
+
     <div class="config-body">
       <!-- 左侧分类 -->
       <div class="config-sidebar">
@@ -29,7 +36,12 @@
           <el-table-column prop="label" label="参数名" min-width="160">
             <template #default="{ row }">
               <div>
-                <div class="config-label-name">{{ row.label || row.configKey }}</div>
+                <div class="config-label-name">
+                  <el-tooltip v-if="row.required === 1" content="关键配置：代码依赖此键名运行，不可删除" placement="top">
+                    <el-icon style="color: #e6a23c; margin-right: 2px; font-size: 14px;"><Lock /></el-icon>
+                  </el-tooltip>
+                  {{ row.label || row.configKey }}
+                </div>
                 <div class="config-label-key">{{ row.configKey }}</div>
               </div>
             </template>
@@ -66,7 +78,10 @@
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click="openEdit(row)" :disabled="row.editable === 0">编辑</el-button>
               <el-button link type="warning" size="small" @click="openHistory(row)">历史</el-button>
-              <el-popconfirm title="确定删除？" @confirm="handleDelete(row.id)">
+              <el-tooltip v-if="row.required === 1" content="关键配置不可删除，如需停用请将值设为空或 status=disabled" placement="top">
+                <el-button link type="info" size="small" disabled>🔒</el-button>
+              </el-tooltip>
+              <el-popconfirm v-else title="此配置非关键项，确定删除？删除后代码将使用默认值运行。" @confirm="handleDelete(row.id)">
                 <template #reference>
                   <el-button link type="danger" size="small">删除</el-button>
                 </template>
@@ -152,7 +167,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, computed } from 'vue'
-import { Plus, ArrowRight } from '@element-plus/icons-vue'
+import { Plus, ArrowRight, Lock } from '@element-plus/icons-vue'
 import { configApi } from '@/api/modules/configs'
 import { CONFIG_TYPE_MAP } from '@/utils/constants'
 import type { SystemConfigVO, ConfigHistoryVO } from '@/api/types/config'

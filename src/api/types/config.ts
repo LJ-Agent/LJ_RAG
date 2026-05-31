@@ -13,6 +13,7 @@ export interface SystemConfigVO {
   targetServices: string
   reloadStrategy: string
   status: string
+  required: number
 }
 
 export interface ConfigHistoryVO {

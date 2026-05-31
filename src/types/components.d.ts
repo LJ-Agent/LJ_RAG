@@ -14,6 +14,7 @@ declare module 'vue' {
     AppHeader: typeof import('./../components/layout/AppHeader.vue')['default']
     AppLayout: typeof import('./../components/layout/AppLayout.vue')['default']
     AppSidebar: typeof import('./../components/layout/AppSidebar.vue')['default']
+    ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAside: typeof import('element-plus/es')['ElAside']
     ElBadge: typeof import('element-plus/es')['ElBadge']
     ElBreadcrumb: typeof import('element-plus/es')['ElBreadcrumb']
