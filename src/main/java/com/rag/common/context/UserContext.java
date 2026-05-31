@@ -38,4 +38,14 @@ public class UserContext {
         }
         return false;
     }
+
+    public static java.util.Set<String> getPermissions() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            return auth.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(java.util.stream.Collectors.toSet());
+        }
+        return java.util.Set.of();
+    }
 }
