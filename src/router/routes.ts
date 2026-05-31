@@ -95,6 +95,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '用户管理', permissions: ['USER:VIEW'], icon: 'User' },
       },
       {
+        path: 'teams',
+        name: 'Teams',
+        component: () => import('@/views/teams/TeamList.vue'),
+        meta: { title: '团队管理', permissions: ['CONFIG:MANAGE'], icon: 'UserFilled' },
+      },
+      {
         path: 'configs',
         name: 'SystemConfig',
         component: () => import('@/views/config/SystemConfig.vue'),
