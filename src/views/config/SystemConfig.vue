@@ -159,7 +159,7 @@ const activeScope = ref('personal')
 const activeCat = ref('chunk')
 
 // ─── 系统配置 ───
-const SYS_CATS: Record<string,string> = { upload:'文件上传', rate_limit:'限流控制', review:'审核策略' }
+const SYS_CATS: Record<string,string> = { upload:'文件上传', rate_limit:'限流控制' }
 const sysCats = ref<{value:string;label:string;count:number}[]>([])
 const sysList = ref<SystemConfigVO[]>([])
 const sysLoading = ref(false)
@@ -175,7 +175,7 @@ async function loadSysList() { sysLoading.value=true; try { const r=await config
 function onCatChange() { if (activeScope.value==='system') loadSysList(); /* personal uses computed */ }
 
 // ─── 个人配置 ───
-const PERSONAL_CATS: Record<string,string> = { chunk:'分块策略', retrieval:'检索参数', cleaning:'文档清洗', qa:'问答设置', personal:'个人默认' }
+const PERSONAL_CATS: Record<string,string> = { chunk:'分块策略', retrieval:'检索参数', cleaning:'文档清洗', review:'审核策略', qa:'问答设置', personal:'个人默认' }
 const personalCats = ref<{value:string;label:string;count:number}[]>([])
 const personalAll = ref<any[]>([])
 const personalLoading = ref(false)
