@@ -1,3 +1,4 @@
+import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -21,6 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @Tag(name = "反馈管理", description = "用户反馈提交与处理")
+@Profile("qa")
+@Profile("qa")
 @RestController
 @RequestMapping("/api/feedback")
 @RequiredArgsConstructor

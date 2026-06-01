@@ -1,3 +1,4 @@
+import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 
 @Tag(name = "系统配置", description = "系统参数可视化管理 — 支持分类浏览、校验、批量更新、历史追溯、回滚")
+@Profile("config")
+@Profile("config")
 @RestController
 @RequestMapping("/api/configs")
 @RequiredArgsConstructor

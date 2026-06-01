@@ -1,3 +1,4 @@
+import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "知识库管理", description = "知识库CURD、文档关联、上下架")
+@Profile("kb")
+@Profile("kb")
 @RestController
 @RequestMapping("/api/knowledge-bases")
 @RequiredArgsConstructor

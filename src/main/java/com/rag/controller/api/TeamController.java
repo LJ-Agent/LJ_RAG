@@ -1,3 +1,4 @@
+import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
+@Profile("kb")
+@Profile("kb")
 @RestController
 @RequestMapping("/api/teams")
 @RequiredArgsConstructor

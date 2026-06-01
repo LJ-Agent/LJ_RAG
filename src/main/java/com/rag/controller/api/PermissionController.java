@@ -1,3 +1,4 @@
+import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -15,6 +16,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Tag(name = "权限管理", description = "权限码列表 (由代码定义, 只读)")
+@Profile("auth")
+@Profile("auth")
 @RestController
 @RequestMapping("/api/permissions")
 @RequiredArgsConstructor

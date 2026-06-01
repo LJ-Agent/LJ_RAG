@@ -1,3 +1,4 @@
+import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -21,6 +22,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Tag(name = "个人配置", description = "用户个人偏好配置 (每个用户独立)")
+@Profile("config")
+@Profile("config")
 @RestController
 @RequestMapping("/api/user/configs")
 @RequiredArgsConstructor

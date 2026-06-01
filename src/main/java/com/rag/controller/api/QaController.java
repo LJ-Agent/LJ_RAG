@@ -1,3 +1,4 @@
+import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -28,6 +29,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Tag(name = "问答服务", description = "知识库问答、流式输出、问答历史")
+@Profile("qa")
+@Profile("qa")
 @RestController
 @RequestMapping("/api/qa")
 @RequiredArgsConstructor

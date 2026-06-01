@@ -1,3 +1,4 @@
+import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "审核管理", description = "文档审核列表、提交审核")
+@Profile("doc")
+@Profile("doc")
 @RestController
 @RequestMapping("/api/review")
 @RequiredArgsConstructor

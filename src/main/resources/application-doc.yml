@@ -1,0 +1,11 @@
+# doc-service 配置
+server:
+  port: 8083
+
+spring:
+  config:
+    activate:
+      on-profile: doc
+
+nacos:
+  service-name: rag-doc-service

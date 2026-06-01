@@ -1,3 +1,4 @@
+import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -22,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 @Tag(name = "分块管理", description = "文档块浏览、编辑、审核、向量化")
+@Profile("doc")
+@Profile("doc")
 @RestController
 @RequestMapping("/api/chunks")
 @RequiredArgsConstructor

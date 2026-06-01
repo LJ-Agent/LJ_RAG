@@ -274,6 +274,87 @@ services:
       retries: 3
       start_period: 40s
 
+  # ==================== 8.1-8.5 微服务集群 (Spring Profile隔离, 共享rag-server镜像) ====================
+  rag-auth-service:
+    image: rag-server:latest
+    container_name: rag-auth-service
+    restart: unless-stopped
+    ports: ["8081:8081"]
+    environment:
+      SPRING_PROFILES_ACTIVE: auth
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: minio:9000
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
+      NACOS_SERVER_ADDR: nacos:8848
+    networks: [rag-network]
+
+  rag-kb-service:
+    image: rag-server:latest
+    container_name: rag-kb-service
+    restart: unless-stopped
+    ports: ["8082:8082"]
+    environment:
+      SPRING_PROFILES_ACTIVE: kb
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: minio:9000
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
+      NACOS_SERVER_ADDR: nacos:8848
+    networks: [rag-network]
+
+  rag-doc-service:
+    image: rag-server:latest
+    container_name: rag-doc-service
+    restart: unless-stopped
+    ports: ["8083:8083"]
+    environment:
+      SPRING_PROFILES_ACTIVE: doc
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: minio:9000
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
+      NACOS_SERVER_ADDR: nacos:8848
+    networks: [rag-network]
+
+  rag-qa-service:
+    image: rag-server:latest
+    container_name: rag-qa-service
+    restart: unless-stopped
+    ports: ["8084:8084"]
+    environment:
+      SPRING_PROFILES_ACTIVE: qa
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: minio:9000
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
+      NACOS_SERVER_ADDR: nacos:8848
+    networks: [rag-network]
+
+  rag-config-service:
+    image: rag-server:latest
+    container_name: rag-config-service
+    restart: unless-stopped
+    ports: ["8085:8085"]
+    environment:
+      SPRING_PROFILES_ACTIVE: config
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: minio:9000
+      JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
+      NACOS_SERVER_ADDR: nacos:8848
+    networks: [rag-network]
+
   # ==================== 9. Java 应用 ====================
   rag-server:
     build:
