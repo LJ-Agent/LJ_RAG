@@ -1,0 +1,11 @@
+# qa-service 配置
+server:
+  port: 8084
+
+spring:
+  config:
+    activate:
+      on-profile: qa
+
+nacos:
+  service-name: rag-qa-service

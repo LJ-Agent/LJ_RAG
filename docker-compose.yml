@@ -286,6 +286,7 @@ services:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       MINIO_ENDPOINT: minio:9000
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
@@ -303,6 +304,7 @@ services:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       MINIO_ENDPOINT: minio:9000
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
@@ -320,6 +322,7 @@ services:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       MINIO_ENDPOINT: minio:9000
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
@@ -337,6 +340,7 @@ services:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       MINIO_ENDPOINT: minio:9000
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
@@ -354,6 +358,7 @@ services:
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
       REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis123}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       MINIO_ENDPOINT: minio:9000
       JWT_SECRET: ${JWT_SECRET:-your-256-bit-secret-key-change-in-production}
