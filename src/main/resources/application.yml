@@ -118,3 +118,10 @@ rate-limit:
     permits-per-second: 100
   qa:
     permits-per-second: 10
+
+# Nacos 服务注册与发现
+nacos:
+  server-addr: ${NACOS_SERVER_ADDR:nacos:8848}
+  service-name: rag-backend-service
+  namespace: ${NACOS_NAMESPACE:}
+  group: RAG_GROUP
