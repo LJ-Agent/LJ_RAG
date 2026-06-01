@@ -49,9 +49,10 @@ public class NacosRegistration {
             String ip = InetAddress.getLocalHost().getHostAddress();
             instanceId = ip + "#" + servicePort + "#DEFAULT#" + group + "@@" + serviceName;
 
-            String url = String.format("http://%s/nacos/v1/ns/instance", nacosAddr);
-            String params = String.format(
-                "serviceName=%s&ip=%s&port=%d&namespaceId=%s&groupName=%s&enable=true&healthy=true&metadata=%%7B%%7D",
+            // Build URL with query params (same as curl -d)
+            String url = String.format(
+                "http://%s/nacos/v1/ns/instance?serviceName=%s&ip=%s&port=%d&namespaceId=%s&groupName=%s&enable=true&healthy=true&metadata=%%7B%%7D",
+                nacosAddr,
                 URLEncoder.encode(serviceName, StandardCharsets.UTF_8),
                 ip, servicePort,
                 URLEncoder.encode(namespace, StandardCharsets.UTF_8),
@@ -62,7 +63,7 @@ public class NacosRegistration {
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .POST(HttpRequest.BodyPublishers.ofString(params))
+                .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
 
             HttpResponse<String> resp = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -82,9 +83,9 @@ public class NacosRegistration {
     private void heartbeat(HttpClient client) {
         try {
             String ip = InetAddress.getLocalHost().getHostAddress();
-            String beatUrl = String.format("http://%s/nacos/v1/ns/instance/beat", nacosAddr);
-            String beatParams = String.format(
-                "serviceName=%s&ip=%s&port=%d&namespaceId=%s&groupName=%s&beat=%%7B%%7D",
+            String beatUrl = String.format(
+                "http://%s/nacos/v1/ns/instance/beat?serviceName=%s&ip=%s&port=%d&namespaceId=%s&groupName=%s&beat=%%7B%%7D",
+                nacosAddr,
                 URLEncoder.encode(serviceName, StandardCharsets.UTF_8),
                 ip, servicePort,
                 URLEncoder.encode(namespace, StandardCharsets.UTF_8),
@@ -93,7 +94,7 @@ public class NacosRegistration {
             HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(beatUrl))
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .PUT(HttpRequest.BodyPublishers.ofString(beatParams))
+                .PUT(HttpRequest.BodyPublishers.noBody())
                 .build();
             client.send(req, HttpResponse.BodyHandlers.ofString());
         } catch (Exception e) {
