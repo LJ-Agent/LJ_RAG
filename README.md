@@ -1,70 +1,75 @@
-# RAG知识库系统
+# RAG 知识库系统
 
-基于检索增强生成（RAG）架构的企业级知识库管理平台，Java 作为业务控制中心，Python 作为 AI 计算引擎，通过 Kafka（异步）和 gRPC（同步）实现异构系统通信。
+基于检索增强生成（RAG）架构的企业级知识库管理平台。Java 业务控制中心 + Python AI 计算引擎，通过 gRPC 和 Kafka 实现异构通信。
+
+> 📖 **完整文档**: [系统架构文档](docs/系统架构文档.md) | [部署文档](docs/部署文档.md) | [Nacos微服务设计](docs/Nacos微服务架构设计.md)
+
+## 系统架构 (12 容器)
+
+```
+RAG-Web(Vue3) → RAG-BACKEND(Java:8080) → gRPC → PYTHON/CLEANING/MEMORY/QUE
+                    ↕ Kafka                    ↕ Nacos :8848 (服务注册+配置中心)
+              MySQL/Redis/MinIO/Milvus       RAG-GATEWAY (API网关)
+```
 
 ## 技术栈
 
-| 类别 | 技术 | 版本 |
+| 类别 | 技术 | 说明 |
 |------|------|------|
-| 语言 & 运行时 | Java | 17 |
-| 核心框架 | Spring Boot | 3.2.5 |
-| 构建工具 | Maven | 3.9+ |
-| ORM | MyBatis-Plus | 3.5.7 |
-| 数据库 | MySQL | 8.0+ |
-| 缓存 | Redis (Lettuce + Redisson) | 7.x |
-| 消息队列 | Kafka | 3.x |
-| 对象存储 | MinIO | 2024+ |
-| RPC | gRPC (Protobuf) | 1.63 |
-| 认证鉴权 | Spring Security + JWT (jjwt) | 0.12.5 |
-| API文档 | SpringDoc (Swagger) | 2.5.0 |
-| 工具库 | Hutool / Lombok / MapStruct | — |
+| 业务后端 | Java 17, Spring Boot 3.2, MyBatis-Plus | REST API + WebSocket |
+| AI 引擎 | Python 3.11, gRPC, Milvus, Kafka | 检索/生成/清洗/记忆/查询优化 |
+| 前端 | Vue 3, TypeScript, Vite, Element Plus | SPA 管理界面 |
+| 服务发现 | **Nacos 2.3** | 服务注册+配置中心 |
+| 数据库 | MySQL 8.0 | 业务数据 + Nacos 持久化 |
+| 缓存 | Redis 7 | 缓存/分布式锁/工作记忆 |
+| 消息队列 | Kafka 4.2 (KRaft) | 异步任务流水线 |
+| 对象存储 | MinIO | 文档存储 |
+| 向量库 | Milvus 2.6 + etcd | 向量检索 |
+| 认证 | Spring Security + JWT | 双 Token (access 2h + refresh 7d) |
+
+## 核心功能
+
+| 模块 | 功能 |
+|------|------|
+| 🔐 认证鉴权 | JWT 双 Token, 5 种系统角色, 5 种团队角色, RBAC 权限模型 |
+| 👥 团队管理 | 团队 CRUD, 成员管理, 知识库归属, 数据隔离 |
+| 📚 知识库 | CRUD, 团队关联, 权限过滤 |
+| 📄 文档管理 | 多格式上传, 清洗, 分块, 审核, 嵌入, 检索 |
+| 💬 知识问答 | 流式 SSE, 混合检索(向量+BM25), LLM 生成 |
+| ⚙️ 配置中心 | 系统配置(管理员) + 个人偏好(所有用户), 热生效 |
+| 🔍 服务发现 | Nacos 注册, 健康检查, 心跳保活 |
 
 ## 项目结构
 
 ```
 RAG/
-├── pom.xml
-├── docker/
-│   └── Dockerfile
-├── docs/                                    # 项目文档
-│   ├── API文档.md
-│   ├── 数据库设计文档.md
-│   ├── 部署文档.md
-│   ├── 开发手册.md
-│   └── 接口调用示例.md
-├── sql/
-│   ├── V1__init_schema.sql                  # 11张表DDL
-│   └── V2__init_data.sql                    # 初始数据（角色、权限、配置）
-├── proto/
-│   ├── retrieval.proto                      # 检索服务定义
-│   └── generation.proto                     # 生成服务定义
-└── src/main/java/com/rag/
-    ├── RagApplication.java                  # 启动类
-    ├── common/                              # 公共支撑层
-    │   ├── annotation/                      #   @RateLimit @DistributedLock @OperationLog
-    │   ├── constant/                        #   业务常量
-    │   ├── enums/                           #   DocumentStatus TaskType 等枚举
-    │   ├── exception/                       #   全局异常处理
-    │   ├── result/                          #   统一返回体 Result<T>
-    │   └── util/                            #   JwtUtil Md5Util SseEmitterUtil 等
-    ├── infrastructure/                      # 基础设施层
-    │   ├── config/                          #   MyBatis Redis Redisson MinIO Kafka gRPC Security WebMVC
-    │   ├── lock/                            #   分布式锁（AOP + 工具类）
-    │   └── mybatis/                         #   MyBatis 增强（JSON处理器 SQL日志 自动填充）
-    ├── communication/                       # 通信层
-    │   ├── grpc/                            #   gRPC 客户端 + Proto 生成代码
-    │   └── kafka/                           #   Kafka 生产者 + 消费者
-    ├── domain/                              # 领域层
-    │   ├── entity/                          #   11 个实体类
-    │   └── mapper/                          #   MyBatis Mapper 接口
-    ├── service/                             # 业务服务层
-    │   ├── file/                            #   文件管理（上传 MD5去重 下载）
-    │   ├── knowledge/                       #   知识库管理
-    │   ├── qa/                              #   问答服务（非流式 + SSE流式）
-    │   ├── review/                          #   审核管理（人工审核 + 自动通过）
-    │   ├── user/                            #   用户管理（JWT双Token）
-    │   ├── permission/                      #   RBAC权限管理
-    │   ├── feedback/                        #   反馈管理
+├── RAG-BACKEND/           # Java 业务后端 (Spring Boot)
+├── RAG-PYTHON/            # Python AI 核心 (检索+生成)
+├── RAG-CLEANING/          # Python 文档清洗
+├── RAG-MEMORY/            # Python 用户记忆
+├── RAG-QUE/               # Python 查询优化
+├── RAG-Web/               # Vue3 前端
+├── RAG-GATEWAY/           # Spring Cloud Gateway (API网关)
+├── docker-compose.yml     # 12 容器一键部署
+├── docs/                  # 项目文档 (15篇)
+└── sql/                   # 数据库迁移 (V1-V5)
+```
+
+## 快速开始
+
+```bash
+# 1. 启动所有服务 (12 容器)
+cd RAG-BACKEND && docker compose up -d
+
+# 2. 启动前端开发服务器
+cd RAG-Web && npm install && npm run dev
+
+# 3. 访问
+# 前端: http://localhost:5173
+# Nacos: http://localhost:8848/nacos (nacos/nacos)
+# API: http://localhost:8080/swagger-ui.html
+# 默认账号: admin / admin123
+```
     │   ├── config/                          #   系统配置（本地缓存 + Redis广播）
     │   └── statemachine/                    #   文档状态机
     └── controller/                          # API接入层
