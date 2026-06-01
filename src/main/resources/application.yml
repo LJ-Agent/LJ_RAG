@@ -1,0 +1,59 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: rag-gateway
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+      routes:
+        # ========== RAG-BACKEND (Java 主服务) ==========
+        - id: rag-backend
+          uri: http://rag-server:8080
+          predicates:
+            - Path=/api/**
+          filters:
+            - StripPrefix=0
+
+        # ========== 前端静态资源 (开发环境代理到 Vite) ==========
+        # 生产环境由 Nginx 直接托管，此处仅开发使用
+
+      # 服务发现: Docker DNS (容器名 → IP)
+      discovery:
+        locator:
+          enabled: false  # 使用显式路由配置，不自动发现
+
+  # Redis (限流用)
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+# JWT 配置 (与 rag-server 一致)
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-change-in-production}
+
+# 日志
+logging:
+  level:
+    com.rag.gateway: INFO
+    org.springframework.cloud.gateway: INFO
