@@ -16,7 +16,7 @@
           <el-table-column prop="description" label="描述" min-width="200" />
           <el-table-column label="权限" min-width="300">
             <template #default="{row}">
-              <el-tag v-for="p in row.permissions" :key="p" size="small" style="margin:2px">{{ p }}</el-tag>
+              <el-tag v-for="p in row.permissions" :key="p" size="small" style="margin:2px">{{ permLabel(p) }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="180" align="center">
@@ -42,7 +42,7 @@
           <el-table-column prop="description" label="描述" min-width="180" />
           <el-table-column label="权限" min-width="300">
             <template #default="{row}">
-              <el-tag v-for="p in row.permissions" :key="p" size="small" style="margin:2px">{{ p }}</el-tag>
+              <el-tag v-for="p in row.permissions" :key="p" size="small" style="margin:2px">{{ permLabel(p) }}</el-tag>
               <span v-if="!row.permissions?.length" style="color:#c0c4cc">—</span>
             </template>
           </el-table-column>
@@ -72,14 +72,19 @@
       </template>
     </el-dialog>
 
-    <!-- 权限分配弹窗 -->
-    <el-dialog v-model="permVisible" :title="'分配权限 — ' + currentRoleName" width="600px" destroy-on-close>
-      <el-checkbox-group v-model="selectedPerms">
-        <div v-for="(codes, group) in allPerms" :key="group" style="margin-bottom:12px">
-          <div style="font-weight:600;margin-bottom:4px">{{ group }}</div>
-          <el-checkbox v-for="c in codes" :key="c" :value="c" :label="c" style="margin-right:12px;margin-bottom:4px">{{ c }}</el-checkbox>
-        </div>
-      </el-checkbox-group>
+    <!-- 权限分配弹窗 (树状层级) -->
+    <el-dialog v-model="permVisible" :title="'分配权限 — ' + currentRoleName" width="560px" destroy-on-close>
+      <el-tree
+        ref="permTreeRef"
+        :data="permTreeData"
+        show-checkbox
+        node-key="code"
+        :default-checked-keys="selectedPerms"
+        :props="{ label:'label', children:'children' }"
+        default-expand-all
+        check-strictly
+        style="max-height:480px;overflow-y:auto"
+      />
       <template #footer>
         <el-button @click="permVisible=false">取消</el-button>
         <el-button type="primary" @click="handleSavePerms">保存权限</el-button>
@@ -97,7 +102,19 @@ import request from '@/api/request'
 const activeTab = ref('system')
 const sysRoles = ref<any[]>([]); const teamRoles = ref<any[]>([])
 const sysLoading = ref(false); const teamLoading = ref(false)
-const allPerms = ref<Record<string,string[]>>({})
+const permTreeRef = ref<any>(null)
+const permTreeData = ref<any[]>([])
+
+// 权限分类映射 (资源类型 → 中文标签 + 业务说明)
+const PERM_CATEGORIES: Record<string, {label:string; desc:string}> = {
+  USER:     { label:'用户管理',     desc:'用户CRUD操作' },
+  DOCUMENT: { label:'文档管理',     desc:'上传/删除/查看文档' },
+  KB:       { label:'知识库管理',   desc:'知识库CRUD操作' },
+  REVIEW:   { label:'审核管理',     desc:'文档审核操作' },
+  QA:       { label:'知识问答',     desc:'发起问答/查看历史' },
+  FEEDBACK: { label:'反馈管理',     desc:'查看/处理反馈' },
+  SYSTEM:   { label:'系统配置',     desc:'系统级管理权限' },
+}
 
 const dialogVisible = ref(false); const isEdit = ref(false); const formType = ref('system')
 const form = ref({ id:0, code:'', name:'', desc:'' })
@@ -149,13 +166,24 @@ async function fetchTeamRoles() {
 
 async function fetchPerms() {
   try {
-    const data = await request.get('/permissions')
-    // data = {SYSTEM: [{permissionCode,...}], QA: [...], ...}
-    const grouped: Record<string,string[]> = {}
-    for (const [group, perms] of Object.entries(data)) {
-      grouped[group] = (perms as any[]).map((p:any) => p.permissionCode)
+    const flat: any[] = await request.get('/permissions/flat')
+    // Build tree: category → children
+    const tree: any[] = []
+    const catMap: Record<string, any> = {}
+    for (const p of flat) {
+      const cat = p.resourceType || 'OTHER'
+      if (!catMap[cat]) {
+        const cfg = PERM_CATEGORIES[cat] || { label: cat, desc: '' }
+        const node = { code: `cat_${cat}`, label: `${cfg.label} (${cfg.desc})`, children: [] as any[] }
+        catMap[cat] = node
+        tree.push(node)
+      }
+      catMap[cat].children.push({
+        code: p.permissionCode,
+        label: `${p.permissionName} — ${p.permissionCode}`,
+      })
     }
-    allPerms.value = grouped
+    permTreeData.value = tree
   } catch {}
 }
 
@@ -198,17 +226,28 @@ async function openPerms(row:any,type:string) {
 
 async function handleSavePerms() {
   const type = currentRoleType.value; const id = currentRoleId.value
+  // 从 el-tree 获取勾选的叶子节点 (排除分类节点 cat_xxx)
+  const checked: string[] = permTreeRef.value?.getCheckedKeys()?.filter((k:string) => !k.startsWith('cat_')) || []
   try {
     if(type==='system') {
-      const ids = selectedPerms.value.map((c:string) => permCodeToId.value[c]).filter(Boolean)
+      const ids = checked.map((c:string) => permCodeToId.value[c]).filter(Boolean)
       await request.put(`/roles/${id}/permissions`, {permissionIds:ids})
     } else {
-      await request.put(`/team-roles/${id}/permissions`, {permissionCodes:selectedPerms.value})
+      await request.put(`/team-roles/${id}/permissions`, {permissionCodes:checked})
     }
     ElMessage.success('权限已更新'); permVisible.value = false
     type==='system' ? fetchSysRoles() : fetchTeamRoles()
   } catch { ElMessage.error('保存失败') }
 }
 
-onMounted(() => { fetchPermMap().then(() => { fetchSysRoles(); fetchTeamRoles(); fetchPerms() }) })
+// 权限码→中文名
+const permCodeToName = ref<Record<string,string>>({})
+function permLabel(code:string) { return permCodeToName.value[code] || code }
+
+onMounted(async () => {
+  await fetchPermMap()
+  // 从 /permissions/flat 构建 code→name 映射
+  try { const flat:any[] = await request.get('/permissions/flat'); for(const p of flat) { permCodeToName.value[p.permissionCode]=p.permissionName } } catch {}
+  await fetchSysRoles(); await fetchTeamRoles(); await fetchPerms()
+})
 </script>

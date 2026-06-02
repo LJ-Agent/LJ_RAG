@@ -61,6 +61,7 @@ declare module 'vue' {
     ElTimeline: typeof import('element-plus/es')['ElTimeline']
     ElTimelineItem: typeof import('element-plus/es')['ElTimelineItem']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
+    ElTree: typeof import('element-plus/es')['ElTree']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     ExcelViewer: typeof import('./../components/ExcelViewer.vue')['default']
     PdfViewer: typeof import('./../components/PdfViewer.vue')['default']
