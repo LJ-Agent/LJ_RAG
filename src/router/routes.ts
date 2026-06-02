@@ -95,6 +95,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '知识问答', permissions: ['QA:ASK'], icon: 'ChatDotRound' },
       },
       {
+        path: 'roles',
+        name: 'Roles',
+        component: () => import('@/views/roles/RoleList.vue'),
+        meta: { title: '角色权限', permissions: ['CONFIG:MANAGE'], icon: 'Lock' },
+      },
+      {
         path: 'users',
         name: 'Users',
         component: () => import('@/views/users/UserList.vue'),

@@ -37,6 +37,10 @@
         <el-icon><ChatDotRound /></el-icon>
         <span>知识问答</span>
       </el-menu-item>
+      <el-menu-item index="/roles" v-permission="'CONFIG:MANAGE'">
+        <el-icon><Lock /></el-icon>
+        <span>角色权限</span>
+      </el-menu-item>
       <el-menu-item index="/users" v-permission="'USER:VIEW'">
         <el-icon><User /></el-icon>
         <span>用户管理</span>
