@@ -2,24 +2,43 @@
 
 基于检索增强生成（RAG）架构的企业级知识库管理平台。Java 业务控制中心 + Python AI 计算引擎，通过 gRPC 和 Kafka 实现异构通信。
 
-> 📖 **完整文档**: [系统架构文档](docs/系统架构文档.md) | [部署文档](docs/部署文档.md) | [Nacos微服务设计](docs/Nacos微服务架构设计.md)
+> 📖 **完整文档**: [系统架构](docs/系统架构文档.md) | [部署文档](docs/最新部署文档.md) | [Nacos设计](docs/Nacos微服务架构设计.md) | [配置清单](docs/系统配置参数清单.md)
 
-## 系统架构 (12 容器)
+## 部署架构 (支持单体和微服务双模式)
 
 ```
-RAG-Web(Vue3) → RAG-BACKEND(Java:8080) → gRPC → PYTHON/CLEANING/MEMORY/QUE
-                    ↕ Kafka                    ↕ Nacos :8848 (服务注册+配置中心)
-              MySQL/Redis/MinIO/Milvus       RAG-GATEWAY (API网关)
+                        ┌─────────────────────────┐
+                        │   RAG-Web (Vue3 :5173)  │
+                        └────────────┬────────────┘
+                                     │ /api/*
+                        ┌────────────▼────────────┐
+                        │  Gateway (:8088)         │
+                        │  JWT Filter → Route      │
+                        └────────────┬────────────┘
+                                     │
+              ┌──────────────────────┼──────────────────────┐
+              │                      │                      │
+    ┌─────────▼─────────┐  ┌────────▼────────┐  ┌─────────▼─────────┐
+    │  rag-server :8080 │  │  rag-auth :8081 │  │  rag-kb   :8082  │
+    │  (单体,全部API)    │  │  rag-doc :8083  │  │  rag-qa   :8084  │
+    └───────────────────┘  │  rag-config:8085│  └───────────────────┘
+                           └─────────────────┘
+    Nacos :8848 | Grafana :3000 | Prometheus :9090 | Loki :3100
+    MySQL:3307 | Redis:6379 | Kafka:9092 | MinIO:9000 | Milvus:19530
 ```
+
+> **一套代码，两种模式**：不加 Profile = 单体（开发/测试），加 `SPRING_PROFILES_ACTIVE=auth` = 微服务（生产）。详见 [部署文档 §2](docs/最新部署文档.md)。
 
 ## 技术栈
 
 | 类别 | 技术 | 说明 |
 |------|------|------|
 | 业务后端 | Java 17, Spring Boot 3.2, MyBatis-Plus | REST API + WebSocket |
+| API 网关 | Spring Cloud Gateway | JWT 全局鉴权 + 路由分发 |
 | AI 引擎 | Python 3.11, gRPC, Milvus, Kafka | 检索/生成/清洗/记忆/查询优化 |
 | 前端 | Vue 3, TypeScript, Vite, Element Plus | SPA 管理界面 |
-| 服务发现 | **Nacos 2.3** | 服务注册+配置中心 |
+| 服务发现 | Nacos 2.3 | 服务注册 + 配置中心 |
+| 监控 | Prometheus + Grafana + Loki | 指标 + 面板 + 日志 |
 | 数据库 | MySQL 8.0 | 业务数据 + Nacos 持久化 |
 | 缓存 | Redis 7 | 缓存/分布式锁/工作记忆 |
 | 消息队列 | Kafka 4.2 (KRaft) | 异步任务流水线 |
@@ -31,44 +50,59 @@ RAG-Web(Vue3) → RAG-BACKEND(Java:8080) → gRPC → PYTHON/CLEANING/MEMORY/QUE
 
 | 模块 | 功能 |
 |------|------|
-| 🔐 认证鉴权 | JWT 双 Token, 5 种系统角色, 5 种团队角色, RBAC 权限模型 |
-| 👥 团队管理 | 团队 CRUD, 成员管理, 知识库归属, 数据隔离 |
-| 📚 知识库 | CRUD, 团队关联, 权限过滤 |
-| 📄 文档管理 | 多格式上传, 清洗, 分块, 审核, 嵌入, 检索 |
-| 💬 知识问答 | 流式 SSE, 混合检索(向量+BM25), LLM 生成 |
-| ⚙️ 配置中心 | 系统配置(管理员) + 个人偏好(所有用户), 热生效 |
-| 🔍 服务发现 | Nacos 注册, 健康检查, 心跳保活 |
+| 🔐 认证鉴权 | JWT 双 Token, 5 种系统角色, 5 种团队角色, 垂直+水平越权防护 |
+| 👥 团队管理 | 团队 CRUD, 成员管理, 知识库归属, 团队数据隔离 |
+| 📚 知识库 | CRUD, 团队关联, 按权限过滤 |
+| 📄 文档管理 | 多格式上传, OCR清洗, 6策略分块, 审核, 向量嵌入, 混合检索 |
+| 💬 知识问答 | 流式 SSE, 向量+BM25 混合检索, LLM 生成, 记忆蒸馏 |
+| ⚙️ 配置中心 | 系统配置(管理员) + 个人偏好(所有用户), 按权限细粒度展示 |
+| 🔍 服务发现 | Nacos 注册 + 心跳 + 健康检查 |
+| 📊 监控面板 | Grafana 大盘 + Prometheus 指标 + Loki 日志 |
 
 ## 项目结构
 
 ```
 RAG/
-├── RAG-BACKEND/           # Java 业务后端 (Spring Boot)
+├── RAG-BACKEND/           # Java 父工程 (Maven 多模块)
+│   ├── rag-common/        #   共享层 (Entity/Mapper/Infrastructure)
+│   ├── rag-auth/          #   认证服务 (Auth/User/Role)
+│   ├── rag-kb/            #   知识库服务 (KB/Team)
+│   ├── rag-doc/           #   文档服务 (File/Chunk/Review)
+│   ├── rag-qa/            #   问答服务 (QA/Feedback)
+│   └── rag-config/        #   配置服务 (SystemConfig/UserConfig)
 ├── RAG-PYTHON/            # Python AI 核心 (检索+生成)
 ├── RAG-CLEANING/          # Python 文档清洗
 ├── RAG-MEMORY/            # Python 用户记忆
 ├── RAG-QUE/               # Python 查询优化
 ├── RAG-Web/               # Vue3 前端
-├── RAG-GATEWAY/           # Spring Cloud Gateway (API网关)
-├── docker-compose.yml     # 12 容器一键部署
-├── docs/                  # 项目文档 (15篇)
+├── RAG-GATEWAY/           # Spring Cloud Gateway
+├── docker-compose.yml     # 15 容器一键部署
+├── docs/                  # 项目文档 (16篇)
 └── sql/                   # 数据库迁移 (V1-V5)
 ```
 
 ## 快速开始
 
 ```bash
-# 1. 启动所有服务 (12 容器)
+# 1. 启动所有服务 (15 容器)
 cd RAG-BACKEND && docker compose up -d
 
-# 2. 启动前端开发服务器
-cd RAG-Web && npm install && npm run dev
+# 2. 启动 Gateway
+docker run -d --name rag-gateway --network rag-network -p 8088:8080 \
+  -e JWT_SECRET=your-256-bit-secret-key-change-in-production \
+  -e REDIS_HOST=redis -e REDIS_PASSWORD=redis123 rag-gateway:latest
 
-# 3. 访问
-# 前端: http://localhost:5173
-# Nacos: http://localhost:8848/nacos (nacos/nacos)
-# API: http://localhost:8080/swagger-ui.html
-# 默认账号: admin / admin123
+# 3. 启动监控 (可选)
+docker compose -f docker-compose-monitoring.yml up -d
+
+# 4. 启动前端
+cd ../RAG-Web && npm install && npm run dev
+
+# 5. 访问
+# 前端:     http://localhost:5173
+# Nacos:    http://localhost:8848/nacos (nacos/nacos)
+# Grafana:  http://localhost:3000 (admin/admin123)
+# 账号:     admin / admin123
 ```
     │   ├── config/                          #   系统配置（本地缓存 + Redis广播）
     │   └── statemachine/                    #   文档状态机
