@@ -14,9 +14,13 @@
           <el-table-column prop="roleCode" label="角色编码" width="150" />
           <el-table-column prop="roleName" label="角色名称" width="120" />
           <el-table-column prop="description" label="描述" min-width="200" />
-          <el-table-column label="权限" min-width="300">
+          <el-table-column label="权限" min-width="340">
             <template #default="{row}">
-              <el-tag v-for="p in row.permissions" :key="p" size="small" style="margin:2px">{{ permLabel(p) }}</el-tag>
+              <div v-for="(codes, cat) in groupedPerms(row.permissions || [])" :key="cat" style="margin-bottom:4px">
+                <el-tag size="small" type="warning" effect="plain" style="margin-right:4px">{{ cat }}</el-tag>
+                <el-tag v-for="p in codes" :key="p" size="small" style="margin:1px">{{ permLabel(p) }}</el-tag>
+              </div>
+              <span v-if="!row.permissions?.length" style="color:#c0c4cc">—</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="180" align="center">
@@ -42,7 +46,10 @@
           <el-table-column prop="description" label="描述" min-width="180" />
           <el-table-column label="权限" min-width="300">
             <template #default="{row}">
-              <el-tag v-for="p in row.permissions" :key="p" size="small" style="margin:2px">{{ permLabel(p) }}</el-tag>
+              <div v-for="(codes, cat) in groupedPerms(row.permissions || [])" :key="cat" style="margin-bottom:4px">
+                <el-tag size="small" type="warning" effect="plain" style="margin-right:4px">{{ cat }}</el-tag>
+                <el-tag v-for="p in codes" :key="p" size="small" style="margin:1px">{{ permLabel(p) }}</el-tag>
+              </div>
               <span v-if="!row.permissions?.length" style="color:#c0c4cc">—</span>
             </template>
           </el-table-column>
@@ -242,6 +249,18 @@ async function handleSavePerms() {
 // 权限码→中文名
 const permCodeToName = ref<Record<string,string>>({})
 function permLabel(code:string) { return permCodeToName.value[code] || code }
+
+// 按资源类型分组权限码 (如 USER → ['USER:CREATE','USER:VIEW'])
+function groupedPerms(codes: string[]): Record<string, string[]> {
+  const map: Record<string, string[]> = {}
+  for (const c of codes) {
+    const parts = c.split(':')
+    const cat = PERM_CATEGORIES[parts[0]]?.label || parts[0]
+    if (!map[cat]) map[cat] = []
+    map[cat].push(c)
+  }
+  return map
+}
 
 onMounted(async () => {
   await fetchPermMap()
