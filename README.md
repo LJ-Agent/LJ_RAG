@@ -63,21 +63,22 @@
 
 ```
 RAG/
-├── RAG-BACKEND/           # Java 父工程 (Maven 多模块)
-│   ├── rag-common/        #   共享层 (Entity/Mapper/Infrastructure)
-│   ├── rag-auth/          #   认证服务 (Auth/User/Role)
-│   ├── rag-kb/            #   知识库服务 (KB/Team)
-│   ├── rag-doc/           #   文档服务 (File/Chunk/Review)
-│   ├── rag-qa/            #   问答服务 (QA/Feedback)
-│   └── rag-config/        #   配置服务 (SystemConfig/UserConfig)
-├── RAG-PYTHON/            # Python AI 核心 (检索+生成)
+├── RAG-BACKEND/           # Java 父工程 (Maven 7模块, 纯微服务架构)
+│   ├── rag-common/        #   共享层: Entity/Mapper/Infrastructure (87 files)
+│   ├── rag-auth/          #   认证模块: Auth/User/Role (10 files)
+│   ├── rag-kb/            #   知识库模块: KB/Team (9 files)
+│   ├── rag-doc/           #   文档模块: File/Chunk/Review (15 files)
+│   ├── rag-qa/            #   问答模块: QA/Feedback (13 files)
+│   ├── rag-config/        #   配置模块: SystemConfig/UserConfig (5 files)
+│   └── rag-monolith/      #   聚合模块: 依赖全部→单体JAR (1 file)
+├── RAG-PYTHON/            # Python AI 核心 (检索+生成, Nacos注册)
 ├── RAG-CLEANING/          # Python 文档清洗
 ├── RAG-MEMORY/            # Python 用户记忆
 ├── RAG-QUE/               # Python 查询优化
 ├── RAG-Web/               # Vue3 前端
 ├── RAG-GATEWAY/           # Spring Cloud Gateway
-├── docker-compose.yml     # 15 容器一键部署
-├── docs/                  # 项目文档 (16篇)
+├── docker-compose.yml     # 基础设施编排
+├── docs/                  # 项目文档 (17篇)
 └── sql/                   # 数据库迁移 (V1-V5)
 ```
 
