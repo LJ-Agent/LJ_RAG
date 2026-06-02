@@ -23,8 +23,13 @@ spring:
           filters:
             - StripPrefix=0
 
-        # ========== 前端静态资源 (开发环境代理到 Vite) ==========
-        # 生产环境由 Nginx 直接托管，此处仅开发使用
+        # ========== 前端开发服务器 (Vite HMR) ==========
+        - id: vite-dev-server
+          uri: http://host.docker.internal:5173
+          predicates:
+            - Path=/**
+          filters:
+            - StripPrefix=0
 
       # 服务发现: Docker DNS (容器名 → IP)
       discovery:
