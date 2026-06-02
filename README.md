@@ -27,37 +27,22 @@
     MySQL:3307 | Redis:6379 | Kafka:9092 | MinIO:9000 | Milvus:19530
 ```
 
-> **一套代码，两种模式**：不加 Profile = 单体（开发/测试），加 `SPRING_PROFILES_ACTIVE=auth` = 微服务（生产）。详见 [部署文档 §2](docs/最新部署文档.md)。
+> **一套代码，两种模式**：通过 Maven 多模块 + Spring Profile + 独立 Main 类三个机制，实现单体和微服务的无缝切换。详见 [部署文档 §2](docs/最新部署文档.md)。
 
-## 技术栈
+### 原理速览
 
-| 类别 | 技术 | 说明 |
-|------|------|------|
-| 业务后端 | Java 17, Spring Boot 3.2, MyBatis-Plus | REST API + WebSocket |
-| API 网关 | Spring Cloud Gateway | JWT 全局鉴权 + 路由分发 |
-| AI 引擎 | Python 3.11, gRPC, Milvus, Kafka | 检索/生成/清洗/记忆/查询优化 |
-| 前端 | Vue 3, TypeScript, Vite, Element Plus | SPA 管理界面 |
-| 服务发现 | Nacos 2.3 | 服务注册 + 配置中心 |
-| 监控 | Prometheus + Grafana + Loki | 指标 + 面板 + 日志 |
-| 数据库 | MySQL 8.0 | 业务数据 + Nacos 持久化 |
-| 缓存 | Redis 7 | 缓存/分布式锁/工作记忆 |
-| 消息队列 | Kafka 4.2 (KRaft) | 异步任务流水线 |
-| 对象存储 | MinIO | 文档存储 |
-| 向量库 | Milvus 2.6 + etcd | 向量检索 |
-| 认证 | Spring Security + JWT | 双 Token (access 2h + refresh 7d) |
-
-## 核心功能
-
-| 模块 | 功能 |
-|------|------|
-| 🔐 认证鉴权 | JWT 双 Token, 5 种系统角色, 5 种团队角色, 垂直+水平越权防护 |
-| 👥 团队管理 | 团队 CRUD, 成员管理, 知识库归属, 团队数据隔离 |
-| 📚 知识库 | CRUD, 团队关联, 按权限过滤 |
-| 📄 文档管理 | 多格式上传, OCR清洗, 6策略分块, 审核, 向量嵌入, 混合检索 |
-| 💬 知识问答 | 流式 SSE, 向量+BM25 混合检索, LLM 生成, 记忆蒸馏 |
-| ⚙️ 配置中心 | 系统配置(管理员) + 个人偏好(所有用户), 按权限细粒度展示 |
-| 🔍 服务发现 | Nacos 注册 + 心跳 + 健康检查 |
-| 📊 监控面板 | Grafana 大盘 + Prometheus 指标 + Loki 日志 |
+```
+同一份 Controller 代码
+    │
+    ├── Maven:  rag-monolith依赖全部模块 → 单体JAR
+    │           rag-auth只依赖common → 微服务JAR
+    │
+    ├── Profile: SPRING_PROFILES_ACTIVE=prod → 全部Controller加载 → 单体
+    │            SPRING_PROFILES_ACTIVE=auth → 仅Auth相关加载 → 微服务
+    │
+    └── Main类: RagApplication(monolith) → 单体入口
+                RagAuthApplication(auth)  → 微服务入口
+```
 
 ## 项目结构
 
@@ -76,7 +61,7 @@ RAG/
 ├── RAG-MEMORY/            # Python 用户记忆
 ├── RAG-QUE/               # Python 查询优化
 ├── RAG-Web/               # Vue3 前端
-├── RAG-GATEWAY/           # Spring Cloud Gateway
+├── RAG-GATEWAY/           # Spring Cloud Gateway (JWT+路由)
 ├── docker-compose.yml     # 基础设施编排
 ├── docs/                  # 项目文档 (17篇)
 └── sql/                   # 数据库迁移 (V1-V5)
@@ -85,7 +70,7 @@ RAG/
 ## 快速开始
 
 ```bash
-# 1. 启动所有服务 (15 容器)
+# 1. 启动基础设施 + 单体服务
 cd RAG-BACKEND && docker compose up -d
 
 # 2. 启动 Gateway
@@ -93,17 +78,28 @@ docker run -d --name rag-gateway --network rag-network -p 8088:8080 \
   -e JWT_SECRET=your-256-bit-secret-key-change-in-production \
   -e REDIS_HOST=redis -e REDIS_PASSWORD=redis123 rag-gateway:latest
 
-# 3. 启动监控 (可选)
-docker compose -f docker-compose-monitoring.yml up -d
-
-# 4. 启动前端
+# 3. 启动前端
 cd ../RAG-Web && npm install && npm run dev
 
-# 5. 访问
+# 4. 访问
 # 前端:     http://localhost:5173
 # Nacos:    http://localhost:8848/nacos (nacos/nacos)
 # Grafana:  http://localhost:3000 (admin/admin123)
 # 账号:     admin / admin123
+```
+
+## 构建命令
+
+```bash
+# 单体模式 (当前运行)
+mvn package -pl rag-monolith -am -DskipTests   # → rag-monolith.jar
+
+# 微服务模式 (独立部署)
+mvn package -pl rag-auth -am -DskipTests       # → rag-auth.jar
+mvn package -pl rag-kb -am -DskipTests         # → rag-kb.jar
+mvn package -pl rag-doc -am -DskipTests        # → rag-doc.jar
+mvn package -pl rag-qa -am -DskipTests         # → rag-qa.jar
+mvn package -pl rag-config -am -DskipTests     # → rag-config.jar
 ```
     │   ├── config/                          #   系统配置（本地缓存 + Redis广播）
     │   └── statemachine/                    #   文档状态机
