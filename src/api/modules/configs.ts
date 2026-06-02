@@ -7,19 +7,19 @@ const BASE = '/configs'
 export const configApi = {
   // 列表（支持分类筛选）
   list: (params: { page?: number; size?: number; category?: string }): Promise<Page<SystemConfigVO>> =>
-    request.get(BASE, { params }),
+    request.post(`${BASE}/list`, params),
 
   // 按分类获取
   listByCategory: (category: string): Promise<SystemConfigVO[]> =>
-    request.get(`${BASE}/category/${category}`),
+    request.post(`${BASE}/category/${category}`),
 
   // 获取分类列表
   categories: (): Promise<string[]> =>
-    request.get(`${BASE}/categories`),
+    request.post(`${BASE}/categories`),
 
   // 获取单个
   get: (key: string): Promise<SystemConfigVO> =>
-    request.get(`${BASE}/${key}`),
+    request.post(`${BASE}/${key}`),
 
   // 保存或更新（含校验）
   save: (data: Partial<SystemConfigVO>): Promise<ConfigSaveResult> =>
@@ -39,7 +39,7 @@ export const configApi = {
 
   // 变更历史
   getHistory: (key: string): Promise<ConfigHistoryVO[]> =>
-    request.get(`${BASE}/${key}/history`),
+    request.post(`${BASE}/${key}/history`),
 
   // 回滚
   rollback: (key: string, historyId: number): Promise<ConfigSaveResult> =>

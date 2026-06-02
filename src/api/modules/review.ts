@@ -6,13 +6,13 @@ const BASE = '/review'
 
 export const reviewApi = {
   pending: (params: { page?: number; size?: number; result?: string }): Promise<Page<ReviewVO>> =>
-    request.get(`${BASE}/pending`, { params }),
+    request.post(`${BASE}/pending`, params),
 
   submit: (data: ReviewSubmitDTO): Promise<void> =>
     request.post(`${BASE}/submit`, data),
 
   chunkReview: (params: { page?: number; size?: number }): Promise<Page<ReviewVO>> =>
-    request.get(`${BASE}/chunk-review`, { params }),
+    request.post(`${BASE}/chunk-review`, params),
 
   batchApprove: (ids: number[]): Promise<void> =>
     request.post(`${BASE}/batch-approve`, ids),

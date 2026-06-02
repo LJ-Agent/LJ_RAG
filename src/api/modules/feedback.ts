@@ -9,10 +9,10 @@ export const feedbackApi = {
     request.post(BASE, data),
 
   list: (params: FeedbackQueryDTO): Promise<Page<FeedbackVO>> =>
-    request.get(BASE, { params }),
+    request.post(`${BASE}/list`, params),
 
   detail: (id: number): Promise<FeedbackVO> =>
-    request.get(`${BASE}/${id}`),
+    request.post(`${BASE}/${id}`),
 
   handle: (id: number, handlerNote: string): Promise<void> =>
     request.put(`${BASE}/${id}/handle`, { handlerNote }),

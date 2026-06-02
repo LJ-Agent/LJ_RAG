@@ -134,7 +134,7 @@ const permCodeToId = ref<Record<string,number>>({})
 
 async function fetchPermMap() {
   try {
-    const flat: any[] = await request.get('/permissions/flat')
+    const flat: any[] = await request.post('/permissions/flat')
     for (const p of flat) {
       permIdToCode.value[p.id] = p.permissionCode
       permCodeToId.value[p.permissionCode] = p.id
@@ -145,11 +145,11 @@ async function fetchPermMap() {
 async function fetchSysRoles() {
   sysLoading.value = true
   try {
-    const page = await request.get('/roles')
+    const page = await request.post('/roles')
     const records = page.records || []
     for (const r of records) {
       try {
-        const detail = await request.get(`/roles/${r.id}`)
+        const detail = await request.post(`/roles/${r.id}`)
         const pids: number[] = detail.permissionIds || []
         r.permissions = pids.map((id:number) => permIdToCode.value[id] || String(id))
       } catch { r.permissions = [] }
@@ -161,9 +161,9 @@ async function fetchSysRoles() {
 async function fetchTeamRoles() {
   teamLoading.value = true
   try {
-    const list = await request.get('/team-roles') || []
+    const list = await request.post('/team-roles') || []
     for (const r of list) {
-      try { r.permissions = await request.get(`/team-roles/${r.id}/permissions`) || [] }
+      try { r.permissions = await request.post(`/team-roles/${r.id}/permissions`) || [] }
       catch { r.permissions = [] }
     }
     teamRoles.value = list
@@ -172,7 +172,7 @@ async function fetchTeamRoles() {
 
 async function fetchPerms() {
   try {
-    const flat: any[] = await request.get('/permissions/flat')
+    const flat: any[] = await request.post('/permissions/flat')
     // Build tree: category → children
     const tree: any[] = []
     const catMap: Record<string, any> = {}
@@ -220,11 +220,11 @@ async function openPerms(row:any,type:string) {
   selectedPerms.value = []
   try {
     if(type==='system') {
-      const detail = await request.get(`/roles/${row.id}`)
+      const detail = await request.post(`/roles/${row.id}`)
       const pids: number[] = detail.permissionIds || []
       selectedPerms.value = pids.map((id:number) => permIdToCode.value[id] || String(id))
     } else {
-      selectedPerms.value = await request.get(`/team-roles/${row.id}/permissions`) || []
+      selectedPerms.value = await request.post(`/team-roles/${row.id}/permissions`) || []
     }
   } catch { selectedPerms.value = [] }
   permVisible.value = true
@@ -265,7 +265,7 @@ function groupedPerms(codes: string[]): Record<string, string[]> {
 onMounted(async () => {
   await fetchPermMap()
   // 从 /permissions/flat 构建 code→name 映射
-  try { const flat:any[] = await request.get('/permissions/flat'); for(const p of flat) { permCodeToName.value[p.permissionCode]=p.permissionName } } catch {}
+  try { const flat:any[] = await request.post('/permissions/flat'); for(const p of flat) { permCodeToName.value[p.permissionCode]=p.permissionName } } catch {}
   await fetchSysRoles(); await fetchTeamRoles(); await fetchPerms()
 })
 </script>

@@ -32,6 +32,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    host: '0.0.0.0',  // 允许 Docker 容器通过 host.docker.internal 访问
+    allowedHosts: true,  // 开发环境允许任意 Host header
     proxy: {
       '/api': {
         target: 'http://localhost:8088',

@@ -104,12 +104,12 @@ const memberCounts = ref<Record<number, number>>({})
 async function fetchTeams() {
   loading.value = true
   try {
-    const data = await request.get('/teams')
+    const data = await request.post('/teams')
     teamList.value = (data as any[]).map((t: any) => ({ ...t.team, role: t.role }))
     // 拉成员数
     for (const t of teamList.value) {
       try {
-        const members = await request.get(`/teams/${t.id}/members`)
+        const members = await request.post(`/teams/${t.id}/members`)
         memberCounts.value[t.id] = (members as any[]).length
       } catch { memberCounts.value[t.id] = 0 }
     }
@@ -150,8 +150,8 @@ const availableUsers = computed(() => {
 async function openMembers(team: any) {
   currentTeam.value = team; membersVisible.value = true; addUserId.value = null
   try {
-    members.value = await request.get(`/teams/${team.id}/members`)
-    allUsers.value = await request.get('/users?page=1&size=200').then((r: any) => r.records || [])
+    members.value = await request.post(`/teams/${team.id}/members`)
+    allUsers.value = await request.post('/users', { page: 1, size: 200 }).then((r: any) => r.records || [])
   } catch { members.value = []; allUsers.value = [] }
 }
 async function addMember() {
