@@ -82,7 +82,6 @@
         :default-checked-keys="selectedPerms"
         :props="{ label:'label', children:'children' }"
         default-expand-all
-        check-strictly
         style="max-height:480px;overflow-y:auto"
       />
       <template #footer>
