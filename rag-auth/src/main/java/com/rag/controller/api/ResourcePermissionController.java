@@ -14,12 +14,13 @@ import java.util.*;
 public class ResourcePermissionController {
     private final JdbcTemplate jdbc;
 
-    @GetMapping
-    public List<Map<String,Object>> list(@RequestParam(defaultValue="tab") String type) {
+    @PostMapping
+    public List<Map<String,Object>> list(@RequestBody(required = false) Map<String, Object> body) {
+        String type = body != null && body.containsKey("type") ? body.get("type").toString() : "tab";
         return jdbc.queryForList("SELECT * FROM resource_permissions WHERE resource_type=? ORDER BY resource_path", type);
     }
 
-    @GetMapping("/map")
+    @PostMapping("/map")
     public Map<String, List<String>> permissionMap() {
         // 返回 {"/api/roles": ["ROLE:MANAGE"], "tab:roles": ["ROLE:MANAGE"], ...}
         List<Map<String,Object>> rows = jdbc.queryForList("SELECT resource_path, permission_code FROM resource_permissions");

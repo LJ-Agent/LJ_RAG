@@ -35,16 +35,17 @@ public class RoleController {
     private final RolePermissionMapper rpMapper;
 
     @Operation(summary = "角色列表")
-    @GetMapping
-    public Result<Page<Role>> list(@RequestParam(defaultValue = "1") Integer page,
-                                    @RequestParam(defaultValue = "50") Integer size) {
+    @PostMapping
+    public Result<Page<Role>> list(@RequestBody(required = false) Map<String, Object> body) {
+        int page = body != null && body.containsKey("page") ? ((Number) body.get("page")).intValue() : 1;
+        int size = body != null && body.containsKey("size") ? ((Number) body.get("size")).intValue() : 50;
         Page<Role> pg = new Page<>(page, size);
         return Result.success(roleMapper.selectPage(pg,
                 new LambdaQueryWrapper<Role>().orderByAsc(Role::getId)));
     }
 
     @Operation(summary = "角色详情(含权限列表)")
-    @GetMapping("/{id}")
+    @PostMapping("/{id}")
     public Result<Map<String, Object>> detail(@PathVariable Long id) {
         Role role = roleMapper.selectById(id);
         if (role == null) throw new BusinessException(ResultCodeEnum.PARAM_ERROR.getCode(), "角色不存在");

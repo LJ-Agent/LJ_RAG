@@ -11,7 +11,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -56,7 +55,7 @@ public class AuthController {
     }
 
     @Operation(summary = "获取当前用户信息")
-    @GetMapping("/me")
+    @PostMapping("/me")
     public Result<UserVO> me() {
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
         return Result.success(userService.getCurrentUser(userId));

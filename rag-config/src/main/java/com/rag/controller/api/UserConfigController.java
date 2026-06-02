@@ -33,7 +33,7 @@ public class UserConfigController {
     private final com.rag.domain.mapper.SystemConfigMapper systemConfigMapper;
 
     @Operation(summary = "获取当前用户的有效配置 (个人偏好 > 系统默认)")
-    @GetMapping("/effective")
+    @PostMapping("/effective")
     public Result<List<Map<String, Object>>> effective() {
         Long userId = UserContext.getUserId();
         // 系统所有 personal 模板
@@ -72,7 +72,7 @@ public class UserConfigController {
     }
 
     @Operation(summary = "获取当前用户的所有个人配置")
-    @GetMapping
+    @PostMapping("/list")
     public Result<List<UserConfig>> list() {
         Long userId = UserContext.getUserId();
         return Result.success(userConfigMapper.selectList(

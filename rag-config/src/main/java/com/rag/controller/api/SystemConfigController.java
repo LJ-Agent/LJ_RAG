@@ -27,31 +27,32 @@ public class SystemConfigController {
     private final SystemConfigService configService;
 
     @Operation(summary = "系统配置列表（支持按分类/scope筛选）")
-    @GetMapping
+    @PostMapping("/list")
     @PreAuthorize("hasAuthority('CONFIG:MANAGE')")
-    public Result<Page<SystemConfig>> list(@RequestParam(defaultValue = "1") Integer page,
-                                            @RequestParam(defaultValue = "50") Integer size,
-                                            @RequestParam(required = false) String category,
-                                            @RequestParam(required = false) String scope) {
+    public Result<Page<SystemConfig>> list(@RequestBody(required = false) Map<String, Object> body) {
+        Integer page = body != null && body.get("page") != null ? Integer.valueOf(body.get("page").toString()) : 1;
+        Integer size = body != null && body.get("size") != null ? Integer.valueOf(body.get("size").toString()) : 50;
+        String category = body != null ? (String) body.get("category") : null;
+        String scope = body != null ? (String) body.get("scope") : null;
         return configService.list(page, size, category, scope);
     }
 
     @Operation(summary = "按分类获取配置列表")
-    @GetMapping("/category/{category}")
+    @PostMapping("/category/{category}")
     @PreAuthorize("hasAuthority('CONFIG:MANAGE')")
     public Result<List<SystemConfig>> listByCategory(@PathVariable String category) {
         return configService.listByCategory(category);
     }
 
     @Operation(summary = "获取配置分类列表")
-    @GetMapping("/categories")
+    @PostMapping("/categories")
     @PreAuthorize("hasAuthority('CONFIG:MANAGE')")
     public Result<List<String>> categories() {
         return Result.success(List.of("chunk", "retrieval", "cleaning", "qa", "rate_limit", "review", "upload", "general"));
     }
 
     @Operation(summary = "根据Key获取配置详情")
-    @GetMapping("/{key}")
+    @PostMapping("/{key}")
     @PreAuthorize("hasAuthority('CONFIG:MANAGE')")
     public Result<SystemConfig> getByKey(@PathVariable String key) {
         return configService.getByKey(key);
@@ -94,7 +95,7 @@ public class SystemConfigController {
     }
 
     @Operation(summary = "获取配置变更历史")
-    @GetMapping("/{key}/history")
+    @PostMapping("/{key}/history")
     @PreAuthorize("hasAuthority('CONFIG:MANAGE')")
     public Result<List<ConfigHistory>> getHistory(@PathVariable String key) {
         return configService.getHistory(key);

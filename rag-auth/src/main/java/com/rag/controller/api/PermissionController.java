@@ -27,7 +27,7 @@ public class PermissionController {
     private final PermissionMapper permissionMapper;
 
     @Operation(summary = "全部权限码列表 (按资源类型分组)")
-    @GetMapping
+    @PostMapping
     public Result<Map<String, List<Permission>>> list() {
         List<Permission> all = permissionMapper.selectList(
                 new LambdaQueryWrapper<Permission>().orderByAsc(Permission::getResourceType, Permission::getId));
@@ -37,7 +37,7 @@ public class PermissionController {
     }
 
     @Operation(summary = "权限码平铺列表")
-    @GetMapping("/flat")
+    @PostMapping("/flat")
     public Result<List<Permission>> flat() {
         return Result.success(permissionMapper.selectList(
                 new LambdaQueryWrapper<Permission>().orderByAsc(Permission::getId)));

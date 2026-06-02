@@ -10,13 +10,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -39,17 +37,17 @@ public class FeedbackController {
     }
 
     @Operation(summary = "反馈列表")
-    @GetMapping
+    @PostMapping("/list")
     @PreAuthorize("hasAuthority('FEEDBACK:VIEW')")
-    public Result<Page<Feedback>> list(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer size,
-            @RequestParam(required = false) String status) {
+    public Result<Page<Feedback>> list(@RequestBody(required = false) Map<String, Object> body) {
+        int page = body != null && body.containsKey("page") ? ((Number) body.get("page")).intValue() : 1;
+        int size = body != null && body.containsKey("size") ? ((Number) body.get("size")).intValue() : 20;
+        String status = body != null ? (String) body.get("status") : null;
         return feedbackService.list(page, size, status);
     }
 
     @Operation(summary = "反馈详情")
-    @GetMapping("/{id}")
+    @PostMapping("/{id}")
     @PreAuthorize("hasAuthority('FEEDBACK:VIEW')")
     public Result<Feedback> detail(@PathVariable Long id) {
         return feedbackService.detail(id);

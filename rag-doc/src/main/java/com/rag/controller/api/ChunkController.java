@@ -10,13 +10,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -33,13 +31,13 @@ public class ChunkController {
     private final ChunkService chunkService;
 
     @Operation(summary = "获取文档块列表")
-    @GetMapping
+    @PostMapping
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
-    public Result<Page<ChunkVO>> list(
-            @RequestParam Long documentId,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer size,
-            @RequestParam(required = false) String keyword) {
+    public Result<Page<ChunkVO>> list(@RequestBody(required = false) Map<String, Object> body) {
+        Long documentId = body != null ? ((Number) body.get("documentId")).longValue() : null;
+        Integer page = body != null && body.get("page") != null ? Integer.valueOf(body.get("page").toString()) : 1;
+        Integer size = body != null && body.get("size") != null ? Integer.valueOf(body.get("size").toString()) : 20;
+        String keyword = body != null ? (String) body.get("keyword") : null;
         if (keyword != null && !keyword.isEmpty()) {
             return chunkService.searchChunks(documentId, keyword, page, size);
         }
@@ -57,7 +55,7 @@ public class ChunkController {
     }
 
     @Operation(summary = "按业务chunkId查询单个块")
-    @GetMapping("/by-chunk-id/{chunkId}")
+    @PostMapping("/by-chunk-id/{chunkId}")
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
     public Result<ChunkVO> getByChunkId(@PathVariable String chunkId) {
         return chunkService.getByChunkId(chunkId);
@@ -100,30 +98,34 @@ public class ChunkController {
     }
 
     @Operation(summary = "获取块统计")
-    @GetMapping("/stats")
+    @PostMapping("/stats")
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
-    public Result<ChunkVO.ChunkStats> stats(@RequestParam Long documentId) {
+    public Result<ChunkVO.ChunkStats> stats(@RequestBody(required = false) Map<String, Object> body) {
+        Long documentId = body != null ? ((Number) body.get("documentId")).longValue() : null;
         return chunkService.getStats(documentId);
     }
 
     @Operation(summary = "发起向量化入库")
     @PostMapping("/start-embedding")
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
-    public Result<Void> startEmbedding(@RequestParam Long documentId) {
+    public Result<Void> startEmbedding(@RequestBody Map<String, Object> body) {
+        Long documentId = ((Number) body.get("documentId")).longValue();
         return chunkService.startEmbedding(documentId);
     }
 
     @Operation(summary = "同步文档分块计数")
     @PostMapping("/sync-count")
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
-    public Result<Integer> syncChunkCount(@RequestParam Long documentId) {
+    public Result<Integer> syncChunkCount(@RequestBody Map<String, Object> body) {
+        Long documentId = ((Number) body.get("documentId")).longValue();
         return chunkService.syncChunkCount(documentId);
     }
 
     @Operation(summary = "提交分块审核（CHUNK_REVIEW → PENDING_REVIEW）")
     @PostMapping("/submit-for-review")
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
-    public Result<Void> submitForReview(@RequestParam Long documentId) {
+    public Result<Void> submitForReview(@RequestBody Map<String, Object> body) {
+        Long documentId = ((Number) body.get("documentId")).longValue();
         return chunkService.submitForReview(documentId);
     }
 }

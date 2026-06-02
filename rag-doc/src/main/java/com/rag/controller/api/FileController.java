@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -49,13 +48,13 @@ public class FileController {
     }
 
     @Operation(summary = "查询文档列表")
-    @GetMapping
-    public Result<Page<FileVO>> list(FileQueryDTO query) {
+    @PostMapping("/list")
+    public Result<Page<FileVO>> list(@RequestBody FileQueryDTO query) {
         return fileService.list(query);
     }
 
     @Operation(summary = "查询文档详情")
-    @GetMapping("/{id}")
+    @PostMapping("/{id}")
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
     public Result<FileVO> detail(@PathVariable Long id) {
         return fileService.detail(id);
@@ -86,19 +85,19 @@ public class FileController {
     }
 
     @Operation(summary = "下载原始文件")
-    @GetMapping("/{id}/download")
+    @PostMapping("/{id}/download")
     public void download(@PathVariable Long id, HttpServletResponse response) {
         fileService.download(id, response);
     }
 
     @Operation(summary = "获取文档内容（清洗后的markdown或原始文本）")
-    @GetMapping("/{id}/content")
+    @PostMapping("/{id}/content")
     public void getContent(@PathVariable Long id, HttpServletResponse response) {
         fileService.getContent(id, response);
     }
 
     @Operation(summary = "获取原始文件（inline预览，带JWT鉴权）")
-    @GetMapping("/{id}/raw")
+    @PostMapping("/{id}/raw")
     public void raw(@PathVariable Long id, HttpServletResponse response) {
         fileService.raw(id, response);
     }

@@ -18,15 +18,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.util.Map;
 
 @Tag(name = "问答服务", description = "知识库问答、流式输出、问答历史")
 @Profile("qa")
@@ -58,11 +58,11 @@ public class QaController {
     }
 
     @Operation(summary = "问答历史")
-    @GetMapping("/history")
+    @PostMapping("/history")
     @PreAuthorize("hasAuthority('QA:HISTORY')")
-    public Result<Page<ChatHistoryVO>> getHistory(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer size) {
+    public Result<Page<ChatHistoryVO>> getHistory(@RequestBody(required = false) Map<String, Object> body) {
+        int page = body != null && body.containsKey("page") ? ((Number) body.get("page")).intValue() : 1;
+        int size = body != null && body.containsKey("size") ? ((Number) body.get("size")).intValue() : 20;
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
         return qaService.getHistory(userId, page, size);
     }
@@ -70,10 +70,10 @@ public class QaController {
     // --- 会话管理 ---
 
     @Operation(summary = "获取会话列表")
-    @GetMapping("/sessions")
-    public Result<Page<ChatSessionVO>> listSessions(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "50") Integer size) {
+    @PostMapping("/sessions/list")
+    public Result<Page<ChatSessionVO>> listSessions(@RequestBody(required = false) Map<String, Object> body) {
+        int page = body != null && body.containsKey("page") ? ((Number) body.get("page")).intValue() : 1;
+        int size = body != null && body.containsKey("size") ? ((Number) body.get("size")).intValue() : 50;
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
         return sessionService.listSessions(userId, page, size);
     }
@@ -107,11 +107,12 @@ public class QaController {
     }
 
     @Operation(summary = "获取会话的问答记录")
-    @GetMapping("/sessions/{id}/records")
+    @PostMapping("/sessions/{id}/records")
     public Result<Page<ChatHistoryVO>> getSessionRecords(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "50") Integer size) {
+            @RequestBody(required = false) Map<String, Object> body) {
+        int page = body != null && body.containsKey("page") ? ((Number) body.get("page")).intValue() : 1;
+        int size = body != null && body.containsKey("size") ? ((Number) body.get("size")).intValue() : 50;
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
         return sessionService.getSessionRecords(id, userId, page, size);
     }

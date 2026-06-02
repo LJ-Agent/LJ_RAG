@@ -12,12 +12,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @Tag(name = "审核管理", description = "文档审核列表、提交审核")
 @Profile("doc")
@@ -30,21 +30,21 @@ public class ReviewController {
     private final ReviewService reviewService;
 
     @Operation(summary = "获取审核列表（可按结果过滤）")
-    @GetMapping("/pending")
+    @PostMapping("/pending")
     @PreAuthorize("hasAuthority('REVIEW:VIEW')")
-    public Result<Page<ReviewVO>> getPendingList(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer size,
-            @RequestParam(required = false) String result) {
+    public Result<Page<ReviewVO>> getPendingList(@RequestBody(required = false) Map<String, Object> body) {
+        Integer page = body != null && body.get("page") != null ? Integer.valueOf(body.get("page").toString()) : 1;
+        Integer size = body != null && body.get("size") != null ? Integer.valueOf(body.get("size").toString()) : 20;
+        String result = body != null ? (String) body.get("result") : null;
         return reviewService.getPendingList(page, size, result);
     }
 
     @Operation(summary = "获取待块审核列表（CHUNK_REVIEW 状态的文档）")
-    @GetMapping("/chunk-review")
+    @PostMapping("/chunk-review")
     @PreAuthorize("hasAuthority('REVIEW:VIEW')")
-    public Result<Page<ReviewVO>> getChunkReviewList(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "20") Integer size) {
+    public Result<Page<ReviewVO>> getChunkReviewList(@RequestBody(required = false) Map<String, Object> body) {
+        Integer page = body != null && body.get("page") != null ? Integer.valueOf(body.get("page").toString()) : 1;
+        Integer size = body != null && body.get("size") != null ? Integer.valueOf(body.get("size").toString()) : 20;
         return reviewService.getChunkReviewList(page, size);
     }
 

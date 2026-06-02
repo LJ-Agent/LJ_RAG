@@ -14,13 +14,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "知识库管理", description = "知识库CURD、文档关联、上下架")
@@ -57,16 +55,16 @@ public class KnowledgeBaseController {
     }
 
     @Operation(summary = "获取知识库详情")
-    @GetMapping("/{id}")
+    @PostMapping("/{id}")
     @PreAuthorize("hasAuthority('KB:VIEW')")
     public Result<KnowledgeBaseVO> getById(@PathVariable Long id) {
         return kbService.getById(id);
     }
 
     @Operation(summary = "查询知识库列表")
-    @GetMapping
+    @PostMapping("/list")
     @PreAuthorize("hasAuthority('KB:VIEW')")
-    public Result<Page<KnowledgeBaseVO>> list(KnowledgeBaseQueryDTO query) {
+    public Result<Page<KnowledgeBaseVO>> list(@RequestBody KnowledgeBaseQueryDTO query) {
         return kbService.list(query);
     }
 
@@ -75,7 +73,8 @@ public class KnowledgeBaseController {
     @PreAuthorize("hasAuthority('KB:UPDATE')")
     public Result<Void> updateDocumentStatus(@PathVariable Long kbId,
                                               @PathVariable Long docId,
-                                              @RequestParam Boolean enabled) {
+                                              @RequestBody Map<String, Object> body) {
+        Boolean enabled = (Boolean) body.get("enabled");
         return kbService.updateDocumentStatus(kbId, docId, enabled);
     }
 }

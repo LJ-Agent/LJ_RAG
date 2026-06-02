@@ -16,13 +16,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -42,7 +40,7 @@ public class UserController {
     private final PasswordEncoder passwordEncoder;
 
     @Operation(summary = "获取当前用户信息")
-    @GetMapping("/me")
+    @PostMapping("/me")
     public Result<UserVO> me() {
         Long userId = JwtAuthInterceptor.CURRENT_USER_ID.get();
         return Result.success(userService.getCurrentUser(userId));
@@ -62,10 +60,11 @@ public class UserController {
     }
 
     @Operation(summary = "用户列表")
-    @GetMapping
+    @PostMapping
     @PreAuthorize("hasAuthority('USER:VIEW')")
-    public Result<Page<UserVO>> list(@RequestParam(defaultValue = "1") Integer page,
-                                      @RequestParam(defaultValue = "20") Integer size) {
+    public Result<Page<UserVO>> list(@RequestBody(required = false) Map<String, Object> body) {
+        int page = body != null && body.containsKey("page") ? ((Number) body.get("page")).intValue() : 1;
+        int size = body != null && body.containsKey("size") ? ((Number) body.get("size")).intValue() : 20;
         Page<User> pg = new Page<>(page, size);
         Page<User> result = userMapper.selectPage(pg, null);
         Page<UserVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
@@ -88,7 +87,7 @@ public class UserController {
     }
 
     @Operation(summary = "查询用户角色")
-    @GetMapping("/{userId}/roles")
+    @PostMapping("/{userId}/roles")
     @PreAuthorize("hasAuthority('USER:VIEW')")
     public Result<List<Role>> getUserRoles(@PathVariable Long userId) {
         return permissionService.getUserRoles(userId);

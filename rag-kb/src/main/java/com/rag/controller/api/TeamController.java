@@ -25,7 +25,7 @@ public class TeamController {
     private final com.rag.domain.mapper.TeamMemberMapper teamMemberMapper;
     private final com.rag.domain.mapper.TeamKnowledgeBaseMapper teamKbMapper;
 
-    @GetMapping
+    @PostMapping
     public Result<List<Map<String,Object>>> myTeams() {
         Long userId = UserContext.getUserId();
         List<TeamMember> memberships = teamMemberMapper.selectList(
@@ -55,7 +55,7 @@ public class TeamController {
         return Result.success(team);
     }
 
-    @GetMapping("/{id}")
+    @PostMapping("/{id}")
     public Result<Team> detail(@PathVariable Long id) { return Result.success(teamMapper.selectById(id)); }
 
     @PutMapping("/{id}")
@@ -74,7 +74,7 @@ public class TeamController {
         teamMapper.deleteById(id); return Result.success();
     }
 
-    @GetMapping("/{id}/members")
+    @PostMapping("/{id}/members")
     public Result<List<TeamMember>> members(@PathVariable Long id) {
         return Result.success(teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>().eq(TeamMember::getTeamId,id)));
     }
