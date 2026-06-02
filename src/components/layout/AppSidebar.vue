@@ -37,7 +37,7 @@
         <el-icon><ChatDotRound /></el-icon>
         <span>知识问答</span>
       </el-menu-item>
-      <el-menu-item index="/roles" v-permission="'CONFIG:MANAGE'">
+      <el-menu-item index="/roles" v-permission="['CONFIG:MANAGE','ROLE:MANAGE']">
         <el-icon><Lock /></el-icon>
         <span>角色权限</span>
       </el-menu-item>

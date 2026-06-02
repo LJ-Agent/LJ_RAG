@@ -98,7 +98,7 @@ const routes: RouteRecordRaw[] = [
         path: 'roles',
         name: 'Roles',
         component: () => import('@/views/roles/RoleList.vue'),
-        meta: { title: '角色权限', permissions: ['CONFIG:MANAGE'], icon: 'Lock' },
+        meta: { title: '角色权限', permissions: ['CONFIG:MANAGE','ROLE:MANAGE'], icon: 'Lock' },
       },
       {
         path: 'users',
