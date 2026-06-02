@@ -12,7 +12,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/team-roles")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('CONFIG:MANAGE')")
+@PreAuthorize("hasAnyAuthority('CONFIG:MANAGE','ROLE:MANAGE')")
 public class TeamRoleController {
     // 直接使用 JDBC Template 操作 team_roles / team_role_permissions 表
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;

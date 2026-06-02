@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/permissions")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('CONFIG:MANAGE')")
+@PreAuthorize("hasAnyAuthority('CONFIG:MANAGE','ROLE:MANAGE')")
 public class PermissionController {
 
     private final PermissionMapper permissionMapper;
