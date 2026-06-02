@@ -1,45 +1,41 @@
-# ==================== 构建阶段 ====================
 FROM maven:3.9-eclipse-temurin-17-alpine AS builder
-
-# Install glibc compatibility for protoc-gen-grpc-java (compiled against glibc)
 RUN apk add --no-cache gcompat
-
 WORKDIR /build
+
 COPY pom.xml .
-# 缓存依赖层 (利用 Docker layer cache)
+COPY rag-common/pom.xml rag-common/
+COPY rag-auth/pom.xml rag-auth/
+COPY rag-kb/pom.xml rag-kb/
+COPY rag-doc/pom.xml rag-doc/
+COPY rag-qa/pom.xml rag-qa/
+COPY rag-config/pom.xml rag-config/
+COPY rag-monolith/pom.xml rag-monolith/
+
+# First install parent POM to local repo
+RUN mvn install -N -DskipTests -q 2>/dev/null || true
+
+# Download deps
 RUN mvn dependency:go-offline -B -q || true
 
-COPY src ./src
-COPY proto ./proto
-RUN mvn clean package -DskipTests -B -q
+COPY proto proto/
+COPY rag-common/src rag-common/src
+COPY rag-auth/src rag-auth/src
+COPY rag-kb/src rag-kb/src
+COPY rag-doc/src rag-doc/src
+COPY rag-qa/src rag-qa/src
+COPY rag-config/src rag-config/src
+COPY rag-monolith/src rag-monolith/src
 
-# ==================== 运行阶段 ====================
+# Build rag-monolith (depends on all modules)
+RUN mvn clean package -pl rag-monolith -am -DskipTests -B -q
+
 FROM amazoncorretto:17-alpine
-
 WORKDIR /app
-
-# 创建非 root 用户
 RUN addgroup -g 1000 rag && adduser -u 1000 -G rag -D rag
-
-# 安装 wget 用于健康检查
 RUN apk add --no-cache wget
-
-# 从构建阶段复制 jar
-COPY --from=builder /build/target/rag-server-*.jar app.jar
-
-# 创建日志目录
+COPY --from=builder /build/rag-monolith/target/*.jar app.jar
 RUN mkdir -p /app/logs /var/log/rag-server && chown -R rag:rag /app/logs /var/log/rag-server
-
 USER rag
-
 EXPOSE 8080
-
-# JVM 参数可通过 JAVA_OPTS 环境变量覆盖
-ENTRYPOINT exec java \
-    ${JAVA_OPTS:--Xms512m -Xmx1024m} \
-    -XX:+UseG1GC \
-    -XX:MaxGCPauseMillis=200 \
-    -XX:+HeapDumpOnOutOfMemoryError \
-    -XX:HeapDumpPath=/tmp/heapdump.hprof \
-    -Djava.security.egd=file:/dev/./urandom \
-    -jar app.jar
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -q -O- http://localhost:8080/actuator/health || exit 1
+ENTRYPOINT exec java -Xms512m -Xmx1024m -jar app.jar
