@@ -39,9 +39,12 @@
         <el-table :data="teamRoles" stripe border v-loading="teamLoading">
           <el-table-column prop="role_code" label="角色编码" width="150" />
           <el-table-column prop="role_name" label="角色名称" width="120" />
-          <el-table-column prop="description" label="描述" min-width="200" />
-          <el-table-column label="权限数" width="80" align="center">
-            <template #default="{row}"><el-tag size="small" type="warning">{{ row.perm_count }}</el-tag></template>
+          <el-table-column prop="description" label="描述" min-width="180" />
+          <el-table-column label="权限" min-width="300">
+            <template #default="{row}">
+              <el-tag v-for="p in row.permissions" :key="p" size="small" style="margin:2px">{{ p }}</el-tag>
+              <span v-if="!row.permissions?.length" style="color:#c0c4cc">—</span>
+            </template>
           </el-table-column>
           <el-table-column label="操作" width="180" align="center">
             <template #default="{row}">
@@ -134,8 +137,14 @@ async function fetchSysRoles() {
 
 async function fetchTeamRoles() {
   teamLoading.value = true
-  try { teamRoles.value = await request.get('/team-roles') || [] }
-  finally { teamLoading.value = false }
+  try {
+    const list = await request.get('/team-roles') || []
+    for (const r of list) {
+      try { r.permissions = await request.get(`/team-roles/${r.id}/permissions`) || [] }
+      catch { r.permissions = [] }
+    }
+    teamRoles.value = list
+  } finally { teamLoading.value = false }
 }
 
 async function fetchPerms() {
