@@ -102,15 +102,62 @@ const permVisible = ref(false); const currentRoleId = ref(0)
 const currentRoleType = ref('system'); const currentRoleName = ref('')
 const selectedPerms = ref<string[]>([])
 
-async function fetchSysRoles() { sysLoading.value=true; try { sysRoles.value = (await request.get('/roles')).records || []; for(const r of sysRoles.value) { try { r.permissions = await request.get(`/roles/${r.id}/permissions`)||[] } catch { r.permissions=[] } } } finally { sysLoading.value=false } }
-async function fetchTeamRoles() { teamLoading.value=true; try { teamRoles.value = await request.get('/team-roles') || [] } finally { teamLoading.value=false } }
-async function fetchPerms() { try { const data = await request.get('/permissions'); allPerms.value = data } catch {} }
+// ID↔Code 映射表 (从 /api/permissions/flat 动态获取)
+const permIdToCode = ref<Record<number,string>>({})
+const permCodeToId = ref<Record<string,number>>({})
+
+async function fetchPermMap() {
+  try {
+    const flat: any[] = await request.get('/permissions/flat')
+    for (const p of flat) {
+      permIdToCode.value[p.id] = p.permissionCode
+      permCodeToId.value[p.permissionCode] = p.id
+    }
+  } catch {}
+}
+
+async function fetchSysRoles() {
+  sysLoading.value = true
+  try {
+    const page = await request.get('/roles')
+    const records = page.records || []
+    for (const r of records) {
+      try {
+        const detail = await request.get(`/roles/${r.id}`)
+        const pids: number[] = detail.permissionIds || []
+        r.permissions = pids.map((id:number) => permIdToCode.value[id] || String(id))
+      } catch { r.permissions = [] }
+    }
+    sysRoles.value = records
+  } finally { sysLoading.value = false }
+}
+
+async function fetchTeamRoles() {
+  teamLoading.value = true
+  try { teamRoles.value = await request.get('/team-roles') || [] }
+  finally { teamLoading.value = false }
+}
+
+async function fetchPerms() {
+  try {
+    const data = await request.get('/permissions')
+    // data = {SYSTEM: [{permissionCode,...}], QA: [...], ...}
+    const grouped: Record<string,string[]> = {}
+    for (const [group, perms] of Object.entries(data)) {
+      grouped[group] = (perms as any[]).map((p:any) => p.permissionCode)
+    }
+    allPerms.value = grouped
+  } catch {}
+}
 
 function openCreate(type:string) { isEdit.value=false; formType.value=type; form.value={id:0,code:'',name:'',desc:''}; dialogVisible.value=true }
 function openEdit(row:any,type:string) { isEdit.value=true; formType.value=type; form.value={id:row.id, code:type==='system'?row.roleCode:row.role_code, name:type==='system'?row.roleName:row.role_name, desc:row.description||''}; dialogVisible.value=true }
+
 async function handleSave() {
   const url = formType.value==='system' ? '/roles' : '/team-roles'
-  const body = formType.value==='system' ? {roleCode:form.value.code,roleName:form.value.name,description:form.value.desc} : {roleCode:form.value.code,roleName:form.value.name,description:form.value.desc}
+  const body = formType.value==='system'
+    ? {roleCode:form.value.code,roleName:form.value.name,description:form.value.desc}
+    : {roleCode:form.value.code,roleName:form.value.name,description:form.value.desc}
   try {
     if(isEdit.value) await request.put(`${url}/${form.value.id}`, body)
     else await request.post(url, body)
@@ -118,32 +165,33 @@ async function handleSave() {
     formType.value==='system' ? fetchSysRoles() : fetchTeamRoles()
   } catch { ElMessage.error('操作失败') }
 }
+
 async function handleDelete(id:number,type:string) {
   const url = type==='system' ? `/roles/${id}` : `/team-roles/${id}`
   try { await request.delete(url); ElMessage.success('已删除'); type==='system'?fetchSysRoles():fetchTeamRoles() } catch { ElMessage.error('删除失败') }
 }
+
 async function openPerms(row:any,type:string) {
   currentRoleId.value = row.id; currentRoleType.value = type
   currentRoleName.value = type==='system' ? row.roleName : row.role_name
   selectedPerms.value = []
   try {
-    if(type==='system') { const detail = await request.get(`/roles/${row.id}`); selectedPerms.value = detail.permissionIds?.map((id:number) => allPermsSysIdToCode(id)) || [] }
-    else { selectedPerms.value = await request.get(`/team-roles/${row.id}/permissions`) || [] }
+    if(type==='system') {
+      const detail = await request.get(`/roles/${row.id}`)
+      const pids: number[] = detail.permissionIds || []
+      selectedPerms.value = pids.map((id:number) => permIdToCode.value[id] || String(id))
+    } else {
+      selectedPerms.value = await request.get(`/team-roles/${row.id}/permissions`) || []
+    }
   } catch { selectedPerms.value = [] }
   permVisible.value = true
 }
-function allPermsSysIdToCode(id:number):string {
-  // Simple mapping — in production should fetch from /permissions/flat
-  const map:Record<number,string> = {1:'USER:CREATE',2:'USER:UPDATE',3:'USER:DELETE',4:'USER:VIEW',5:'DOCUMENT:UPLOAD',6:'DOCUMENT:DELETE',7:'DOCUMENT:VIEW',8:'REVIEW:APPROVE',9:'REVIEW:VIEW',10:'KB:CREATE',11:'KB:UPDATE',12:'KB:DELETE',13:'KB:VIEW',14:'CONFIG:MANAGE',15:'QA:ASK',16:'QA:HISTORY',17:'FEEDBACK:VIEW',18:'FEEDBACK:HANDLE'}
-  return map[id] || ''
-}
+
 async function handleSavePerms() {
   const type = currentRoleType.value; const id = currentRoleId.value
   try {
     if(type==='system') {
-      // Convert permission codes back to IDs
-      const revMap:Record<string,number> = Object.fromEntries(Object.entries({1:'USER:CREATE',2:'USER:UPDATE',3:'USER:DELETE',4:'USER:VIEW',5:'DOCUMENT:UPLOAD',6:'DOCUMENT:DELETE',7:'DOCUMENT:VIEW',8:'REVIEW:APPROVE',9:'REVIEW:VIEW',10:'KB:CREATE',11:'KB:UPDATE',12:'KB:DELETE',13:'KB:VIEW',14:'CONFIG:MANAGE',15:'QA:ASK',16:'QA:HISTORY',17:'FEEDBACK:VIEW',18:'FEEDBACK:HANDLE'}).map(([k,v])=>[v,Number(k)]))
-      const ids = selectedPerms.value.map((c:string) => revMap[c]).filter(Boolean)
+      const ids = selectedPerms.value.map((c:string) => permCodeToId.value[c]).filter(Boolean)
       await request.put(`/roles/${id}/permissions`, {permissionIds:ids})
     } else {
       await request.put(`/team-roles/${id}/permissions`, {permissionCodes:selectedPerms.value})
@@ -153,5 +201,5 @@ async function handleSavePerms() {
   } catch { ElMessage.error('保存失败') }
 }
 
-onMounted(() => { fetchSysRoles(); fetchTeamRoles(); fetchPerms() })
+onMounted(() => { fetchPermMap().then(() => { fetchSysRoles(); fetchTeamRoles(); fetchPerms() }) })
 </script>
