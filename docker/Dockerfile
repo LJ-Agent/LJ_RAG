@@ -1,7 +1,6 @@
 FROM maven:3.9-eclipse-temurin-17-alpine AS builder
 RUN apk add --no-cache gcompat
 WORKDIR /build
-
 COPY pom.xml .
 COPY rag-common/pom.xml rag-common/
 COPY rag-auth/pom.xml rag-auth/
@@ -10,14 +9,8 @@ COPY rag-doc/pom.xml rag-doc/
 COPY rag-qa/pom.xml rag-qa/
 COPY rag-config/pom.xml rag-config/
 COPY rag-monolith/pom.xml rag-monolith/
-
-# First install parent POM to local repo
-RUN mvn install -N -DskipTests -q 2>/dev/null || true
-
-# Download deps
+RUN mvn install -N -q
 RUN mvn dependency:go-offline -B -q || true
-
-COPY proto proto/
 COPY rag-common/src rag-common/src
 COPY rag-auth/src rag-auth/src
 COPY rag-kb/src rag-kb/src
@@ -25,9 +18,8 @@ COPY rag-doc/src rag-doc/src
 COPY rag-qa/src rag-qa/src
 COPY rag-config/src rag-config/src
 COPY rag-monolith/src rag-monolith/src
-
-# Build rag-monolith (depends on all modules)
-RUN mvn clean package -pl rag-monolith -am -DskipTests -B -q
+COPY proto proto/
+RUN mvn package -pl rag-monolith -am -DskipTests -B -q
 
 FROM amazoncorretto:17-alpine
 WORKDIR /app
