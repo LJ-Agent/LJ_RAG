@@ -1,0 +1,12 @@
+logging:
+  level:
+    com.rag: info
+    com.rag.domain.mapper: warn
+  file:
+    path: /var/log/rag-server
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
