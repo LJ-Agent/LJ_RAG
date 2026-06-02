@@ -20,7 +20,6 @@ logs/
 Thumbs.db
 
 # Config (sensitive)
-src/main/resources/application-local.yml
 
 # Docker
 .env

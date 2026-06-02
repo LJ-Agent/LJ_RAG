@@ -1,0 +1,36 @@
+package com.rag.infrastructure.config;
+
+import com.rag.controller.interceptor.JwtAuthInterceptor;
+import com.rag.controller.interceptor.RateLimitInterceptor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+@Configuration
+@RequiredArgsConstructor
+public class WebMvcConfig implements WebMvcConfigurer {
+
+    private final JwtAuthInterceptor jwtAuthInterceptor;
+    private final RateLimitInterceptor rateLimitInterceptor;
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(rateLimitInterceptor)
+                .addPathPatterns("/api/**")
+                .order(1);
+
+        registry.addInterceptor(jwtAuthInterceptor)
+                .addPathPatterns("/api/**")
+                .excludePathPatterns(
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/refresh",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui.html",
+                        "/error"
+                )
+                .order(2);
+    }
+}
