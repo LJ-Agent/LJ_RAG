@@ -23,8 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 @Tag(name = "分块管理", description = "文档块浏览、编辑、审核、向量化")
-@Profile("doc")
-@Profile("doc")
+@Profile({"doc", "prod"})
 @RestController
 @RequestMapping("/api/chunks")
 @RequiredArgsConstructor

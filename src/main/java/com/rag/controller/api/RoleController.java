@@ -23,8 +23,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Tag(name = "角色管理", description = "角色CRUD + 权限分配 — 灵活可配置的RBAC")
-@Profile("auth")
-@Profile("auth")
+@Profile({"auth", "prod"})
 @RestController
 @RequestMapping("/api/roles")
 @RequiredArgsConstructor

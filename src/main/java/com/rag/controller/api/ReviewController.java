@@ -20,8 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "审核管理", description = "文档审核列表、提交审核")
-@Profile("doc")
-@Profile("doc")
+@Profile({"doc", "prod"})
 @RestController
 @RequestMapping("/api/review")
 @RequiredArgsConstructor

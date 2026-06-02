@@ -22,8 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @Tag(name = "反馈管理", description = "用户反馈提交与处理")
-@Profile("qa")
-@Profile("qa")
+@Profile({"qa", "prod"})
 @RestController
 @RequestMapping("/api/feedback")
 @RequiredArgsConstructor

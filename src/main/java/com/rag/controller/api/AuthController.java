@@ -21,8 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @Tag(name = "认证管理", description = "用户登录、注册、Token刷新")
-@Profile("auth")
-@Profile("auth")
+@Profile({"auth", "prod"})
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
