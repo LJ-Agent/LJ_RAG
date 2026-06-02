@@ -480,3 +480,7 @@ volumes:
     name: rag-milvus-data
 
 # ==================== 网络 ====================
+networks:
+  rag-network:
+    name: rag-network
+    driver: bridge
