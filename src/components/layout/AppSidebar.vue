@@ -50,7 +50,7 @@
         <span>团队管理</span>
       </el-menu-item>
       <el-menu-item index="/configs" v-permission="'CONFIG:MANAGE'">
-        <el-icon><Setting /></el-icon>
+        <el-icon><Tools /></el-icon>
         <span>系统配置</span>
       </el-menu-item>
       <el-menu-item index="/feedback" v-permission="'FEEDBACK:VIEW'">
