@@ -189,7 +189,7 @@ const filteredPersonal = computed(() => {
 async function loadPersonalConfigs() {
   personalLoading.value = true
   try {
-    const res = await request.get('/user/configs/effective')
+    const res = await request.post('/user/configs/effective')
     personalAll.value = (res as any[]) || []
     // 构建分类
     const cats: Record<string,number> = {}

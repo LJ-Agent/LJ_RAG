@@ -25,11 +25,11 @@ export const qaApi = {
   },
 
   history: (params: { page?: number; size?: number }): Promise<Page<ChatHistoryVO>> =>
-    request.get(`${BASE}/history`, { params }),
+    request.post(`${BASE}/history`, params),
 
   // 会话管理
   getSessions: (params?: { page?: number; size?: number }): Promise<Page<ChatSessionVO>> =>
-    request.get(`${BASE}/sessions`, { params }),
+    request.post(`${BASE}/sessions/list`, params),
 
   createSession: (data: { title?: string; kbIds?: string }): Promise<ChatSessionVO> =>
     request.post(`${BASE}/sessions`, data),
@@ -44,5 +44,5 @@ export const qaApi = {
     request.post(`${BASE}/sessions/batch-delete`, ids),
 
   getSessionRecords: (sessionId: number, params?: { page?: number; size?: number }): Promise<Page<ChatHistoryVO>> =>
-    request.get(`${BASE}/sessions/${sessionId}/records`, { params }),
+    request.post(`${BASE}/sessions/${sessionId}/records`, params),
 }

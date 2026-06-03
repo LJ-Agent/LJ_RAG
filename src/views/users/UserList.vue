@@ -153,7 +153,7 @@ function getUserTeam(userId: number) { return userTeamMap.value[userId] || null 
 async function loadTeams() {
   try {
     // 拉取所有团队+成员
-    const myTeams = await request.get('/teams')
+    const myTeams = await request.post('/teams')
     const allMembers: any[] = []
     const teamNames: Record<number, string> = {}
     for (const t of (myTeams as any[] || [])) {
@@ -164,7 +164,7 @@ async function loadTeams() {
     // 当前简化: admin 查看默认团队所有成员
     for (const t of (myTeams as any[] || [])) {
       try {
-        const members = await request.get(`/teams/${t.team.id}/members`)
+        const members = await request.post(`/teams/${t.team.id}/members`)
         for (const m of (members as any[] || [])) {
           userTeamMap.value[m.userId] = { teamName: t.team.name, roleCode: m.roleCode }
         }
@@ -247,7 +247,7 @@ const teamAssigning = ref(false)
 
 async function fetchAllTeams() {
   try {
-    const myTeams = await request.get('/teams')
+    const myTeams = await request.post('/teams')
     // 管理员需要所有团队 — 简化: 遍历已知团队
     allTeams.value = (myTeams as any[]).map((t: any) => t.team)
   } catch { allTeams.value = [] }
