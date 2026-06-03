@@ -128,7 +128,7 @@ async function handleSubmit() {
   submitting.value = true
   try {
     if (isEdit.value) await request.put(`/teams/${form.id}`, { name: form.name, description: form.description })
-    else await request.post('/teams', { name: form.name, description: form.description })
+    else await request.post('/teams/create', { name: form.name, description: form.description })
     ElMessage.success(isEdit.value ? '已更新' : '已创建')
     dialogVisible.value = false; fetchTeams()
   } catch { ElMessage.error('操作失败') } finally { submitting.value = false }
@@ -156,7 +156,7 @@ async function openMembers(team: any) {
 }
 async function addMember() {
   if (!addUserId.value) return; adding.value = true
-  try { await request.post(`/teams/${currentTeam.value.id}/members`, { userId: addUserId.value, roleCode: addRoleCode.value }); ElMessage.success('已添加'); addUserId.value = null; openMembers(currentTeam.value) } catch { ElMessage.error('添加失败') } finally { adding.value = false }
+  try { await request.post(`/teams/${currentTeam.value.id}/members/add`, { userId: addUserId.value, roleCode: addRoleCode.value }); ElMessage.success('已添加'); addUserId.value = null; openMembers(currentTeam.value) } catch { ElMessage.error('添加失败') } finally { adding.value = false }
 }
 async function removeMember(row: any) { await request.delete(`/teams/${currentTeam.value.id}/members/${row.userId}`); ElMessage.success('已移除'); openMembers(currentTeam.value) }
 async function updateRole(row: any, newRole: string) { await request.put(`/teams/${currentTeam.value.id}/members/${row.userId}`, { roleCode: newRole }); ElMessage.success('角色已更新') }
