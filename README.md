@@ -138,6 +138,35 @@ RAG-Web/
 
 ---
 
+## URL 路由逻辑：两套系统分工
+
+Gateway 只做一件事——按前缀分流，不关心 URL 是什么：
+
+```
+浏览器访问 http://localhost:8088/documents
+    │
+    ▼
+Gateway:  /documents  不是 /api/*  →  匹配 /** → 转发到 Vite
+    │
+    ▼
+Vite:  返回 index.html（SPA 兜底，所有非 API 路径都返回首页）
+    │
+    ▼
+浏览器: Vue Router 拿到 /documents → 渲染 DocumentList 组件
+    │
+    ▼
+页面内: POST /api/files/list → /api/* → Gateway JWT 鉴权 → rag-server
+```
+
+| 路径 | 谁处理 | 作用 |
+|------|--------|------|
+| `/` `/dashboard` `/documents` `/qa` `/roles` `/users` `/teams` `/configs` 等 | **Vue Router** | 前端页面导航，无数据 |
+| `/api/auth/**` `/api/files/**` `/api/knowledge-bases/**` 等 | **Gateway → 后端** | 业务 API，有鉴权 |
+
+> 前端页面 URL 没有 `/api` 前缀是正常的——它们不是 API，是 Vue SPA 路由。数据通过页面内的 JS 异步调 `/api/*` 拉取。这是前后端分离的标准做法。
+
+---
+
 ## 路由与权限矩阵
 
 | 路径 | 页面 | 所需权限 | 侧边栏 |
