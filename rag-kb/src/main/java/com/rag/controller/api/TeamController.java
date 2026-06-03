@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
-@Profile("kb")
+@Profile({"kb", "prod"})
 @RestController
 @RequestMapping("/api/teams")
 @RequiredArgsConstructor

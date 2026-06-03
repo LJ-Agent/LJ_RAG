@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @Tag(name = "知识库管理", description = "知识库CURD、文档关联、上下架")
-@Profile("kb")
+@Profile({"kb", "prod"})
 @RestController
 @RequestMapping("/api/knowledge-bases")
 @RequiredArgsConstructor

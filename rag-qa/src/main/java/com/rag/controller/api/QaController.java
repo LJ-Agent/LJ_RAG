@@ -30,7 +30,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.Map;
 
 @Tag(name = "问答服务", description = "知识库问答、流式输出、问答历史")
-@Profile("qa")
+@Profile({"qa", "prod"})
 @RestController
 @RequestMapping("/api/qa")
 @RequiredArgsConstructor

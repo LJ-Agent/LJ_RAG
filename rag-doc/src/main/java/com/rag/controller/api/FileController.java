@@ -26,7 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
 
 @Tag(name = "文件管理", description = "文件上传、下载、删除、查询")
-@Profile("doc")
+@Profile({"doc", "prod"})
 @RestController
 @RequestMapping("/api/files")
 @RequiredArgsConstructor

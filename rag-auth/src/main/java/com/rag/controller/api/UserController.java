@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 @Tag(name = "用户管理", description = "用户信息管理、角色分配")
-@Profile("auth")
+@Profile({"auth", "prod"})
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor

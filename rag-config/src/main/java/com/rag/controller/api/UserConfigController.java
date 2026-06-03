@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Tag(name = "个人配置", description = "用户个人偏好配置 (每个用户独立)")
-@Profile("config")
+@Profile({"config", "prod"})
 @RestController
 @RequestMapping("/api/user/configs")
 @RequiredArgsConstructor
