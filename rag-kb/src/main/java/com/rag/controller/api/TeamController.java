@@ -1,13 +1,14 @@
-import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.springframework.context.annotation.Profile;
 import com.rag.common.context.UserContext;
 import com.rag.common.exception.BusinessException;
 import com.rag.common.result.Result;
 import com.rag.common.result.ResultCodeEnum;
 import com.rag.domain.entity.*;
 import com.rag.domain.mapper.*;
+import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 
-@Profile("kb")
 @Profile("kb")
 @RestController
 @RequestMapping("/api/teams")

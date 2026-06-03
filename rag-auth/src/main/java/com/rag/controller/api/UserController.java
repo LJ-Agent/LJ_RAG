@@ -1,7 +1,7 @@
-import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.context.annotation.Profile;
 import com.rag.common.result.Result;
 import com.rag.controller.interceptor.JwtAuthInterceptor;
 import com.rag.domain.entity.Role;
@@ -12,6 +12,7 @@ import com.rag.service.user.UserService;
 import com.rag.service.user.dto.UserVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 
 @Tag(name = "用户管理", description = "用户信息管理、角色分配")
-@Profile("auth")
 @Profile("auth")
 @RestController
 @RequestMapping("/api/users")

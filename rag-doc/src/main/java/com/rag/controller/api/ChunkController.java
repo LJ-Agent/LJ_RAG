@@ -1,12 +1,13 @@
-import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.context.annotation.Profile;
 import com.rag.common.result.Result;
 import com.rag.service.chunk.ChunkService;
 import com.rag.service.chunk.dto.ChunkVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 
 @Tag(name = "分块管理", description = "文档块浏览、编辑、审核、向量化")
-@Profile("doc")
 @Profile("doc")
 @RestController
 @RequestMapping("/api/chunks")

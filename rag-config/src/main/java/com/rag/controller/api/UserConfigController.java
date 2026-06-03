@@ -1,7 +1,7 @@
-import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.springframework.context.annotation.Profile;
 import com.rag.common.context.UserContext;
 import com.rag.common.result.Result;
 import com.rag.domain.entity.SystemConfig;
@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +23,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Tag(name = "个人配置", description = "用户个人偏好配置 (每个用户独立)")
-@Profile("config")
 @Profile("config")
 @RestController
 @RequestMapping("/api/user/configs")

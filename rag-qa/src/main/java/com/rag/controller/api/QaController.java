@@ -1,7 +1,7 @@
-import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.context.annotation.Profile;
 import com.rag.common.annotation.RateLimit;
 import com.rag.common.result.Result;
 import com.rag.controller.interceptor.JwtAuthInterceptor;
@@ -14,6 +14,7 @@ import com.rag.service.qa.dto.QuestionDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,7 +30,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.Map;
 
 @Tag(name = "问答服务", description = "知识库问答、流式输出、问答历史")
-@Profile("qa")
 @Profile("qa")
 @RestController
 @RequestMapping("/api/qa")

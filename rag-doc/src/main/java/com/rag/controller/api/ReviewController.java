@@ -1,7 +1,7 @@
-import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.context.annotation.Profile;
 import com.rag.common.result.Result;
 import com.rag.controller.interceptor.JwtAuthInterceptor;
 import com.rag.service.review.ReviewService;
@@ -10,6 +10,7 @@ import com.rag.service.review.dto.ReviewVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @Tag(name = "审核管理", description = "文档审核列表、提交审核")
-@Profile("doc")
 @Profile("doc")
 @RestController
 @RequestMapping("/api/review")

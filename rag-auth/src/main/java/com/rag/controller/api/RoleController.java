@@ -1,4 +1,3 @@
-import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import cn.hutool.json.JSONUtil;
@@ -14,6 +13,7 @@ import com.rag.domain.mapper.RolePermissionMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Tag(name = "角色管理", description = "角色CRUD + 权限分配 — 灵活可配置的RBAC")
-@Profile("auth")
 @Profile("auth")
 @RestController
 @RequestMapping("/api/roles")

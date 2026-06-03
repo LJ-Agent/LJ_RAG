@@ -1,12 +1,13 @@
-import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import org.springframework.context.annotation.Profile;
 import com.rag.common.result.Result;
 import com.rag.domain.entity.Permission;
 import com.rag.domain.mapper.PermissionMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +17,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Tag(name = "权限管理", description = "权限码列表 (由代码定义, 只读)")
-@Profile("auth")
 @Profile("auth")
 @RestController
 @RequestMapping("/api/permissions")

@@ -1,7 +1,7 @@
-import org.springframework.context.annotation.Profile;
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import org.springframework.context.annotation.Profile;
 import com.rag.common.context.UserContext;
 import com.rag.common.result.Result;
 import com.rag.domain.entity.ConfigHistory;
@@ -9,6 +9,7 @@ import com.rag.domain.entity.SystemConfig;
 import com.rag.service.config.SystemConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 
 @Tag(name = "系统配置", description = "系统参数可视化管理 — 支持分类浏览、校验、批量更新、历史追溯、回滚")
-@Profile("config")
 @Profile("config")
 @RestController
 @RequestMapping("/api/configs")
