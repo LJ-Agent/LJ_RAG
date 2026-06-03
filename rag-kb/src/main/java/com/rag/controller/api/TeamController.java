@@ -25,7 +25,7 @@ public class TeamController {
     private final com.rag.domain.mapper.TeamMemberMapper teamMemberMapper;
     private final com.rag.domain.mapper.TeamKnowledgeBaseMapper teamKbMapper;
 
-    @PostMapping("/create")
+    @PostMapping
     public Result<List<Map<String,Object>>> myTeams() {
         Long userId = UserContext.getUserId();
         List<TeamMember> memberships = teamMemberMapper.selectList(
@@ -43,7 +43,7 @@ public class TeamController {
         return Result.success(result);
     }
 
-    @PostMapping
+    @PostMapping("/create")
     @Transactional
     @PreAuthorize("hasAuthority('CONFIG:MANAGE')")
     public Result<Team> create(@RequestBody Team team) {
@@ -79,7 +79,7 @@ public class TeamController {
         return Result.success(teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>().eq(TeamMember::getTeamId,id)));
     }
 
-    @PostMapping("/{id}/members")
+    @PostMapping("/{id}/members/add")
     public Result<TeamMember> addMember(@PathVariable Long id, @RequestBody TeamMember member) {
         member.setTeamId(id);
         TeamMember exist = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>().eq(TeamMember::getTeamId,id).eq(TeamMember::getUserId,member.getUserId()));

@@ -16,7 +16,7 @@ import java.util.*;
 public class ResourcePermissionController {
     private final JdbcTemplate jdbc;
 
-    @PostMapping("/create")
+    @PostMapping
     public List<Map<String,Object>> list(@RequestBody(required = false) Map<String, Object> body) {
         String type = body != null && body.containsKey("type") ? body.get("type").toString() : "tab";
         return jdbc.queryForList("SELECT * FROM resource_permissions WHERE resource_type=? ORDER BY resource_path", type);
