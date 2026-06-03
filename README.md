@@ -35,21 +35,35 @@
     MinIO:9000 | Milvus:19530 | Grafana:3000
 ```
 
-> **一套代码，两种模式**：通过 Maven 多模块 + Spring Profile + 独立 Main 类三个机制，实现单体和微服务的无缝切换。详见 [部署文档 §2](docs/最新部署文档.md)。
+> **一套代码，两种模式**：通过 Maven 多模块 + Spring Profile 三个机制，实现单体和微服务的无缝切换。
+> **核心设计：前端只认 Gateway**，后端无论单体还是微服务，前端代码零改动。
+
+### 构建：单体 vs 微服务
+
+```bash
+# 单体模式（当前默认）
+mvn package -pl rag-monolith -am -DskipTests   # → rag-monolith.jar
+
+# 微服务模式（独立部署）
+mvn package -pl rag-auth -am -DskipTests -Dspring-boot-maven-plugin.skip=false
+mvn package -pl rag-kb -am -DskipTests -Dspring-boot-maven-plugin.skip=false
+mvn package -pl rag-doc -am -DskipTests -Dspring-boot-maven-plugin.skip=false
+mvn package -pl rag-qa -am -DskipTests -Dspring-boot-maven-plugin.skip=false
+mvn package -pl rag-config -am -DskipTests -Dspring-boot-maven-plugin.skip=false
+```
 
 ### 原理速览
 
 ```
 同一份 Controller 代码
     │
-    ├── Maven:  rag-monolith依赖全部模块 → 单体JAR
-    │           rag-auth只依赖common → 微服务JAR
+    ├── Maven:  rag-monolith依赖全部模块 → 单体JAR (spring-boot-plugin skip=true)
+    │           rag-auth只依赖common   → 微服务JAR (skip=false，可执行)
     │
-    ├── Profile: SPRING_PROFILES_ACTIVE=prod → 全部Controller加载 → 单体
-    │            SPRING_PROFILES_ACTIVE=auth → 仅Auth相关加载 → 微服务
-    │
-    └── Main类: RagApplication(monolith) → 单体入口
-                RagAuthApplication(auth)  → 微服务入口
+    └── Profile: SPRING_PROFILES_ACTIVE=prod → 全部Controller加载 → 单体
+                 SPRING_PROFILES_ACTIVE=auth → 仅Auth相关加载 → 微服务
+
+前端始终调用 /api/*，Gateway 按规则路由 → 后端无论如何部署前端无感
 ```
 
 ## 项目结构
