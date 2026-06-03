@@ -28,7 +28,7 @@ export const chunkApi = {
     request.post(BASE, { documentId, ...params }),
 
   create: (documentId: number, content: string): Promise<ChunkVO> =>
-    request.post(BASE, { documentId, content }),
+    request.post(`${BASE}/create`, { documentId, content }),
 
   getByChunkId: (chunkId: string): Promise<ChunkVO> =>
     request.post(`${BASE}/by-chunk-id/${chunkId}`),
