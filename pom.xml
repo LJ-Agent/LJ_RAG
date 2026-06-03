@@ -233,6 +233,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <skip>true</skip>  <!-- 默认库模式；微服务部署: -Dspring-boot-maven-plugin.skip=false -->
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
