@@ -6,10 +6,10 @@ const BASE = '/knowledge-bases'
 
 export const knowledgeBaseApi = {
   list: (params: KnowledgeBaseQueryDTO): Promise<Page<KnowledgeBaseVO>> =>
-    request.post(`${BASE}/list`, params),
+    request.get(BASE, { params }),
 
   detail: (id: number): Promise<KnowledgeBaseVO> =>
-    request.post(`${BASE}/${id}`),
+    request.get(`${BASE}/${id}`),
 
   create: (data: KnowledgeBaseSaveDTO): Promise<KnowledgeBaseVO> =>
     request.post(BASE, data),
@@ -21,5 +21,5 @@ export const knowledgeBaseApi = {
     request.delete(`${BASE}/${id}`),
 
   toggleDocument: (kbId: number, docId: number, enabled: boolean): Promise<void> =>
-    request.put(`${BASE}/${kbId}/documents/${docId}`, { enabled }),
+    request.put(`${BASE}/${kbId}/documents/${docId}`, null, { params: { enabled } }),
 }

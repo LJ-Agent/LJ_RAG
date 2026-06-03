@@ -25,13 +25,13 @@ export interface ChunkStats {
 
 export const chunkApi = {
   list: (documentId: number, params?: { page?: number; size?: number; keyword?: string }): Promise<Page<ChunkVO>> =>
-    request.post(BASE, { documentId, ...params }),
+    request.get(BASE, { params: { documentId, ...params } }),
 
   create: (documentId: number, content: string): Promise<ChunkVO> =>
     request.post(BASE, { documentId, content }),
 
   getByChunkId: (chunkId: string): Promise<ChunkVO> =>
-    request.post(`${BASE}/by-chunk-id/${chunkId}`),
+    request.get(`${BASE}/by-chunk-id/${chunkId}`),
 
   update: (id: number, content: string): Promise<ChunkVO> =>
     request.put(`${BASE}/${id}`, { content }),
@@ -43,14 +43,14 @@ export const chunkApi = {
     request.put(`${BASE}/batch-status`, { ids, status }),
 
   getStats: (documentId: number): Promise<ChunkStats> =>
-    request.post(`${BASE}/stats`, { documentId }),
+    request.get(`${BASE}/stats`, { params: { documentId } }),
 
   syncCount: (documentId: number): Promise<number> =>
-    request.post(`${BASE}/sync-count`, { documentId }),
+    request.post(`${BASE}/sync-count`, null, { params: { documentId } }),
 
   startEmbedding: (documentId: number): Promise<void> =>
-    request.post(`${BASE}/start-embedding`, { documentId }),
+    request.post(`${BASE}/start-embedding`, null, { params: { documentId } }),
 
   submitForReview: (documentId: number): Promise<void> =>
-    request.post(`${BASE}/submit-for-review`, { documentId }),
+    request.post(`${BASE}/submit-for-review`, null, { params: { documentId } }),
 }

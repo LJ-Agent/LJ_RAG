@@ -6,7 +6,7 @@ const BASE = '/users'
 
 export const userApi = {
   list: (params: { page?: number; size?: number }): Promise<Page<UserVO>> =>
-    request.post(BASE, params),
+    request.get(BASE, { params }),
 
   changePassword: (data: ChangePasswordDTO): Promise<void> =>
     request.put(`${BASE}/password`, data),
@@ -18,5 +18,5 @@ export const userApi = {
     request.delete(`${BASE}/${userId}/roles/${roleId}`),
 
   getUserRoles: (userId: number): Promise<RoleVO[]> =>
-    request.post(`${BASE}/${userId}/roles`),
+    request.get(`${BASE}/${userId}/roles`),
 }

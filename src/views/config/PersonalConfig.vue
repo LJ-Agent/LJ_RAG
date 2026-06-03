@@ -96,7 +96,7 @@ const filteredList = computed(() => {
 async function load() {
   loading.value = true
   try {
-    const res = await request.post('/user/configs/effective')
+    const res = await request.get('/user/configs/effective')
     allData.value = (res as any[]) || []
     // 仅展示用户有权限的分类
     const cats: Record<string,number> = {}

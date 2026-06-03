@@ -28,5 +28,5 @@ export const loginApi = {
 
   logout: (): Promise<void> => request.post(`${BASE}/logout`),
 
-  getMe: (): Promise<UserVO> => request.post(`${BASE}/me`),
+  getMe: (): Promise<UserVO> => request.get(`${BASE}/me`),
 }

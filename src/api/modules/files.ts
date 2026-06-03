@@ -26,10 +26,10 @@ export const fileApi = {
   },
 
   list: (params: FileQueryDTO): Promise<Page<FileVO>> =>
-    request.post(`${BASE}/list`, params),
+    request.get(BASE, { params }),
 
   detail: (id: number): Promise<FileVO> =>
-    request.post(`${BASE}/${id}`),
+    request.get(`${BASE}/${id}`),
 
   delete: (id: number): Promise<void> =>
     request.delete(`${BASE}/${id}`),
@@ -41,7 +41,7 @@ export const fileApi = {
     request.post(`${BASE}/${id}/rechunk`, { chunkStrategy, chunkConfig }),
 
   download: async (id: number, fileName: string): Promise<void> => {
-    const response = await request.post(`${BASE}/${id}/download`, null, {
+    const response = await request.get(`${BASE}/${id}/download`, {
       responseType: 'blob',
     })
     const url = window.URL.createObjectURL(new Blob([response as any]))
@@ -53,12 +53,11 @@ export const fileApi = {
   },
 
   getContent: (id: number): Promise<string> =>
-    request.post(`${BASE}/${id}/content`, null, { responseType: 'text' }),
+    request.get(`${BASE}/${id}/content`, { responseType: 'text' }),
 
   getRawContent: async (id: number): Promise<string> => {
     const token = getAccessToken()
     const resp = await fetch(`${import.meta.env.VITE_API_BASE_URL}/files/${id}/raw`, {
-      method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!resp.ok) throw new Error('Failed to fetch raw content')
@@ -68,7 +67,6 @@ export const fileApi = {
   getRawArrayBuffer: async (id: number): Promise<ArrayBuffer> => {
     const token = getAccessToken()
     const resp = await fetch(`${import.meta.env.VITE_API_BASE_URL}/files/${id}/raw`, {
-      method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!resp.ok) throw new Error('Failed to fetch raw file')
@@ -76,7 +74,7 @@ export const fileApi = {
   },
 
   getRawBlobUrl: async (id: number): Promise<string> => {
-    const response = await request.post(`${BASE}/${id}/raw`, null, {
+    const response = await request.get(`${BASE}/${id}/raw`, {
       responseType: 'blob',
     })
     const blob = new Blob([response as any])

@@ -179,7 +179,7 @@ const canUpload = computed(() => selectedKbId.value && fileList.value.length > 0
 onMounted(async () => {
   // 读取启用的策略
   try {
-    const res: any = await request.post('/user/configs/effective')
+    const res: any = await request.get('/user/configs/effective')
     const enabled: string[] = (res || []).filter((r: any) => r.configKey?.startsWith('chunk.') && r.configKey?.endsWith('.enabled') && r.configValue === 'true').map((r: any) => r.configKey.split('.')[1])
     if (enabled.length > 0) enabledStrategies.value = new Set(enabled)
   } catch { /* keep all enabled by default */ }

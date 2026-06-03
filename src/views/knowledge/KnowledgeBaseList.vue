@@ -135,7 +135,7 @@ function getTeamName(kbId: number) { return teamNames.value[kbId] || '默认团�
 
 async function loadTeams() {
   try {
-    const data = await request.post('/teams')
+    const data = await request.get('/teams')
     allTeams.value = (data as any[]).map((t: any) => t.team)
     // Map KB team_id to team name (use knowledge_bases.team_id from backend)
     for (const kb of list.value) {
