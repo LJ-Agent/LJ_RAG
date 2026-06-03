@@ -11,6 +11,7 @@
     </parent>
     <artifactId>rag-config</artifactId>
 
+
     <dependencies>
         <dependency>
             <groupId>com.rag</groupId>
