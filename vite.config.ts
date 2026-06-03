@@ -32,8 +32,6 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: '0.0.0.0',  // 允许 Docker Gateway 通过 host.docker.internal 访问
-    allowedHosts: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8088',
