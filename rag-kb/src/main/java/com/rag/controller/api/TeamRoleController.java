@@ -19,7 +19,7 @@ public class TeamRoleController {
     // 直接使用 JDBC Template 操作 team_roles / team_role_permissions 表
     private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
-    @PostMapping
+    @PostMapping("/create")
     public Result<List<Map<String, Object>>> list() {
         String sql = "SELECT tr.*, (SELECT COUNT(*) FROM team_role_permissions trp WHERE trp.team_role_id=tr.id) AS perm_count FROM team_roles tr ORDER BY tr.sort_order";
         return Result.success(jdbc.queryForList(sql));

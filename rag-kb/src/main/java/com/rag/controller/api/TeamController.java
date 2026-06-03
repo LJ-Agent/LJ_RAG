@@ -25,7 +25,7 @@ public class TeamController {
     private final com.rag.domain.mapper.TeamMemberMapper teamMemberMapper;
     private final com.rag.domain.mapper.TeamKnowledgeBaseMapper teamKbMapper;
 
-    @PostMapping
+    @PostMapping("/create")
     public Result<List<Map<String,Object>>> myTeams() {
         Long userId = UserContext.getUserId();
         List<TeamMember> memberships = teamMemberMapper.selectList(

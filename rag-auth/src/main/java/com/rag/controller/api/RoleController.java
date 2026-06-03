@@ -56,7 +56,7 @@ public class RoleController {
     }
 
     @Operation(summary = "创建角色")
-    @PostMapping
+    @PostMapping("/create")
     @Transactional
     public Result<Role> create(@RequestBody Role role) {
         Role exist = roleMapper.selectOne(

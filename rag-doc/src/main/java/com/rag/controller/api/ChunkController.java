@@ -45,7 +45,7 @@ public class ChunkController {
     }
 
     @Operation(summary = "新增块")
-    @PostMapping
+    @PostMapping("/create")
     @PreAuthorize("hasAuthority('DOCUMENT:VIEW')")
     public Result<ChunkVO> create(@RequestBody Map<String, Object> body) {
         Long documentId = body.get("documentId") != null

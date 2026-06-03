@@ -16,7 +16,7 @@ import java.util.*;
 public class ResourcePermissionController {
     private final JdbcTemplate jdbc;
 
-    @PostMapping
+    @PostMapping("/create")
     public List<Map<String,Object>> list(@RequestBody(required = false) Map<String, Object> body) {
         String type = body != null && body.containsKey("type") ? body.get("type").toString() : "tab";
         return jdbc.queryForList("SELECT * FROM resource_permissions WHERE resource_type=? ORDER BY resource_path", type);
@@ -35,7 +35,7 @@ public class ResourcePermissionController {
         return map;
     }
 
-    @PostMapping
+    @PostMapping("/create")
     @Transactional
     public Map<String,Object> create(@RequestBody Map<String,String> body) {
         jdbc.update("INSERT IGNORE INTO resource_permissions (resource_path, resource_type, permission_code, description) VALUES (?,?,?,?)",
