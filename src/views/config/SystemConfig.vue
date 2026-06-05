@@ -155,7 +155,7 @@ const activeScope = ref('system')
 const activeCat = ref('chunk')
 
 // ─── 系统配置 ───
-const SYS_CATS: Record<string,string> = { upload:'文件上传', rate_limit:'限流控制' }
+const SYS_CATS: Record<string,string> = { chunk:'分块策略', retrieval:'检索参数', cleaning:'文档清洗', qa:'问答设置', rate_limit:'限流控制', review:'审核策略', upload:'文件上传', general:'通用设置' }
 const sysCats = ref<{value:string;label:string;count:number}[]>([])
 const sysList = ref<SystemConfigVO[]>([])
 const sysLoading = ref(false)
@@ -242,8 +242,8 @@ function onScopeChange() {
   else { activeCat.value='chunk'; loadPersonalConfigs() }
 }
 
-// 初始化: 默认展示个人偏好
-loadPersonalConfigs()
+// 初始化: 加载系统配置 + 个人偏好
+onScopeChange()
 </script>
 
 <style scoped>
