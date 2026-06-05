@@ -242,8 +242,8 @@ function onScopeChange() {
   else { activeCat.value='chunk'; loadPersonalConfigs() }
 }
 
-// 初始化: 默认展示个人偏好
-loadPersonalConfigs()
+// 初始化: 根据当前 scope 加载对应数据
+onScopeChange()
 </script>
 
 <style scoped>
