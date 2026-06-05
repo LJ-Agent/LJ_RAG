@@ -7,6 +7,11 @@
       </el-button>
     </div>
 
+    <!-- 系统/个人 维度切换 -->
+    <el-tabs v-model="activeScope" @tab-change="onScopeChange" type="border-card" style="margin-bottom:12px">
+      <el-tab-pane name="system"><template #label><span v-permission="'CONFIG:MANAGE'">🔧 系统配置（仅管理员）</span></template></el-tab-pane>
+      <el-tab-pane name="personal"><template #label>👤 个人偏好</template></el-tab-pane>
+    </el-tabs>
 
     <!-- ========== 系统配置 ========== -->
     <template v-if="activeScope==='system'">
