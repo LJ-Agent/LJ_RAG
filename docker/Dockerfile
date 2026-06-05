@@ -19,7 +19,7 @@ COPY rag-qa/src rag-qa/src
 COPY rag-config/src rag-config/src
 COPY rag-monolith/src rag-monolith/src
 COPY proto proto/
-RUN mvn package -pl rag-monolith -am -DskipTests -B -q
+RUN mvn package -pl rag-monolith -am -DskipTests -Dspring-boot-maven-plugin.skip=false -B -q
 
 FROM amazoncorretto:17-alpine
 WORKDIR /app
