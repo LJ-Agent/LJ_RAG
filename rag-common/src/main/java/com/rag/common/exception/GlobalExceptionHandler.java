@@ -63,6 +63,27 @@ public class GlobalExceptionHandler {
         return Result.fail(ResultCodeEnum.PARAM_ERROR.getCode(), "缺少必要参数: " + e.getParameterName());
     }
 
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Result<Void> handleDataAccessException(org.springframework.dao.DataAccessException e) {
+        log.error("数据库访问异常", e);
+        return Result.fail(ResultCodeEnum.SYSTEM_ERROR.getCode(), "数据访问异常，请稍后重试");
+    }
+
+    @ExceptionHandler(java.io.IOException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Result<Void> handleIOException(java.io.IOException e) {
+        log.error("IO异常: {}", e.getMessage());
+        return Result.fail(ResultCodeEnum.FILE_NOT_FOUND.getCode(), "文件读取失败: " + e.getMessage());
+    }
+
+    @ExceptionHandler(jakarta.servlet.ServletException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Result<Void> handleServletException(jakarta.servlet.ServletException e) {
+        log.error("Servlet异常: {}", e.getMessage());
+        return Result.fail(ResultCodeEnum.SYSTEM_ERROR.getCode(), "请求处理异常");
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception e) {

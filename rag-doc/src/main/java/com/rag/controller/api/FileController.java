@@ -1,7 +1,6 @@
 package com.rag.controller.api;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.springframework.context.annotation.Profile;
 import com.rag.common.result.Result;
 import com.rag.controller.interceptor.JwtAuthInterceptor;
 import com.rag.infrastructure.security.TeamPermission;
@@ -15,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Profile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -96,8 +96,9 @@ public class FileController {
         fileService.getContent(id, response);
     }
 
-    @Operation(summary = "获取原始文件（inline预览，带JWT鉴权）")
+    @Operation(summary = "获取原始文件（inline预览，带JWT鉴权，支持GET/POST）")
     @PostMapping("/{id}/raw")
+    @GetMapping("/{id}/raw")
     public void raw(@PathVariable Long id, HttpServletResponse response) {
         fileService.raw(id, response);
     }

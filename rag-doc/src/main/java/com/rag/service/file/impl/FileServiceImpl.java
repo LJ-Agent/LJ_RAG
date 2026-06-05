@@ -288,13 +288,23 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public void getContent(Long id, HttpServletResponse response) {
-        Document doc = documentMapper.selectById(id);
+        Document doc;
+        try {
+            doc = documentMapper.selectById(id);
+        } catch (Exception e) {
+            log.error("查询文档失败: id={}", id, e);
+            throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
+        }
         if (doc == null) {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
 
         try {
-            String cleanedObjectName = buildCleanedPath(doc.getMinioPath());
+            String minioPath = doc.getMinioPath();
+            if (minioPath == null || minioPath.isEmpty()) {
+                throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND.getCode(), "文档存储路径无效");
+            }
+            String cleanedObjectName = buildCleanedPath(minioPath);
             if (cleanedObjectName == null) {
                 throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND.getCode(), "文档路径无效");
             }
@@ -321,28 +331,44 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public void download(Long id, HttpServletResponse response) {
-        Document doc = documentMapper.selectById(id);
+        Document doc;
+        try {
+            doc = documentMapper.selectById(id);
+        } catch (Exception e) {
+            log.error("查询文档失败: id={}", id, e);
+            throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
+        }
         if (doc == null) {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
 
-        try {
-            InputStream is = minioClient.getObject(GetObjectArgs.builder()
-                    .bucket(minioConfig.getBucketName())
-                    .object(doc.getMinioPath())
-                    .build());
+        String minioPath = doc.getMinioPath();
+        if (minioPath == null || minioPath.isEmpty()) {
+            log.error("文档MinIO路径为空: id={}", id);
+            throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND.getCode(), "文档存储路径无效");
+        }
+        String fileName = doc.getFileName();
+        if (fileName == null) {
+            fileName = "unknown";
+        }
+
+        try (InputStream is = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(minioConfig.getBucketName())
+                .object(minioPath)
+                .build())) {
 
             response.setContentType("application/octet-stream");
             response.setHeader("Content-Disposition",
-                    "attachment; filename=" + URLEncoder.encode(doc.getFileName(), StandardCharsets.UTF_8));
+                    "attachment; filename=" + URLEncoder.encode(fileName, StandardCharsets.UTF_8));
 
             byte[] buffer = new byte[8192];
             int read;
             while ((read = is.read(buffer)) != -1) {
                 response.getOutputStream().write(buffer, 0, read);
             }
-            is.close();
             response.getOutputStream().flush();
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("文件下载失败: id={}", id, e);
             throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND);
@@ -500,17 +526,34 @@ public class FileServiceImpl implements FileService {
 
     @Override
     public void raw(Long id, HttpServletResponse response) {
-        Document doc = documentMapper.selectById(id);
+        Document doc;
+        try {
+            doc = documentMapper.selectById(id);
+        } catch (Exception e) {
+            log.error("查询文档失败: id={}", id, e);
+            throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
+        }
         if (doc == null) {
             throw new BusinessException(ResultCodeEnum.DOCUMENT_NOT_FOUND);
         }
 
+        // 校验必要字段
+        String minioPath = doc.getMinioPath();
+        if (minioPath == null || minioPath.isEmpty()) {
+            log.error("文档MinIO路径为空: id={}", id);
+            throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND.getCode(), "文档存储路径无效");
+        }
+        String fileName = doc.getFileName();
+        if (fileName == null) {
+            fileName = "unknown";
+        }
+
         try (InputStream is = minioClient.getObject(GetObjectArgs.builder()
                 .bucket(minioConfig.getBucketName())
-                .object(doc.getMinioPath())
+                .object(minioPath)
                 .build())) {
 
-            String ext = getFileExtension(doc.getFileName());
+            String ext = getFileExtension(fileName);
             String contentType = switch (ext) {
                 case "pdf" -> "application/pdf";
                 case "jpg", "jpeg" -> "image/jpeg";
@@ -529,10 +572,15 @@ public class FileServiceImpl implements FileService {
                 default -> "application/octet-stream";
             };
             response.setContentType(contentType);
-            response.setContentLengthLong(doc.getFileSize());
+
+            // fileSize 可能为 null（历史数据或异常上传），安全处理
+            Long fileSize = doc.getFileSize();
+            if (fileSize != null && fileSize > 0) {
+                response.setContentLengthLong(fileSize);
+            }
 
             // RFC 5987 编码非ASCII文件名
-            String encodedName = URLEncoder.encode(doc.getFileName(), StandardCharsets.UTF_8)
+            String encodedName = URLEncoder.encode(fileName, StandardCharsets.UTF_8)
                     .replace("+", "%20");
             response.setHeader("Content-Disposition",
                     "inline; filename=\"" + encodedName + "\"; filename*=UTF-8''" + encodedName);
@@ -546,7 +594,7 @@ public class FileServiceImpl implements FileService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("获取原始文件失败: id={}, minioPath={}", id, doc.getMinioPath(), e);
+            log.error("获取原始文件失败: id={}, minioPath={}", id, minioPath, e);
             throw new BusinessException(ResultCodeEnum.FILE_NOT_FOUND);
         }
     }
