@@ -10,3 +10,10 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+
+# QUE Engine — Query Understanding & Execution
+grpc:
+  que:
+    host: ${QUE_HOST:localhost}
+    port: ${QUE_PORT:50055}

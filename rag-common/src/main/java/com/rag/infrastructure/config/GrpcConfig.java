@@ -30,11 +30,36 @@ public class GrpcConfig {
                 .build();
     }
 
+    @Value("${grpc.que.host:localhost}")
+    private String queHost;
+
+    @Value("${grpc.que.port:50055}")
+    private int quePort;
+
+    @Bean
+    public ManagedChannel retrievalChannel() {
+        return ManagedChannelBuilder.forAddress(retrievalHost, retrievalPort)
+                .usePlaintext()
+                .keepAliveWithoutCalls(true)
+                .idleTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .build();
+    }
+
     @Bean
     public ManagedChannel generationChannel() {
         return ManagedChannelBuilder.forAddress(generationHost, generationPort)
                 .usePlaintext()
                 .keepAliveWithoutCalls(true)
+                .idleTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .build();
+    }
+
+    @Bean
+    public ManagedChannel queChannel() {
+        return ManagedChannelBuilder.forAddress(queHost, quePort)
+                .usePlaintext()
+                .keepAliveWithoutCalls(true)
+                .maxInboundMessageSize(50 * 1024 * 1024)  // 50MB for large contexts
                 .idleTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
                 .build();
     }

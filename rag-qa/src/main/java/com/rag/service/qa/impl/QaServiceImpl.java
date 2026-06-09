@@ -10,9 +10,11 @@ import com.rag.common.exception.BusinessException;
 import com.rag.common.result.Result;
 import com.rag.common.result.ResultCodeEnum;
 import com.rag.communication.grpc.client.GenerationServiceClient;
+import com.rag.communication.grpc.client.QueServiceClient;
 import com.rag.communication.grpc.client.RetrievalServiceClient;
 import com.rag.communication.grpc.proto.DocumentChunk;
 import com.rag.communication.grpc.proto.GenerationResponse;
+import com.rag.communication.grpc.proto.QueResponse;
 import com.rag.communication.grpc.proto.RetrievalResponse;
 import com.rag.domain.entity.ChatRecord;
 import com.rag.domain.entity.ChatSession;
@@ -35,6 +37,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @Slf4j
 @Service
@@ -43,6 +47,7 @@ public class QaServiceImpl implements QaService {
 
     private final RetrievalServiceClient retrievalClient;
     private final GenerationServiceClient generationClient;
+    private final QueServiceClient queClient;
     private final ChatRecordMapper chatRecordMapper;
     private final ChatSessionMapper sessionMapper;
     private final DocumentMapper documentMapper;
@@ -50,7 +55,7 @@ public class QaServiceImpl implements QaService {
 
     @Override
     public Result<AnswerVO> chat(QuestionDTO dto, Long userId) {
-        // 1. 检查缓存（含 kbIds 避免不同知识库污染）
+        // 1. 检查缓存
         String kbIdsKey = dto.getKbIds().stream().sorted().map(String::valueOf)
                 .collect(java.util.stream.Collectors.joining(","));
         String cacheKey = CacheConstants.QA_CACHE_PREFIX + kbIdsKey + ":"
@@ -61,32 +66,37 @@ public class QaServiceImpl implements QaService {
             return Result.success(JSONUtil.toBean(cached, AnswerVO.class));
         }
 
-        // 2. gRPC检索
         long startTime = System.currentTimeMillis();
-        RetrievalResponse retrievalResponse = retrievalClient.retrieve(
-                dto.getQuestion(), dto.getKbIds(), dto.getTopK(), dto.getScoreThreshold());
 
-        // 3. 构建上下文
-        List<String> contexts = new ArrayList<>();
+        // 2. QUE Engine — 查询理解+检索编排
+        Map<String, String> context = QueServiceClient.buildContext(
+                userId, dto.getSessionId(), dto.getKbIds());
+        QueResponse queResponse = queClient.execute(
+                dto.getQuestion(), context, 30000);
+
+        // 3. 构建上下文 — from QUE SearchResult
+        List<String> contexts = QueServiceClient.extractContexts(queResponse);
+        List<Map<String, Object>> queSourceDocs = QueServiceClient.extractSourceDocs(queResponse);
+
+        // 3.1 转换 SourceDoc 格式
         List<AnswerVO.SourceDoc> sourceDocs = new ArrayList<>();
-        for (DocumentChunk chunk : retrievalResponse.getChunksList()) {
-            contexts.add(chunk.getContent());
-
+        for (Map<String, Object> sd : queSourceDocs) {
             AnswerVO.SourceDoc src = new AnswerVO.SourceDoc();
-            src.setDocumentId(chunk.getDocumentId());
-            src.setDocumentName(chunk.getDocumentName());
-            src.setChunkId(chunk.getChunkId());
-            src.setChunkIndex(chunk.getChunkIndex());
-            src.setContent(chunk.getContent());
-            src.setScore(chunk.getScore());
+            src.setDocumentId((Long) sd.getOrDefault("documentId", 0L));
+            src.setDocumentName((String) sd.getOrDefault("documentName", ""));
+            src.setChunkId((String) sd.getOrDefault("chunkId", ""));
+            src.setChunkIndex((Integer) sd.getOrDefault("chunkIndex", 0));
+            src.setContent((String) sd.getOrDefault("content", ""));
+            src.setScore((Double) sd.getOrDefault("score", 0.0));
             sourceDocs.add(src);
         }
 
-        // 3.1 回填文档名称（Milvus 未存储文档名，通过 DB 批量查询补全）
+        // 回填文档名称
         enrichDocumentNames(sourceDocs);
 
-        // 4. gRPC生成
-        GenerationResponse generationResponse = generationClient.generate(dto.getQuestion(), contexts);
+        // 4. gRPC生成 — 使用 QUE 综合后的上下文
+        GenerationResponse generationResponse = generationClient.generate(
+                dto.getQuestion(), contexts);
         int latency = (int) (System.currentTimeMillis() - startTime);
 
         // 5. 构建结果
@@ -112,7 +122,7 @@ public class QaServiceImpl implements QaService {
 
         vo.setChatId(record.getId());
 
-        // 7. 写入缓存 — 仅缓存有效结果（非空检索+非空回答）
+        // 7. 写入缓存
         if (!sourceDocs.isEmpty() && StrUtil.isNotBlank(generationResponse.getContent())
                 && generationResponse.getTokenCount() > 0) {
             stringRedisTemplate.opsForValue().set(cacheKey, JSONUtil.toJsonStr(vo),
